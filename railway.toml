@@ -1,0 +1,9 @@
+[build]
+builder = "dockerfile"
+
+[deploy]
+startCommand = "bundle exec thrust ./bin/rails server -b 0.0.0.0 -p ${PORT:-3000}"
+healthcheckPath = "/up"
+healthcheckTimeout = 100
+restartPolicyType = "on_failure"
+restartPolicyMaxRetries = 3
