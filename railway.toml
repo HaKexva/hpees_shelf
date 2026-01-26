@@ -3,7 +3,7 @@ builder = "dockerfile"
 
 [deploy]
 startCommand = "./bin/rails db:prepare && HTTP_PORT=${PORT:-3000} bundle exec thrust ./bin/rails server"
-healthcheckPath = "/up"
+healthcheckPath = "/health"
 healthcheckTimeout = 100
 restartPolicyType = "on_failure"
 restartPolicyMaxRetries = 3
