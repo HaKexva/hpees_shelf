@@ -1,5 +1,4 @@
 [deploy]
-startCommand = "./bin/rails db:prepare && bundle exec rails server -b 0.0.0.0 -p $PORT"
 healthcheckPath = "/up"
 healthcheckTimeout = 100
 restartPolicyType = "on_failure"
