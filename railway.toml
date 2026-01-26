@@ -2,7 +2,7 @@
 builder = "dockerfile"
 
 [deploy]
-startCommand = "/bin/bash -c './bin/rails db:prepare && bundle exec rails server -b 0.0.0.0 -p 3000'"
+startCommand = "/bin/bash -c 'mkdir -p /rails/storage && ls -la /rails/storage && ./bin/rails db:prepare && bundle exec rails server -b 0.0.0.0 -p 3000'"
 healthcheckPath = "/up"
 healthcheckTimeout = 100
 restartPolicyType = "on_failure"
