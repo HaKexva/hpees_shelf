@@ -71,3 +71,6 @@ yarn-debug.log*
 # Ignore byebug/debugger history
 .byebug_history
 .rdbg_history
+
+/app/assets/builds/*
+!/app/assets/builds/.keep
