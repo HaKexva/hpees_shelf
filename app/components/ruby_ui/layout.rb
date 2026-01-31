@@ -1,5 +1,6 @@
 module RubyUI
   class Layout < Base
+    include Phlex::Rails::Helpers::Routes
 
     APP_NAME = "Hpees Shelf"
     
@@ -63,9 +64,9 @@ module RubyUI
 
     # Shared navigation links to avoid duplication
     def render_nav_links
-      nav_link(href: "#") { "借還書" }
-      nav_link(href: "#") { "書籍管理" }
-      nav_link(href: "#") { "人員管理" }
+      nav_link(href: root_path) { "借還書" }
+      nav_link(href: books_path) { "書籍管理" }
+      nav_link(href: users_path) { "人員管理" }
     end
 
     def nav_link(href:, &block)

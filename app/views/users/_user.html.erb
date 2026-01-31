@@ -1,0 +1,21 @@
+<div id="<%= dom_id user %>" class="py-5 flex flex-col w-full">
+  <p class="my-2">
+    <strong class="block font-medium text-sm text-gray-500">Name:</strong>
+    <%= user.name %>
+  </p>
+
+  <p class="my-2">
+    <strong class="block font-medium text-sm text-gray-500">Email:</strong>
+    <%= user.email %>
+  </p>
+
+  <p class="my-2">
+    <strong class="block font-medium text-sm text-gray-500">ID Number:</strong>
+    <%= user.id_number %>
+  </p>
+
+  <p class="my-2">
+    <strong class="block font-medium text-sm text-gray-500">Admin:</strong>
+    <%= user.admin ? "Yes" : "No" %>
+  </p>
+</div>
