@@ -1,9 +1,48 @@
+require "csv"
+
 class BooksController < ApplicationController
   before_action :set_book, only: %i[ show edit update destroy ]
 
   # GET /books or /books.json
   def index
     @books = Book.all
+  end
+
+  # GET /books/import
+  # POST /books/import
+  def import
+    if request.post? && params[:file].present?
+      file = params[:file]
+      @imported_data = []
+      @headers = []
+
+      begin
+        content = file.read.force_encoding("UTF-8")
+        csv = CSV.parse(content, headers: true)
+        @headers = csv.headers
+        @imported_data = csv.map(&:to_h)
+
+        if params[:confirm] == "true"
+          imported_count = 0
+          @imported_data.each do |row|
+            book = Book.new(
+              title: row["title"] || row["Title"],
+              isbn: row["isbn"] || row["ISBN"],
+              total: row["total"] || row["Total"],
+              volume: row["volume"] || row["Volume"],
+              note: row["note"] || row["Note"],
+              grade_id: row["grade_id"] || row["Grade ID"]
+            )
+            imported_count += 1 if book.save
+          end
+          redirect_to books_path, notice: "Successfully imported #{imported_count} books."
+          nil
+        end
+      rescue StandardError => e
+        flash.now[:alert] = "Error parsing file: #{e.message}"
+        @imported_data = []
+      end
+    end
   end
 
   # GET /books/1 or /books/1.json
