@@ -3,7 +3,7 @@ module RubyUI
     include Phlex::Rails::Helpers::Routes
 
     APP_NAME = "Hpees Shelf"
-    
+
     def view_template(&block)
       div(class: "flex h-screen w-full overflow-hidden bg-background") do
         # 1. Desktop Sidebar (Hidden on mobile)
@@ -48,7 +48,7 @@ module RubyUI
               menu_icon
             end
           end
-          
+
           # The Sheet slides in. You can use side: :top, :left, or :right
           SheetContent(side: :right) do
             SheetHeader do
