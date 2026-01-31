@@ -1,5 +1,3 @@
-require "csv"
-
 class BooksController < ApplicationController
   before_action :set_book, only: %i[ show edit update destroy ]
 
@@ -17,6 +15,7 @@ class BooksController < ApplicationController
       @headers = []
 
       begin
+        require "csv"
         content = file.read.force_encoding("UTF-8")
         csv = CSV.parse(content, headers: true)
         @headers = csv.headers
