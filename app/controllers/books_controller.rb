@@ -65,6 +65,22 @@ class BooksController < ApplicationController
         @missing_columns = @expected_columns - @headers.map(&:downcase)
         @extra_columns = @headers.map(&:downcase) - @expected_columns
 
+        # Check for duplicates in database
+        @duplicates = []
+        @new_books = []
+        @imported_data.each_with_index do |row, index|
+          book_attrs = {
+            title: row["title"] || row["Title"],
+            isbn: row["isbn"] || row["ISBN"]
+          }
+          existing = Book.find_by(title: book_attrs[:title], isbn: book_attrs[:isbn])
+          if existing
+            @duplicates << { index: index, row: row, existing: existing }
+          else
+            @new_books << { index: index, row: row }
+          end
+        end
+
         render :import
       rescue StandardError => e
         flash.now[:alert] = "Error parsing file: #{e.message}"
