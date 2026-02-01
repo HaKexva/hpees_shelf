@@ -16,9 +16,10 @@ class BooksController < ApplicationController
     return unless request.post?
 
     if params[:confirm] == "true" && params[:import_data].present?
-      # Confirm import from hidden field data
+      # Confirm import from hidden field data (Base64 encoded JSON)
       require "json"
-      import_data = JSON.parse(params[:import_data])
+      require "base64"
+      import_data = JSON.parse(Base64.strict_decode64(params[:import_data]))
 
       imported_count = 0
       skipped_count = 0

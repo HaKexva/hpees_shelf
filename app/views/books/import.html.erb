@@ -68,7 +68,7 @@
 
       <%= form_with url: import_books_path, method: :post do |f| %>
         <input type="hidden" name="confirm" value="true">
-        <input type="hidden" name="import_data" value="<%= @imported_data.to_json %>">
+        <%= hidden_field_tag :import_data, Base64.strict_encode64(@imported_data.to_json) %>
         <div class="mb-4">
           <label class="block text-sm font-medium text-gray-700 mb-2">Grade ID (applies to all imported books)</label>
           <input type="number" name="grade_id" min="1" class="block w-48 shadow-sm rounded-md border border-gray-300 px-3 py-2" placeholder="Enter grade ID">
