@@ -4,6 +4,31 @@ class BooksController < ApplicationController
   # GET /books or /books.json
   def index
     @books = Book.all
+
+    # Check for duplicate books (same title and isbn)
+    @duplicates = Book.select(:title, :isbn)
+                      .group(:title, :isbn)
+                      .having("COUNT(*) > 1")
+                      .map do |dup|
+                        Book.where(title: dup.title, isbn: dup.isbn).to_a
+                      end
+  end
+
+  # POST /books/resolve_duplicate
+  def resolve_duplicate
+    keep_id = params[:keep_id]
+    delete_id = params[:delete_id]
+
+    if delete_id.present?
+      book = Book.find_by(id: delete_id)
+      book&.destroy
+      redirect_to books_path, notice: "已刪除重複書籍。"
+    elsif keep_id.present?
+      # Mark as reviewed (keep both) - just redirect
+      redirect_to books_path, notice: "已保留兩本書籍。"
+    else
+      redirect_to books_path
+    end
   end
 
   # GET /books/import

@@ -3,6 +3,7 @@ Rails.application.routes.draw do
     collection do
       get :import
       post :import
+      post :resolve_duplicate
     end
   end
   # Define your application routes per the DSL in https://guides.rubyonrails.org/routing.html
