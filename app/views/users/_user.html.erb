@@ -1,21 +1,23 @@
 <div id="<%= dom_id user %>" class="py-5 flex flex-col w-full">
   <p class="my-2">
-    <strong class="block font-medium text-sm text-gray-500">Name:</strong>
+    <strong class="block font-medium text-sm text-gray-500">姓名：</strong>
     <%= user.name %>
   </p>
 
   <p class="my-2">
-    <strong class="block font-medium text-sm text-gray-500">Email:</strong>
+    <strong class="block font-medium text-sm text-gray-500">電子郵件：</strong>
     <%= user.email %>
   </p>
 
-  <p class="my-2">
-    <strong class="block font-medium text-sm text-gray-500">ID Number:</strong>
-    <%= user.id_number %>
-  </p>
+  <% unless user.admin %>
+    <p class="my-2">
+      <strong class="block font-medium text-sm text-gray-500">學號：</strong>
+      <%= user.id_number %>
+    </p>
+  <% end %>
 
   <p class="my-2">
-    <strong class="block font-medium text-sm text-gray-500">Admin:</strong>
-    <%= user.admin ? "Yes" : "No" %>
+    <strong class="block font-medium text-sm text-gray-500">管理員：</strong>
+    <%= user.admin ? "是" : "否" %>
   </p>
 </div>

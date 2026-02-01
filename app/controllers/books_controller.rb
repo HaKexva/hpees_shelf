@@ -48,8 +48,8 @@ class BooksController < ApplicationController
         end
       end
 
-      message = "Successfully imported #{imported_count} books."
-      message += " #{skipped_count} duplicates skipped." if skipped_count > 0
+      message = "成功匯入 #{imported_count} 本書籍。"
+      message += " 已跳過 #{skipped_count} 本重複書籍。" if skipped_count > 0
       redirect_to books_path, notice: message, status: :see_other
     elsif params[:file].present?
       # Preview uploaded file
@@ -65,14 +65,14 @@ class BooksController < ApplicationController
         @missing_columns = @expected_columns - @headers.map(&:downcase)
         @extra_columns = @headers.map(&:downcase) - @expected_columns
 
-        render :import, status: :unprocessable_entity
+        render :import
       rescue StandardError => e
         flash.now[:alert] = "Error parsing file: #{e.message}"
-        render :import, status: :unprocessable_entity
+        render :import
       end
     else
       flash.now[:alert] = "Please select a file to upload."
-      render :import, status: :unprocessable_entity
+      render :import
     end
   end
 

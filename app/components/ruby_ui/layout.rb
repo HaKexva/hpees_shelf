@@ -52,7 +52,7 @@ module RubyUI
           # The Sheet slides in. You can use side: :top, :left, or :right
           SheetContent(side: :right) do
             SheetHeader do
-              SheetTitle { "Navigation" }
+              SheetTitle { "導覽選單" }
             end
             div(class: "mt-4 flex flex-col gap-2") do
               render_nav_links

@@ -1,7 +1,7 @@
 <%= form_with(model: user, class: "contents") do |form| %>
   <% if user.errors.any? %>
     <div id="error_explanation" class="bg-red-50 text-red-500 px-3 py-2 font-medium rounded-md mt-3">
-      <h2><%= pluralize(user.errors.count, "error") %> prohibited this user from being saved:</h2>
+      <h2>有 <%= user.errors.count %> 個錯誤，無法儲存此人員：</h2>
 
       <ul class="list-disc ml-6">
         <% user.errors.each do |error| %>
@@ -12,26 +12,28 @@
   <% end %>
 
   <div class="my-5">
-    <%= form.label :name %>
+    <%= form.label :name, "姓名" %>
     <%= form.text_field :name, class: ["block shadow-sm rounded-md border px-3 py-2 mt-2 w-full", {"border-gray-400 focus:outline-blue-600": user.errors[:name].none?, "border-red-400 focus:outline-red-600": user.errors[:name].any?}] %>
   </div>
 
   <div class="my-5">
-    <%= form.label :email %>
+    <%= form.label :email, "電子郵件" %>
     <%= form.email_field :email, class: ["block shadow-sm rounded-md border px-3 py-2 mt-2 w-full", {"border-gray-400 focus:outline-blue-600": user.errors[:email].none?, "border-red-400 focus:outline-red-600": user.errors[:email].any?}] %>
   </div>
 
-  <div class="my-5">
-    <%= form.label :id_number %>
-    <%= form.text_field :id_number, class: ["block shadow-sm rounded-md border px-3 py-2 mt-2 w-full", {"border-gray-400 focus:outline-blue-600": user.errors[:id_number].none?, "border-red-400 focus:outline-red-600": user.errors[:id_number].any?}] %>
-  </div>
+  <% unless user.admin %>
+    <div class="my-5">
+      <%= form.label :id_number, "學號" %>
+      <%= form.text_field :id_number, class: ["block shadow-sm rounded-md border px-3 py-2 mt-2 w-full", {"border-gray-400 focus:outline-blue-600": user.errors[:id_number].none?, "border-red-400 focus:outline-red-600": user.errors[:id_number].any?}] %>
+    </div>
+  <% end %>
 
   <div class="my-5 flex items-center">
     <%= form.check_box :admin, class: "h-4 w-4 rounded border-gray-400 text-blue-600 focus:ring-blue-600" %>
-    <%= form.label :admin, class: "ml-2" %>
+    <%= form.label :admin, "管理員", class: "ml-2" %>
   </div>
 
   <div class="inline">
-    <%= form.submit class: "w-full sm:w-auto rounded-md px-3.5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white inline-block font-medium cursor-pointer" %>
+    <%= form.submit "儲存", class: "w-full sm:w-auto rounded-md px-3.5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white inline-block font-medium cursor-pointer" %>
   </div>
 <% end %>
