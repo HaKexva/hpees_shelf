@@ -27,6 +27,7 @@ class BooksController < ApplicationController
       # Confirm import from cached data
       imported_count = 0
       skipped_count = 0
+      selected_grade_id = params[:grade_id].presence&.to_i
       cached[:data].each do |row|
         book_attrs = {
           title: row["title"] || row["Title"],
@@ -34,7 +35,7 @@ class BooksController < ApplicationController
           total: (row["total"] || row["Total"]).to_i,
           volume: (row["volume"] || row["Volume"]).to_i,
           note: row["note"] || row["Note"],
-          grade_id: (row["grade_id"] || row["Grade ID"]).presence&.to_i
+          grade_id: selected_grade_id || (row["grade_id"] || row["Grade ID"]).presence&.to_i
         }
 
         # Skip if duplicate exists (all columns match)
