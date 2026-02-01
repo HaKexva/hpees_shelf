@@ -6,6 +6,78 @@ class BooksController < ApplicationController
     @books = Book.all
   end
 
+  # GET /books/import
+  # POST /books/import
+  def import
+    @imported_data = []
+    @headers = []
+    @expected_columns = %w[title isbn total volume note]
+
+    return unless request.post?
+
+    if params[:confirm] == "true"
+      cache_key = "import_data_#{session.id}"
+      cached = Rails.cache.read(cache_key)
+
+      unless cached.present?
+        redirect_to import_books_path, alert: "Session expired. Please upload the file again."
+        return
+      end
+
+      # Confirm import from cached data
+      imported_count = 0
+      skipped_count = 0
+      cached[:data].each do |row|
+        book_attrs = {
+          title: row["title"] || row["Title"],
+          isbn: row["isbn"] || row["ISBN"],
+          total: (row["total"] || row["Total"]).to_i,
+          volume: (row["volume"] || row["Volume"]).to_i,
+          note: row["note"] || row["Note"],
+          grade_id: (row["grade_id"] || row["Grade ID"]).presence&.to_i
+        }
+
+        # Skip if duplicate exists (all columns match)
+        if Book.exists?(book_attrs)
+          skipped_count += 1
+        else
+          book = Book.new(book_attrs)
+          imported_count += 1 if book.save
+        end
+      end
+      Rails.cache.delete(cache_key)
+      message = "Successfully imported #{imported_count} books."
+      message += " #{skipped_count} duplicates skipped." if skipped_count > 0
+      redirect_to books_path, notice: message
+    elsif params[:file].present?
+      # Preview uploaded file
+      file = params[:file]
+      begin
+        require "csv"
+        content = file.read.force_encoding("UTF-8")
+        csv = CSV.parse(content, headers: true)
+        @headers = csv.headers
+        @imported_data = csv.map(&:to_h)
+
+        # Check for column mismatches
+        @missing_columns = @expected_columns - @headers.map(&:downcase)
+        @extra_columns = @headers.map(&:downcase) - @expected_columns
+
+        # Store in cache for confirmation (expires in 10 minutes)
+        cache_key = "import_data_#{session.id}"
+        Rails.cache.write(cache_key, { data: @imported_data, headers: @headers }, expires_in: 10.minutes)
+
+        render :import, status: :unprocessable_entity
+      rescue StandardError => e
+        flash.now[:alert] = "Error parsing file: #{e.message}"
+        render :import, status: :unprocessable_entity
+      end
+    else
+      flash.now[:alert] = "Please select a file to upload."
+      render :import, status: :unprocessable_entity
+    end
+  end
+
   # GET /books/1 or /books/1.json
   def show
   end
