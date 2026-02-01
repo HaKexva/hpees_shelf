@@ -20,7 +20,7 @@ class BooksController < ApplicationController
       cached = Rails.cache.read(cache_key)
 
       unless cached.present?
-        redirect_to import_books_path, alert: "Session expired. Please upload the file again."
+        redirect_to import_books_path, alert: "Session expired. Please upload the file again.", status: :see_other
         return
       end
 
@@ -43,13 +43,17 @@ class BooksController < ApplicationController
           skipped_count += 1
         else
           book = Book.new(book_attrs)
-          imported_count += 1 if book.save
+          if book.save
+            imported_count += 1
+          else
+            Rails.logger.error "Failed to save book: #{book.errors.full_messages.join(', ')}"
+          end
         end
       end
       Rails.cache.delete(cache_key)
       message = "Successfully imported #{imported_count} books."
       message += " #{skipped_count} duplicates skipped." if skipped_count > 0
-      redirect_to books_path, notice: message
+      redirect_to books_path, notice: message, status: :see_other
     elsif params[:file].present?
       # Preview uploaded file
       file = params[:file]
