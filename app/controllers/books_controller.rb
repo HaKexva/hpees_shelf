@@ -18,20 +18,30 @@ class BooksController < ApplicationController
     if params[:confirm] == "true" && session[:import_data].present?
       # Confirm import from session data
       imported_count = 0
+      skipped_count = 0
       session[:import_data].each do |row|
-        book = Book.new(
+        book_attrs = {
           title: row["title"] || row["Title"],
           isbn: row["isbn"] || row["ISBN"],
-          total: row["total"] || row["Total"],
-          volume: row["volume"] || row["Volume"],
+          total: (row["total"] || row["Total"]).to_i,
+          volume: (row["volume"] || row["Volume"]).to_i,
           note: row["note"] || row["Note"],
-          grade_id: row["grade_id"] || row["Grade ID"]
-        )
-        imported_count += 1 if book.save
+          grade_id: (row["grade_id"] || row["Grade ID"]).presence&.to_i
+        }
+
+        # Skip if duplicate exists (all columns match)
+        if Book.exists?(book_attrs)
+          skipped_count += 1
+        else
+          book = Book.new(book_attrs)
+          imported_count += 1 if book.save
+        end
       end
       session.delete(:import_data)
       session.delete(:import_headers)
-      redirect_to books_path, notice: "Successfully imported #{imported_count} books."
+      message = "Successfully imported #{imported_count} books."
+      message += " #{skipped_count} duplicates skipped." if skipped_count > 0
+      redirect_to books_path, notice: message
     elsif params[:file].present?
       # Preview uploaded file
       file = params[:file]
