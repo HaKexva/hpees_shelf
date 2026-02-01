@@ -15,20 +15,16 @@ class BooksController < ApplicationController
 
     return unless request.post?
 
-    if params[:confirm] == "true"
-      cache_key = "import_data_#{session.id}"
-      cached = Rails.cache.read(cache_key)
+    if params[:confirm] == "true" && params[:import_data].present?
+      # Confirm import from hidden field data
+      require "json"
+      import_data = JSON.parse(params[:import_data])
 
-      unless cached.present?
-        redirect_to import_books_path, alert: "Session expired. Please upload the file again.", status: :see_other
-        return
-      end
-
-      # Confirm import from cached data
       imported_count = 0
       skipped_count = 0
       selected_grade_id = params[:grade_id].presence&.to_i
-      cached[:data].each do |row|
+
+      import_data.each do |row|
         book_attrs = {
           title: row["title"] || row["Title"],
           isbn: row["isbn"] || row["ISBN"],
@@ -50,7 +46,7 @@ class BooksController < ApplicationController
           end
         end
       end
-      Rails.cache.delete(cache_key)
+
       message = "Successfully imported #{imported_count} books."
       message += " #{skipped_count} duplicates skipped." if skipped_count > 0
       redirect_to books_path, notice: message, status: :see_other
@@ -67,10 +63,6 @@ class BooksController < ApplicationController
         # Check for column mismatches
         @missing_columns = @expected_columns - @headers.map(&:downcase)
         @extra_columns = @headers.map(&:downcase) - @expected_columns
-
-        # Store in cache for confirmation (expires in 10 minutes)
-        cache_key = "import_data_#{session.id}"
-        Rails.cache.write(cache_key, { data: @imported_data, headers: @headers }, expires_in: 10.minutes)
 
         render :import, status: :unprocessable_entity
       rescue StandardError => e
