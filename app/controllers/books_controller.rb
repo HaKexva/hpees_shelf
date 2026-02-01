@@ -11,15 +11,23 @@ class BooksController < ApplicationController
   def import
     @imported_data = []
     @headers = []
-    @expected_columns = %w[title isbn total volume note grade_id]
+    @expected_columns = %w[title isbn total volume note]
 
     return unless request.post?
 
-    if params[:confirm] == "true" && session[:import_data].present?
-      # Confirm import from session data
+    if params[:confirm] == "true"
+      cache_key = "import_data_#{session.id}"
+      cached = Rails.cache.read(cache_key)
+
+      unless cached.present?
+        redirect_to import_books_path, alert: "Session expired. Please upload the file again."
+        return
+      end
+
+      # Confirm import from cached data
       imported_count = 0
       skipped_count = 0
-      session[:import_data].each do |row|
+      cached[:data].each do |row|
         book_attrs = {
           title: row["title"] || row["Title"],
           isbn: row["isbn"] || row["ISBN"],
@@ -37,8 +45,7 @@ class BooksController < ApplicationController
           imported_count += 1 if book.save
         end
       end
-      session.delete(:import_data)
-      session.delete(:import_headers)
+      Rails.cache.delete(cache_key)
       message = "Successfully imported #{imported_count} books."
       message += " #{skipped_count} duplicates skipped." if skipped_count > 0
       redirect_to books_path, notice: message
@@ -56,9 +63,9 @@ class BooksController < ApplicationController
         @missing_columns = @expected_columns - @headers.map(&:downcase)
         @extra_columns = @headers.map(&:downcase) - @expected_columns
 
-        # Store in session for confirmation
-        session[:import_data] = @imported_data
-        session[:import_headers] = @headers
+        # Store in cache for confirmation (expires in 10 minutes)
+        cache_key = "import_data_#{session.id}"
+        Rails.cache.write(cache_key, { data: @imported_data, headers: @headers }, expires_in: 10.minutes)
 
         render :import, status: :unprocessable_entity
       rescue StandardError => e
