@@ -11,38 +11,52 @@ class BooksController < ApplicationController
   def import
     @imported_data = []
     @headers = []
+    @expected_columns = %w[title isbn total volume note grade_id]
 
-    return unless request.post? && params[:file].present?
+    return unless request.post?
 
-    file = params[:file]
+    if params[:confirm] == "true" && session[:import_data].present?
+      # Confirm import from session data
+      imported_count = 0
+      session[:import_data].each do |row|
+        book = Book.new(
+          title: row["title"] || row["Title"],
+          isbn: row["isbn"] || row["ISBN"],
+          total: row["total"] || row["Total"],
+          volume: row["volume"] || row["Volume"],
+          note: row["note"] || row["Note"],
+          grade_id: row["grade_id"] || row["Grade ID"]
+        )
+        imported_count += 1 if book.save
+      end
+      session.delete(:import_data)
+      session.delete(:import_headers)
+      redirect_to books_path, notice: "Successfully imported #{imported_count} books."
+    elsif params[:file].present?
+      # Preview uploaded file
+      file = params[:file]
+      begin
+        require "csv"
+        content = file.read.force_encoding("UTF-8")
+        csv = CSV.parse(content, headers: true)
+        @headers = csv.headers
+        @imported_data = csv.map(&:to_h)
 
-    begin
-      require "csv"
-      content = file.read.force_encoding("UTF-8")
-      csv = CSV.parse(content, headers: true)
-      @headers = csv.headers
-      @imported_data = csv.map(&:to_h)
+        # Check for column mismatches
+        @missing_columns = @expected_columns - @headers.map(&:downcase)
+        @extra_columns = @headers.map(&:downcase) - @expected_columns
 
-      if params[:confirm] == "true"
-        imported_count = 0
-        @imported_data.each do |row|
-          book = Book.new(
-            title: row["title"] || row["Title"],
-            isbn: row["isbn"] || row["ISBN"],
-            total: row["total"] || row["Total"],
-            volume: row["volume"] || row["Volume"],
-            note: row["note"] || row["Note"],
-            grade_id: row["grade_id"] || row["Grade ID"]
-          )
-          imported_count += 1 if book.save
-        end
-        redirect_to books_path, notice: "Successfully imported #{imported_count} books."
-      else
+        # Store in session for confirmation
+        session[:import_data] = @imported_data
+        session[:import_headers] = @headers
+
+        render :import, status: :unprocessable_entity
+      rescue StandardError => e
+        flash.now[:alert] = "Error parsing file: #{e.message}"
         render :import, status: :unprocessable_entity
       end
-    rescue StandardError => e
-      flash.now[:alert] = "Error parsing file: #{e.message}"
-      @imported_data = []
+    else
+      flash.now[:alert] = "Please select a file to upload."
       render :import, status: :unprocessable_entity
     end
   end

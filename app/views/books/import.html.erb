@@ -13,7 +13,7 @@
   <div class="bg-white rounded-lg shadow p-6 mb-6">
     <h2 class="font-semibold text-lg mb-4">Upload CSV File</h2>
     <p class="text-gray-600 mb-4">
-      Upload a CSV file with columns: title, isbn, total, volume, note, grade_id
+      Upload a CSV file with columns: <code class="bg-gray-100 px-1 rounded">title</code>, <code class="bg-gray-100 px-1 rounded">isbn</code>, <code class="bg-gray-100 px-1 rounded">total</code>, <code class="bg-gray-100 px-1 rounded">volume</code>, <code class="bg-gray-100 px-1 rounded">note</code>, <code class="bg-gray-100 px-1 rounded">grade_id</code>
     </p>
 
     <%= form_with url: import_books_path, method: :post, multipart: true, class: "space-y-4" do |f| %>
@@ -28,6 +28,20 @@
   </div>
 
   <% if @imported_data.present? && @imported_data.any? %>
+    <% if @missing_columns.present? || @extra_columns.present? %>
+      <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
+        <h3 class="font-semibold text-yellow-800 mb-2">Column Mismatch Warning</h3>
+        <p class="text-yellow-700 text-sm mb-2">Your CSV columns don't match the expected format. Please fix your CSV file:</p>
+        <% if @missing_columns.present? %>
+          <p class="text-yellow-700 text-sm"><strong>Missing columns:</strong> <%= @missing_columns.join(", ") %></p>
+        <% end %>
+        <% if @extra_columns.present? %>
+          <p class="text-yellow-700 text-sm"><strong>Extra columns (will be ignored):</strong> <%= @extra_columns.join(", ") %></p>
+        <% end %>
+        <p class="text-yellow-700 text-sm mt-2"><strong>Expected columns:</strong> title, isbn, total, volume, note, grade_id</p>
+      </div>
+    <% end %>
+
     <div class="bg-white rounded-lg shadow p-6">
       <h2 class="font-semibold text-lg mb-4">Preview (<%= @imported_data.size %> rows)</h2>
 
@@ -52,13 +66,11 @@
         </table>
       </div>
 
-      <%= form_with url: import_books_path, method: :post, multipart: true do |f| %>
+      <%= form_with url: import_books_path, method: :post do |f| %>
         <input type="hidden" name="confirm" value="true">
-        <input type="hidden" name="file" value="">
-        <p class="text-gray-600 mb-4">Re-upload the same file and click "Confirm Import" to save these books.</p>
-        <div class="flex gap-2">
-          <input type="file" name="file" accept=".csv,text/csv" class="block text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-green-50 file:text-green-700 hover:file:bg-green-100" required>
+        <div class="flex gap-2 items-center">
           <%= f.submit "Confirm Import", class: "rounded-md px-3.5 py-2.5 bg-green-600 hover:bg-green-500 text-white font-medium cursor-pointer" %>
+          <%= link_to "Cancel", import_books_path, class: "rounded-md px-3.5 py-2.5 bg-gray-100 hover:bg-gray-50 font-medium" %>
         </div>
       <% end %>
     </div>
