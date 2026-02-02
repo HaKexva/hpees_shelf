@@ -43,9 +43,9 @@
     <% end %>
 
     <% if @duplicates.present? %>
-      <div class="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
-        <h3 class="font-semibold text-red-800 mb-2">發現 <%= @duplicates.size %> 本重複書籍</h3>
-        <p class="text-red-700 text-sm mb-2">以下書籍已存在於資料庫中（以紅色標示），將不會被匯入：</p>
+      <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
+        <h3 class="font-semibold text-yellow-800 mb-2">發現 <%= @duplicates.size %> 本重複書籍</h3>
+        <p class="text-yellow-700 text-sm">以下書籍已存在於資料庫中（以黃色標示），請選擇處理方式。</p>
       </div>
     <% end %>
 
@@ -70,16 +70,16 @@
             <% duplicate_indices = @duplicates&.map { |d| d[:index] } || [] %>
             <% @imported_data.each_with_index do |row, index| %>
               <% is_duplicate = duplicate_indices.include?(index) %>
-              <tr class="<%= is_duplicate ? 'bg-red-50' : 'hover:bg-gray-50' %>">
+              <tr class="<%= is_duplicate ? 'bg-yellow-50' : 'hover:bg-gray-50' %>">
                 <td class="px-4 py-2 text-sm">
                   <% if is_duplicate %>
-                    <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">重複</span>
+                    <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">重複</span>
                   <% else %>
                     <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">新增</span>
                   <% end %>
                 </td>
                 <% @headers.each do |header| %>
-                  <td class="px-4 py-2 text-sm <%= is_duplicate ? 'text-red-700' : 'text-gray-900' %>"><%= row[header] %></td>
+                  <td class="px-4 py-2 text-sm <%= is_duplicate ? 'text-yellow-700' : 'text-gray-900' %>"><%= row[header] %></td>
                 <% end %>
               </tr>
             <% end %>
@@ -87,23 +87,34 @@
         </table>
       </div>
 
-      <% if @new_books.present? %>
-        <%= form_with url: import_books_path, method: :post, data: { turbo: false } do |f| %>
-          <input type="hidden" name="confirm" value="true">
-          <%= hidden_field_tag :import_data, Base64.strict_encode64(@new_books.map { |b| b[:row] }.to_json) %>
-          <div class="mb-4">
-            <label class="block text-sm font-medium text-gray-700 mb-2">年級（套用至所有匯入的書籍）</label>
-            <input type="number" name="grade_id" min="1" class="block w-48 shadow-sm rounded-md border border-gray-300 px-3 py-2" placeholder="輸入年級">
-          </div>
-          <div class="flex gap-2 items-center">
-            <%= f.submit "確認匯入 #{@new_books.size} 本新書", class: "rounded-md px-3.5 py-2.5 bg-green-600 hover:bg-green-500 text-white font-medium cursor-pointer" %>
-            <%= link_to "取消", import_books_path, class: "rounded-md px-3.5 py-2.5 bg-gray-100 hover:bg-gray-50 font-medium" %>
+      <%= form_with url: import_books_path, method: :post, data: { turbo: false } do |f| %>
+        <input type="hidden" name="confirm" value="true">
+        <%= hidden_field_tag :import_data, Base64.strict_encode64(@imported_data.to_json) %>
+        
+        <div class="mb-4">
+          <label class="block text-sm font-medium text-gray-700 mb-2">年級（套用至所有匯入的書籍）</label>
+          <input type="number" name="grade_id" min="1" class="block w-48 shadow-sm rounded-md border border-gray-300 px-3 py-2" placeholder="輸入年級">
+        </div>
+
+        <% if @duplicates.present? %>
+          <div class="mb-4 p-4 bg-yellow-50 rounded-md border border-yellow-200">
+            <label class="block text-sm font-medium text-yellow-800 mb-2">重複書籍處理方式</label>
+            <div class="space-y-2">
+              <label class="flex items-center">
+                <input type="radio" name="duplicate_action" value="skip" checked class="mr-2">
+                <span class="text-sm text-gray-700">跳過重複書籍（只匯入 <%= @new_books&.size || 0 %> 本新書）</span>
+              </label>
+              <label class="flex items-center">
+                <input type="radio" name="duplicate_action" value="import" class="mr-2">
+                <span class="text-sm text-gray-700">全部匯入（包含 <%= @duplicates.size %> 本重複書籍，共 <%= @imported_data.size %> 本）</span>
+              </label>
+            </div>
           </div>
         <% end %>
-      <% else %>
-        <div class="text-center py-4">
-          <p class="text-gray-500">所有書籍皆為重複，沒有可匯入的新書籍。</p>
-          <%= link_to "返回", import_books_path, class: "mt-2 rounded-md px-3.5 py-2.5 bg-gray-100 hover:bg-gray-50 inline-block font-medium" %>
+
+        <div class="flex gap-2 items-center">
+          <%= f.submit "確認匯入", class: "rounded-md px-3.5 py-2.5 bg-green-600 hover:bg-green-500 text-white font-medium cursor-pointer" %>
+          <%= link_to "取消", import_books_path, class: "rounded-md px-3.5 py-2.5 bg-gray-100 hover:bg-gray-50 font-medium" %>
         </div>
       <% end %>
     </div>

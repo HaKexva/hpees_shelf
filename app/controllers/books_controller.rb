@@ -55,19 +55,28 @@ class BooksController < ApplicationController
       imported_count = 0
       skipped_count = 0
       selected_grade_id = params[:grade_id].presence&.to_i
+      duplicate_action = params[:duplicate_action] || "skip"
 
       import_data.each do |row|
+        title = row["title"] || row["Title"]
+        isbn = row["isbn"] || row["ISBN"]
+
+        # Skip empty rows
+        next if title.blank?
+
         book_attrs = {
-          title: row["title"] || row["Title"],
-          isbn: row["isbn"] || row["ISBN"],
+          title: title,
+          isbn: isbn,
           total: (row["total"] || row["Total"]).to_i,
           volume: (row["volume"] || row["Volume"]).to_i,
           note: row["note"] || row["Note"],
           grade_id: selected_grade_id || (row["grade_id"] || row["Grade ID"]).presence&.to_i
         }
 
-        # Skip if duplicate exists (all columns match)
-        if Book.exists?(book_attrs)
+        # Check for duplicate (same title and isbn)
+        is_duplicate = Book.exists?(title: title, isbn: isbn)
+
+        if is_duplicate && duplicate_action == "skip"
           skipped_count += 1
         else
           book = Book.new(book_attrs)
