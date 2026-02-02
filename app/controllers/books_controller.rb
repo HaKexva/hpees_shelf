@@ -4,10 +4,10 @@ class BooksController < ApplicationController
   # GET /books or /books.json
   def index
     # Filter out books with empty title
-    @books = Book.where.not(title: [nil, ""])
+    @books = Book.where.not(title: [ nil, "" ])
 
     # Check for duplicate books (same title and isbn)
-    @duplicates = Book.where.not(title: [nil, ""])
+    @duplicates = Book.where.not(title: [ nil, "" ])
                       .select(:title, :isbn)
                       .group(:title, :isbn)
                       .having("COUNT(*) > 1")
