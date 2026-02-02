@@ -190,6 +190,17 @@ class BooksController < ApplicationController
     end
   end
 
+  # DELETE /books/bulk_destroy
+  def bulk_destroy
+    ids = Array(params[:book_ids]).reject(&:blank?).map(&:to_i)
+    if ids.any?
+      count = Book.where(id: ids).destroy_all.size
+      redirect_to books_path, notice: "已刪除 #{count} 本書籍。", status: :see_other
+    else
+      redirect_to books_path, alert: "請至少選擇一本書。", status: :see_other
+    end
+  end
+
   private
     # Use callbacks to share common setup or constraints between actions.
     def set_book
