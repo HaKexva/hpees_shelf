@@ -113,15 +113,9 @@
           </table>
         </div>
         
-        <div class="mb-4 flex flex-wrap gap-6">
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-2">屆數（必填，套用至所有匯入的書籍）</label>
-            <%= select_tag :batch_id, options_from_collection_for_select(Batch.order(:name), :id, :name), { include_blank: "請選擇屆數", required: true, class: "block w-48 shadow-sm rounded-md border border-gray-300 px-3 py-2" } %>
-          </div>
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-2">年級（必填，套用至所有匯入的書籍）</label>
-            <input type="number" name="grade_id" min="1" required class="block w-48 shadow-sm rounded-md border border-gray-300 px-3 py-2" placeholder="輸入年級">
-          </div>
+        <div class="mb-4">
+          <label class="block text-sm font-medium text-gray-700 mb-2">屆數（必填，套用至所有匯入的書籍）</label>
+          <%= select_tag :batch_id, options_from_collection_for_select(Batch.by_number_desc, :id, :display_label_with_grade), { include_blank: "請選擇屆數", required: true, class: "block w-48 shadow-sm rounded-md border border-gray-300 px-3 py-2" } %>
         </div>
 
         <div class="flex gap-2 items-center">

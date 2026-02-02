@@ -29,18 +29,10 @@ class BooksController < ApplicationController
       require "base64"
       import_data = JSON.parse(Base64.strict_decode64(params[:import_data]))
 
-      selected_grade_id = params[:grade_id].presence&.to_i
       selected_batch_id = params[:batch_id].presence&.to_i
-      if selected_grade_id.blank? || selected_grade_id < 1
-        _restore_import_preview(import_data)
-        @batches = Batch.order(:name)
-        flash.now[:alert] = "請選擇年級。"
-        render :import, status: :unprocessable_entity
-        return
-      end
       if selected_batch_id.blank? || selected_batch_id < 1
         _restore_import_preview(import_data)
-        @batches = Batch.order(:name)
+        @batches = Batch.by_number_desc
         flash.now[:alert] = "請選擇屆數。"
         render :import, status: :unprocessable_entity
         return
@@ -50,6 +42,7 @@ class BooksController < ApplicationController
       skipped_count = 0
       duplicate_action = params[:duplicate_action] || "skip"
       selected_duplicates = (params[:selected_duplicates] || []).map(&:to_i)
+      batch = Batch.find_by(id: selected_batch_id)
 
       import_data.each_with_index do |row, index|
         title = row["title"] || row["Title"]
@@ -64,7 +57,7 @@ class BooksController < ApplicationController
           total: (row["total"] || row["Total"]).to_i,
           volume: (row["volume"] || row["Volume"]).to_i,
           note: row["note"] || row["Note"],
-          grade_id: selected_grade_id || (row["grade_id"] || row["Grade ID"]).presence&.to_i,
+          grade_id: batch&.grade_id,
           batch_id: selected_batch_id
         }
 
@@ -145,7 +138,7 @@ class BooksController < ApplicationController
           end
         end
 
-        @batches = Batch.order(:name)
+        @batches = Batch.by_number_desc
         render :import
       rescue StandardError => e
         flash.now[:alert] = "Error parsing file: #{e.message}"
@@ -164,23 +157,26 @@ class BooksController < ApplicationController
   # GET /books/new
   def new
     @book = Book.new
-    @batches = Batch.order(:name)
+    @batches = Batch.by_number_desc
   end
 
   # GET /books/1/edit
   def edit
+    @batches = Batch.by_number_desc
   end
 
   # POST /books or /books.json
   def create
     @book = Book.new(book_params)
+    # 年級由屆數帶入
+    @book.grade_id = @book.batch&.grade_id if @book.batch_id.present?
 
     respond_to do |format|
       if @book.save
         format.html { redirect_to @book, notice: "Book was successfully created." }
         format.json { render :show, status: :created, location: @book }
       else
-        @batches = Batch.order(:name)
+        @batches = Batch.by_number_desc
         format.html { render :new, status: :unprocessable_entity }
         format.json { render json: @book.errors, status: :unprocessable_entity }
       end
@@ -189,13 +185,14 @@ class BooksController < ApplicationController
 
   # PATCH/PUT /books/1 or /books/1.json
   def update
-    # 屆數不可變更，更新時不允許修改 batch_id
-    update_params = book_params.except(:batch_id, "batch_id")
     respond_to do |format|
-      if @book.update(update_params)
+      if @book.update(book_params)
+        # 屆數變更時同步年級（年級為選填，無屆數或屆數無年級時為 nil）
+        @book.update_column(:grade_id, @book.batch&.grade_id)
         format.html { redirect_to @book, notice: "Book was successfully updated.", status: :see_other }
         format.json { render :show, status: :ok, location: @book }
       else
+        @batches = Batch.by_number_desc
         format.html { render :edit, status: :unprocessable_entity }
         format.json { render json: @book.errors, status: :unprocessable_entity }
       end
@@ -229,7 +226,7 @@ class BooksController < ApplicationController
     end
 
     def book_params
-      params.expect(book: [ :title, :isbn, :total, :volume, :note, :grade_id, :batch_id ])
+      params.expect(book: [ :title, :isbn, :total, :volume, :note, :batch_id ])
     end
 
     def _restore_import_preview(import_data)

@@ -1,5 +1,9 @@
 Rails.application.routes.draw do
-  resources :batches
+  resources :batches do
+    collection do
+      delete :bulk_destroy
+    end
+  end
   resources :books do
     collection do
       get :import

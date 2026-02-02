@@ -13,11 +13,12 @@ class UsersController < ApplicationController
   # GET /users/new
   def new
     @user = User.new
-    @batches = Batch.order(:name)
+    @batches = Batch.by_number_desc
   end
 
   # GET /users/1/edit
   def edit
+    @batches = Batch.by_number_desc
   end
 
   # POST /users or /users.json
@@ -29,7 +30,7 @@ class UsersController < ApplicationController
         format.html { redirect_to @user, notice: "User was successfully created." }
         format.json { render :show, status: :created, location: @user }
       else
-        @batches = Batch.order(:name)
+        @batches = Batch.by_number_desc
         format.html { render :new, status: :unprocessable_entity }
         format.json { render json: @user.errors, status: :unprocessable_entity }
       end
@@ -38,13 +39,12 @@ class UsersController < ApplicationController
 
   # PATCH/PUT /users/1 or /users/1.json
   def update
-    # 屆數不可變更，更新時不允許修改 batch_id
-    update_params = user_params.except(:batch_id, "batch_id")
     respond_to do |format|
-      if @user.update(update_params)
+      if @user.update(user_params)
         format.html { redirect_to @user, notice: "User was successfully updated.", status: :see_other }
         format.json { render :show, status: :ok, location: @user }
       else
+        @batches = Batch.by_number_desc
         format.html { render :edit, status: :unprocessable_entity }
         format.json { render json: @user.errors, status: :unprocessable_entity }
       end

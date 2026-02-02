@@ -3,7 +3,7 @@ class BatchesController < ApplicationController
 
   # GET /batches or /batches.json
   def index
-    @batches = Batch.order(:name)
+    @batches = Batch.by_number_desc
   end
 
   # GET /batches/1 or /batches/1.json
@@ -58,12 +58,23 @@ class BatchesController < ApplicationController
     end
   end
 
+  # DELETE /batches/bulk_destroy
+  def bulk_destroy
+    ids = Array(params[:batch_ids]).reject(&:blank?).map(&:to_i)
+    if ids.any?
+      count = Batch.where(id: ids).destroy_all.size
+      redirect_to batches_path, notice: "已刪除 #{count} 個屆數。", status: :see_other
+    else
+      redirect_to batches_path, alert: "請至少選擇一個屆數。", status: :see_other
+    end
+  end
+
   private
     def set_batch
       @batch = Batch.find(params.expect(:id))
     end
 
     def batch_params
-      params.expect(batch: [ :name ])
+      params.expect(batch: [ :grade_id, :batch_number ])
     end
 end

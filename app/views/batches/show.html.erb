@@ -6,7 +6,12 @@
   <% end %>
 
   <div class="flex justify-between items-center mb-6">
-    <h1 class="font-bold text-4xl"><%= @batch.name %></h1>
+    <div>
+      <h1 class="font-bold text-4xl"><%= @batch.display_label %></h1>
+      <p class="text-gray-600 mt-1">
+        <% if @batch.grade_id.present? %><%= @batch.grade_id == Batch::GRADE_GRADUATED ? "畢業" : "年級 #{@batch.grade_id}" %><% end %>
+      </p>
+    </div>
     <div class="flex gap-2">
       <%= link_to "編輯屆數", edit_batch_path(@batch), class: "rounded-md px-3.5 py-2.5 bg-gray-100 hover:bg-gray-50 font-medium" %>
       <%= link_to "書籍列表", books_path, class: "rounded-md px-3.5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-medium" %>
