@@ -17,8 +17,8 @@
   </div>
 
   <div class="my-5">
-    <%= form.label :grade_id, "年級（選填，此屆數對應年級，新增/匯入書籍時會自動帶入；可選「畢業」）" %>
-    <%= form.select :grade_id, BatchYear.grade_options, {}, class: ["block shadow-sm rounded-md border px-3 py-2 mt-2 w-full max-w-xs", {"border-gray-400 focus:outline-blue-600": batch_year.errors[:grade_id].none?, "border-red-400 focus:outline-red-600": batch_year.errors[:grade_id].any?}] %>
+    <%= form.label :in_need_id, "年級（選填，此屆數對應年級，新增/匯入書籍時會自動帶入；可選「畢業」）" %>
+    <%= form.select :in_need_id, BatchYear.in_need_options, {}, class: ["block shadow-sm rounded-md border px-3 py-2 mt-2 w-full max-w-xs", {"border-gray-400 focus:outline-blue-600": batch_year.errors[:in_need_id].none?, "border-red-400 focus:outline-red-600": batch_year.errors[:in_need_id].any?}] %>
   </div>
 
   <div class="inline">

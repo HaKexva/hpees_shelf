@@ -6,7 +6,7 @@ one:
   total: 1
   volume: 1
   note: MyText
-  grade_id: 1
+  in_need_id: 1
 
 two:
   title: MyString
@@ -14,4 +14,4 @@ two:
   total: 1
   volume: 1
   note: MyText
-  grade_id: 1
+  in_need_id: 1

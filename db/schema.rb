@@ -10,13 +10,13 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_02_02_120000) do
+ActiveRecord::Schema[8.1].define(version: 2026_02_02_130000) do
   create_table "batch_years", force: :cascade do |t|
     t.integer "batch_number"
     t.datetime "created_at", null: false
     t.integer "entry_month"
     t.integer "entry_year"
-    t.integer "grade_id"
+    t.integer "in_need_id"
     t.string "name"
     t.datetime "updated_at", null: false
   end
@@ -24,7 +24,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_02_02_120000) do
   create_table "books", force: :cascade do |t|
     t.integer "batch_year_id"
     t.datetime "created_at", null: false
-    t.integer "grade_id"
+    t.integer "in_need_id"
     t.string "isbn"
     t.text "note"
     t.string "title"

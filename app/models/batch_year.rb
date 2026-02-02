@@ -1,6 +1,6 @@
 class BatchYear < ApplicationRecord
-  # 年級：0 表示「畢業」
-  GRADE_GRADUATED = 0
+  # in_need：0 表示「畢業」
+  IN_NEED_GRADUATED = 0
 
   has_many :books, foreign_key: :batch_year_id, dependent: :nullify
   has_many :users, foreign_key: :batch_year_id, dependent: :nullify
@@ -13,17 +13,17 @@ class BatchYear < ApplicationRecord
     batch_number.present? ? "第 #{batch_number} 屆" : "—"
   end
 
-  # 選擇屆數時顯示：第 X 屆（Y年級）或 第 X 屆（畢業），無年級時僅「第 X 屆」
-  def display_label_with_grade
+  # 選擇屆數時顯示：第 X 屆（Y年級）或 第 X 屆（畢業），無 in_need 時僅「第 X 屆」
+  def display_label_with_in_need
     base = display_label
     return base if base == "—"
-    return base if grade_id.nil?
-    grade_text = grade_id == GRADE_GRADUATED ? "畢業" : "#{grade_id}年級"
-    "#{base}（#{grade_text}）"
+    return base if in_need_id.nil?
+    in_need_text = in_need_id == IN_NEED_GRADUATED ? "畢業" : "#{in_need_id}年級"
+    "#{base}（#{in_need_text}）"
   end
 
-  # 年級選項：選填、畢業、1～6（空字串會存成 nil）
-  def self.grade_options
-    [ [ "（選填）", "" ], [ "畢業", GRADE_GRADUATED ]  ] + (1..6).map { |n| [ n.to_s, n ] }
+  # in_need 選項：選填、畢業、1～6（空字串會存成 nil）
+  def self.in_need_options
+    [ [ "（選填）", "" ], [ "畢業", IN_NEED_GRADUATED ]  ] + (1..6).map { |n| [ n.to_s, n ] }
   end
 end

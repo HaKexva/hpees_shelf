@@ -57,7 +57,7 @@ class BooksController < ApplicationController
           total: (row["total"] || row["Total"]).to_i,
           volume: (row["volume"] || row["Volume"]).to_i,
           note: row["note"] || row["Note"],
-          grade_id: batch_year&.grade_id,
+          in_need_id: batch_year&.in_need_id,
           batch_year_id: selected_batch_year_id
         }
 
@@ -169,7 +169,7 @@ class BooksController < ApplicationController
   def create
     @book = Book.new(book_params)
     # 年級由屆數帶入
-    @book.grade_id = @book.batch_year&.grade_id if @book.batch_year_id.present?
+    @book.in_need_id = @book.batch_year&.in_need_id if @book.batch_year_id.present?
 
     respond_to do |format|
       if @book.save
@@ -188,7 +188,7 @@ class BooksController < ApplicationController
     respond_to do |format|
       if @book.update(book_params)
         # 屆數變更時同步年級（年級為選填，無屆數或屆數無年級時為 nil）
-        @book.update_column(:grade_id, @book.batch_year&.grade_id)
+        @book.update_column(:in_need_id, @book.batch_year&.in_need_id)
         format.html { redirect_to @book, notice: "Book was successfully updated.", status: :see_other }
         format.json { render :show, status: :ok, location: @book }
       else

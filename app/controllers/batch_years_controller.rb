@@ -75,6 +75,6 @@ class BatchYearsController < ApplicationController
     end
 
     def batch_year_params
-      params.expect(batch_year: [ :grade_id, :batch_number ])
+      params.expect(batch_year: [ :in_need_id, :batch_number ])
     end
 end

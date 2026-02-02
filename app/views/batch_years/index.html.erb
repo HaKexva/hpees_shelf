@@ -41,7 +41,7 @@
                   <input type="checkbox" name="batch_year_ids[]" value="<%= batch_year.id %>" class="batch-year-checkbox rounded" title="選擇以刪除">
                 </td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900"><%= batch_year.display_label %></td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500"><%= grade_label(batch_year.grade_id) %></td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500"><%= in_need_label(batch_year.in_need_id) %></td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500"><%= batch_year.books.count %></td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500"><%= batch_year.users.count %></td>
                 <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2" data-no-row-click>
