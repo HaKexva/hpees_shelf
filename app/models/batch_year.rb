@@ -1,19 +1,18 @@
-class InNeed < ApplicationRecord
+class BatchYear < ApplicationRecord
   # 年級：0 表示「畢業」
   GRADE_GRADUATED = 0
 
-  has_many :books, foreign_key: :in_need_id, dependent: :nullify
-  has_many :users, foreign_key: :in_need_id, dependent: :nullify
+  has_many :books, foreign_key: :batch_year_id, dependent: :nullify
+  has_many :users, foreign_key: :batch_year_id, dependent: :nullify
 
-  # 屆數依編號由大至小（14, 13, 12…），無編號排最後
+  validates :grade_id, presence: true
+
   scope :by_number_desc, -> { order(Arel.sql("CASE WHEN batch_number IS NULL THEN 1 ELSE 0 END"), batch_number: :desc) }
 
-  # 下拉選單顯示用：只顯示「第 X 屆」
   def display_label
     batch_number.present? ? "第 #{batch_number} 屆" : "—"
   end
 
-  # 選擇屆數時顯示：第 X 屆（Y年級）或 第 X 屆（畢業），無年級時僅「第 X 屆」
   def display_label_with_grade
     base = display_label
     return base if base == "—"
@@ -22,8 +21,12 @@ class InNeed < ApplicationRecord
     "#{base}（#{grade_text}）"
   end
 
-  # 年級選項：選填、畢業、1～6（空字串會存成 nil）
   def self.grade_options
     [ [ "（選填）", "" ], [ "畢業", GRADE_GRADUATED ]  ] + (1..6).map { |n| [ n.to_s, n ] }
+  end
+
+  # 必填用：不含選填
+  def self.required_grade_options
+    [ [ "畢業", GRADE_GRADUATED ] ] + (1..6).map { |n| [ n.to_s, n ] }
   end
 end

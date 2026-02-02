@@ -7,10 +7,10 @@
 
   <div class="flex justify-between items-center mb-6">
     <h1 class="font-bold text-4xl">屆數列表</h1>
-    <%= link_to "新增屆數", new_in_need_path, class: "rounded-md px-3.5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white block font-medium" %>
+    <%= link_to "新增屆數", new_batch_year_path, class: "rounded-md px-3.5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white block font-medium" %>
   </div>
 
-  <%= form_with url: bulk_destroy_in_needs_path, method: :delete, id: "bulk-destroy-in-needs-form" do |f| %>
+  <%= form_with url: bulk_destroy_batch_years_path, method: :delete, id: "bulk-destroy-batch-years-form" do |f| %>
     <div class="flex gap-2 items-center mb-4">
       <button type="submit" class="rounded-md px-3.5 py-2.5 bg-red-600 hover:bg-red-500 text-white font-medium cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed" id="bulk-destroy-btn" disabled data-turbo-confirm="確定要刪除所選的屆數嗎？">
         刪除所選
@@ -22,8 +22,8 @@
         <thead class="bg-gray-50">
           <tr>
             <th class="px-4 py-3 text-left w-12 sticky left-0 bg-gray-50 z-10 border-r border-gray-200">
-              <% if @in_needs.any? %>
-                <input type="checkbox" id="select-all-in-needs" class="rounded" title="全選">
+              <% if @batch_years.any? %>
+                <input type="checkbox" id="select-all-batch-years" class="rounded" title="全選">
               <% end %>
             </th>
             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">屆數</th>
@@ -34,18 +34,18 @@
           </tr>
         </thead>
         <tbody class="bg-white divide-y divide-gray-200">
-          <% if @in_needs.any? %>
-            <% @in_needs.each do |in_need| %>
-              <tr class="hover:bg-gray-50 cursor-pointer in-need-row" data-in-need-url="<%= in_need_path(in_need) %>" role="button" tabindex="0">
+          <% if @batch_years.any? %>
+            <% @batch_years.each do |batch_year| %>
+              <tr class="hover:bg-gray-50 cursor-pointer batch-year-row" data-batch-year-url="<%= batch_year_path(batch_year) %>" role="button" tabindex="0">
                 <td class="px-4 py-4 w-12 sticky left-0 bg-white z-10 border-r border-gray-200 align-middle" data-no-row-click>
-                  <input type="checkbox" name="in_need_ids[]" value="<%= in_need.id %>" class="in-need-checkbox rounded" title="選擇以刪除">
+                  <input type="checkbox" name="batch_year_ids[]" value="<%= batch_year.id %>" class="batch-year-checkbox rounded" title="選擇以刪除">
                 </td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900"><%= in_need.display_label %></td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500"><%= grade_label(in_need.grade_id) %></td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500"><%= in_need.books.count %></td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500"><%= in_need.users.count %></td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900"><%= batch_year.display_label %></td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500"><%= grade_label(batch_year.grade_id) %></td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500"><%= batch_year.books.count %></td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500"><%= batch_year.users.count %></td>
                 <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2" data-no-row-click>
-                  <%= link_to edit_in_need_path(in_need), class: "inline-flex text-indigo-600 hover:text-indigo-900", title: "編輯", aria: { label: "編輯" } do %>
+                  <%= link_to edit_batch_year_path(batch_year), class: "inline-flex text-indigo-600 hover:text-indigo-900", title: "編輯", aria: { label: "編輯" } do %>
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
                     </svg>
@@ -69,15 +69,15 @@
 
   <script>
     (function() {
-      var form = document.getElementById('bulk-destroy-in-needs-form');
+      var form = document.getElementById('bulk-destroy-batch-years-form');
       if (!form) return;
-      var checkboxes = form.querySelectorAll('.in-need-checkbox');
-      var selectAll = document.getElementById('select-all-in-needs');
+      var checkboxes = form.querySelectorAll('.batch-year-checkbox');
+      var selectAll = document.getElementById('select-all-batch-years');
       var btn = document.getElementById('bulk-destroy-btn');
       var countEl = document.getElementById('bulk-destroy-count');
 
       function updateState() {
-        var n = form.querySelectorAll('.in-need-checkbox:checked').length;
+        var n = form.querySelectorAll('.batch-year-checkbox:checked').length;
         btn.disabled = n === 0;
         countEl.textContent = '已選 ' + n + ' 個';
         if (selectAll) selectAll.checked = n > 0 && n === checkboxes.length;
@@ -91,17 +91,17 @@
       });
       updateState();
 
-      form.querySelectorAll('.in-need-row').forEach(function(row) {
+      form.querySelectorAll('.batch-year-row').forEach(function(row) {
         row.addEventListener('click', function(e) {
           if (e.target.closest('[data-no-row-click]')) return;
-          var url = row.getAttribute('data-in-need-url');
+          var url = row.getAttribute('data-batch-year-url');
           if (url) window.location = url;
         });
         row.addEventListener('keydown', function(e) {
           if (e.key !== 'Enter' && e.key !== ' ') return;
           if (e.target.closest('[data-no-row-click]')) return;
           e.preventDefault();
-          var url = row.getAttribute('data-in-need-url');
+          var url = row.getAttribute('data-batch-year-url');
           if (url) window.location = url;
         });
       });

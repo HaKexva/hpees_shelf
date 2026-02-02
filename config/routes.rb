@@ -1,17 +1,12 @@
 Rails.application.routes.draw do
-  # Redirect old /batches and /batch_years URLs to /in_needs (for bookmarks and cached links)
-  get "/batches", to: redirect("/in_needs")
-  get "/batches/new", to: redirect("/in_needs/new")
-  get "/batches/bulk_destroy", to: redirect("/in_needs")
-  get "/batches/:id", to: redirect("/in_needs/%{id}")
-  get "/batches/:id/edit", to: redirect("/in_needs/%{id}/edit")
-  get "/batch_years", to: redirect("/in_needs")
-  get "/batch_years/new", to: redirect("/in_needs/new")
-  get "/batch_years/bulk_destroy", to: redirect("/in_needs")
-  get "/batch_years/:id", to: redirect("/in_needs/%{id}")
-  get "/batch_years/:id/edit", to: redirect("/in_needs/%{id}/edit")
+  # Redirect old /batches to /batch_years (for bookmarks)
+  get "/batches", to: redirect("/batch_years")
+  get "/batches/new", to: redirect("/batch_years/new")
+  get "/batches/bulk_destroy", to: redirect("/batch_years")
+  get "/batches/:id", to: redirect("/batch_years/%{id}")
+  get "/batches/:id/edit", to: redirect("/batch_years/%{id}/edit")
 
-  resources :in_needs do
+  resources :batch_years do
     collection do
       delete :bulk_destroy
     end

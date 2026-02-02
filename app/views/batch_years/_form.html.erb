@@ -1,0 +1,27 @@
+<%= form_with(model: batch_year, class: "contents", data: { controller: "unsaved-form" }) do |form| %>
+  <% if batch_year.errors.any? %>
+    <div id="error_explanation" class="bg-red-50 text-red-500 px-3 py-2 font-medium rounded-md mt-3">
+      <h2>有 <%= batch_year.errors.count %> 個錯誤，無法儲存此屆數：</h2>
+      <ul class="list-disc ml-6">
+        <% batch_year.errors.each do |error| %>
+          <li><%= error.full_message %></li>
+        <% end %>
+      </ul>
+    </div>
+  <% end %>
+
+  <div class="my-5">
+    <%= form.label :batch_number, "屆數編號" %>
+    <%= form.number_field :batch_number, min: 1, class: ["block shadow-sm rounded-md border px-3 py-2 mt-2 w-full max-w-xs", {"border-gray-400 focus:outline-blue-600": batch_year.errors[:batch_number].none?, "border-red-400 focus:outline-red-600": batch_year.errors[:batch_number].any?}] %>
+    <p class="mt-1 text-sm text-gray-500">2026/09 入學為第 12 屆，之後依序為 13、14、15…</p>
+  </div>
+
+  <div class="my-5">
+    <%= form.label :grade_id, "年級（必填，此屆數對應年級，新增/匯入書籍時會自動帶入；可選「畢業」）" %>
+    <%= form.select :grade_id, BatchYear.required_grade_options, {}, { required: true, class: ["block shadow-sm rounded-md border px-3 py-2 mt-2 w-full max-w-xs", {"border-gray-400 focus:outline-blue-600": batch_year.errors[:grade_id].none?, "border-red-400 focus:outline-red-600": batch_year.errors[:grade_id].any?}] %>
+  </div>
+
+  <div class="inline">
+    <%= form.submit "儲存", class: "rounded-md px-3.5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-medium cursor-pointer" %>
+  </div>
+<% end %>
