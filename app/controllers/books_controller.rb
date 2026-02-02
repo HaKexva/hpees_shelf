@@ -5,36 +5,6 @@ class BooksController < ApplicationController
   def index
     # Filter out books with empty title
     @books = Book.where.not(title: [ nil, "" ])
-
-    # Check for duplicate books (same title and isbn)
-    @duplicates = Book.where.not(title: [ nil, "" ])
-                      .select(:title, :isbn)
-                      .group(:title, :isbn)
-                      .having("COUNT(*) > 1")
-                      .map do |dup|
-                        Book.where(title: dup.title, isbn: dup.isbn).order(:id).to_a
-                      end
-  end
-
-  # POST /books/resolve_duplicate
-  def resolve_duplicate
-    delete_id = params[:delete_id]
-    delete_group_title = params[:delete_group_title]
-    delete_group_isbn = params[:delete_group_isbn]
-
-    if delete_group_title.present? && delete_group_isbn.present?
-      # Delete all duplicates in this group, keep only the first one
-      books = Book.where(title: delete_group_title, isbn: delete_group_isbn).order(:id)
-      deleted_count = books.count - 1
-      books.offset(1).destroy_all
-      redirect_to books_path, notice: "已刪除此組 #{deleted_count} 本重複書籍。"
-    elsif delete_id.present?
-      book = Book.find_by(id: delete_id)
-      book&.destroy
-      redirect_to books_path, notice: "已刪除書籍。"
-    else
-      redirect_to books_path
-    end
   end
 
   # GET /books/import
