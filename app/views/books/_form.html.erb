@@ -17,8 +17,8 @@
   </div>
 
   <div class="my-5">
-    <%= form.label :batch_year_id, "屆數" %>
-    <%= form.collection_select :batch_year_id, @batch_years || BatchYear.by_number_desc, :id, :display_label_with_in_need, { include_blank: "請選擇屆數" }, class: ["block shadow-sm rounded-md border px-3 py-2 mt-2 w-full", {"border-gray-400 focus:outline-blue-600": book.errors[:batch_year_id].none?, "border-red-400 focus:outline-red-600": book.errors[:batch_year_id].any?}] %>
+    <%= form.label :in_need_id, "屆數" %>
+    <%= form.collection_select :in_need_id, @in_needs || InNeed.by_number_desc, :id, :display_label_with_grade, { include_blank: "請選擇屆數" }, class: ["block shadow-sm rounded-md border px-3 py-2 mt-2 w-full", {"border-gray-400 focus:outline-blue-600": book.errors[:in_need_id].none?, "border-red-400 focus:outline-red-600": book.errors[:in_need_id].any?}] %>
   </div>
 
   <div class="my-5">

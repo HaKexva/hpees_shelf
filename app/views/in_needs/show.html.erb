@@ -1,4 +1,4 @@
-<% content_for :title, @batch_year.name %>
+<% content_for :title, @in_need.name %>
 
 <div class="w-full">
   <% if notice.present? %>
@@ -7,14 +7,14 @@
 
   <div class="flex justify-between items-center mb-6">
     <div>
-      <h1 class="font-bold text-4xl"><%= @batch_year.display_label %></h1>
+      <h1 class="font-bold text-4xl"><%= @in_need.display_label %></h1>
       <p class="text-gray-600 mt-1">
-        <% if @batch_year.in_need_id.present? %><%= @batch_year.in_need_id == BatchYear::IN_NEED_GRADUATED ? "畢業" : "年級 #{@batch_year.in_need_id}" %><% end %>
+        <% if @in_need.grade_id.present? %><%= @in_need.grade_id == InNeed::GRADE_GRADUATED ? "畢業" : "年級 #{@in_need.grade_id}" %><% end %>
       </p>
     </div>
     <div class="flex gap-2">
-      <%= link_to "編輯屆數", edit_batch_year_path(@batch_year), class: "rounded-md px-3.5 py-2.5 bg-gray-100 hover:bg-gray-50 font-medium" %>
-      <%= link_to "書籍列表", books_path, class: "rounded-md px-3.5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-medium" %>
+      <%= link_to "編輯屆數", edit_in_need_path(@in_need), class: "rounded-md px-3.5 py-2.5 bg-gray-100 hover:bg-gray-50 font-medium" %>
+      <%= link_to "書籍列表", books_path(in_need_id: @in_need.id), class: "rounded-md px-3.5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-medium" %>
     </div>
   </div>
 
@@ -35,7 +35,7 @@
           <% @books.each do |book| %>
             <tr class="hover:bg-gray-50">
               <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                <%= link_to book.title, book, class: "text-blue-600 hover:text-blue-900" %>
+                <%= link_to book.title, books_path(in_need_id: @in_need.id), class: "text-blue-600 hover:text-blue-900" %>
               </td>
               <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500"><%= book.isbn %></td>
               <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500"><%= book.volume %></td>
@@ -50,6 +50,6 @@
   <% end %>
 
   <p class="mt-6">
-    <%= link_to "返回屆數列表", batch_years_path, class: "rounded-md px-3.5 py-2.5 bg-gray-100 hover:bg-gray-50 font-medium" %>
+    <%= link_to "返回屆數列表", in_needs_path, class: "rounded-md px-3.5 py-2.5 bg-gray-100 hover:bg-gray-50 font-medium" %>
   </p>
 </div>

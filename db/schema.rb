@@ -10,20 +10,10 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_02_02_130000) do
-  create_table "batch_years", force: :cascade do |t|
-    t.integer "batch_number"
-    t.datetime "created_at", null: false
-    t.integer "entry_month"
-    t.integer "entry_year"
-    t.integer "in_need_id"
-    t.string "name"
-    t.datetime "updated_at", null: false
-  end
-
+ActiveRecord::Schema[8.1].define(version: 2026_02_02_140100) do
   create_table "books", force: :cascade do |t|
-    t.integer "batch_year_id"
     t.datetime "created_at", null: false
+    t.integer "grade_id"
     t.integer "in_need_id"
     t.string "isbn"
     t.text "note"
@@ -35,17 +25,27 @@ ActiveRecord::Schema[8.1].define(version: 2026_02_02_130000) do
     t.index ["user_id"], name: "index_books_on_user_id"
   end
 
-  create_table "users", force: :cascade do |t|
-    t.boolean "admin", default: false, null: false
-    t.integer "batch_year_id"
+  create_table "in_needs", force: :cascade do |t|
+    t.integer "batch_number"
     t.datetime "created_at", null: false
-    t.string "email"
-    t.string "id_number"
+    t.integer "entry_month"
+    t.integer "entry_year"
+    t.integer "grade_id"
     t.string "name"
     t.datetime "updated_at", null: false
   end
 
-  add_foreign_key "books", "batch_years"
+  create_table "users", force: :cascade do |t|
+    t.boolean "admin", default: false, null: false
+    t.datetime "created_at", null: false
+    t.string "email"
+    t.string "id_number"
+    t.integer "in_need_id"
+    t.string "name"
+    t.datetime "updated_at", null: false
+  end
+
+  add_foreign_key "books", "in_needs"
   add_foreign_key "books", "users"
-  add_foreign_key "users", "batch_years"
+  add_foreign_key "users", "in_needs"
 end

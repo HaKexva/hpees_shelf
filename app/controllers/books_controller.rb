@@ -4,7 +4,10 @@ class BooksController < ApplicationController
   # GET /books or /books.json
   def index
     # Filter out books with empty title
-    @books = Book.where.not(title: [ nil, "" ]).includes(:batch_year)
+    @books = Book.where.not(title: [ nil, "" ]).includes(:in_need)
+    @books = @books.where(in_need_id: params[:in_need_id]) if params[:in_need_id].present?
+    @in_needs = InNeed.by_number_desc
+    @filter_in_need_id = params[:in_need_id]
   end
 
   # GET /books/import
@@ -29,10 +32,10 @@ class BooksController < ApplicationController
       require "base64"
       import_data = JSON.parse(Base64.strict_decode64(params[:import_data]))
 
-      selected_batch_year_id = params[:batch_year_id].presence&.to_i
-      if selected_batch_year_id.blank? || selected_batch_year_id < 1
+      selected_in_need_id = params[:in_need_id].presence&.to_i
+      if selected_in_need_id.blank? || selected_in_need_id < 1
         _restore_import_preview(import_data)
-        @batch_years = BatchYear.by_number_desc
+        @in_needs = InNeed.by_number_desc
         flash.now[:alert] = "請選擇屆數。"
         render :import, status: :unprocessable_entity
         return
@@ -42,7 +45,7 @@ class BooksController < ApplicationController
       skipped_count = 0
       duplicate_action = params[:duplicate_action] || "skip"
       selected_duplicates = (params[:selected_duplicates] || []).map(&:to_i)
-      batch_year = BatchYear.find_by(id: selected_batch_year_id)
+      in_need = InNeed.find_by(id: selected_in_need_id)
 
       import_data.each_with_index do |row, index|
         title = row["title"] || row["Title"]
@@ -57,8 +60,8 @@ class BooksController < ApplicationController
           total: (row["total"] || row["Total"]).to_i,
           volume: (row["volume"] || row["Volume"]).to_i,
           note: row["note"] || row["Note"],
-          in_need_id: batch_year&.in_need_id,
-          batch_year_id: selected_batch_year_id
+          grade_id: in_need&.grade_id,
+          in_need_id: selected_in_need_id
         }
 
         # Check for duplicate (same title and isbn)
@@ -138,7 +141,7 @@ class BooksController < ApplicationController
           end
         end
 
-        @batch_years = BatchYear.by_number_desc
+        @in_needs = InNeed.by_number_desc
         render :import
       rescue StandardError => e
         flash.now[:alert] = "Error parsing file: #{e.message}"
@@ -157,26 +160,26 @@ class BooksController < ApplicationController
   # GET /books/new
   def new
     @book = Book.new
-    @batch_years = BatchYear.by_number_desc
+    @in_needs = InNeed.by_number_desc
   end
 
   # GET /books/1/edit
   def edit
-    @batch_years = BatchYear.by_number_desc
+    @in_needs = InNeed.by_number_desc
   end
 
   # POST /books or /books.json
   def create
     @book = Book.new(book_params)
     # 年級由屆數帶入
-    @book.in_need_id = @book.batch_year&.in_need_id if @book.batch_year_id.present?
+    @book.grade_id = @book.in_need&.grade_id if @book.in_need_id.present?
 
     respond_to do |format|
       if @book.save
         format.html { redirect_to @book, notice: "Book was successfully created." }
         format.json { render :show, status: :created, location: @book }
       else
-        @batch_years = BatchYear.by_number_desc
+        @in_needs = InNeed.by_number_desc
         format.html { render :new, status: :unprocessable_entity }
         format.json { render json: @book.errors, status: :unprocessable_entity }
       end
@@ -188,11 +191,11 @@ class BooksController < ApplicationController
     respond_to do |format|
       if @book.update(book_params)
         # 屆數變更時同步年級（年級為選填，無屆數或屆數無年級時為 nil）
-        @book.update_column(:in_need_id, @book.batch_year&.in_need_id)
+        @book.update_column(:grade_id, @book.in_need&.grade_id)
         format.html { redirect_to @book, notice: "Book was successfully updated.", status: :see_other }
         format.json { render :show, status: :ok, location: @book }
       else
-        @batch_years = BatchYear.by_number_desc
+        @in_needs = InNeed.by_number_desc
         format.html { render :edit, status: :unprocessable_entity }
         format.json { render json: @book.errors, status: :unprocessable_entity }
       end
@@ -212,11 +215,12 @@ class BooksController < ApplicationController
   # DELETE /books/bulk_destroy
   def bulk_destroy
     ids = Array(params[:book_ids]).reject(&:blank?).map(&:to_i)
+    redirect_params = params[:in_need_id].present? ? { in_need_id: params[:in_need_id] } : {}
     if ids.any?
       count = Book.where(id: ids).destroy_all.size
-      redirect_to books_path, notice: "已刪除 #{count} 本書籍。", status: :see_other
+      redirect_to books_path(redirect_params), notice: "已刪除 #{count} 本書籍。", status: :see_other
     else
-      redirect_to books_path, alert: "請至少選擇一本書。", status: :see_other
+      redirect_to books_path(redirect_params), alert: "請至少選擇一本書。", status: :see_other
     end
   end
 
@@ -226,7 +230,7 @@ class BooksController < ApplicationController
     end
 
     def book_params
-      params.expect(book: [ :title, :isbn, :total, :volume, :note, :batch_year_id ])
+      params.expect(book: [ :title, :isbn, :total, :volume, :note, :in_need_id ])
     end
 
     def _restore_import_preview(import_data)

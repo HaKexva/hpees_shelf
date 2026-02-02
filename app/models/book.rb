@@ -1,3 +1,3 @@
 class Book < ApplicationRecord
-  belongs_to :batch_year, optional: true
+  belongs_to :in_need, optional: true
 end

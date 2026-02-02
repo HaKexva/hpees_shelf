@@ -13,7 +13,18 @@
     </div>
   </div>
 
+  <div class="mb-4">
+    <label class="block text-sm font-medium text-gray-700 mb-2">依屆數篩選</label>
+    <%= form_with url: books_path, method: :get, local: true, class: "inline" do |f| %>
+      <%= f.select :in_need_id, options_from_collection_for_select(@in_needs, :id, :display_label_with_grade, @filter_in_need_id), { include_blank: "全部屆數" }, { class: "block shadow-sm rounded-md border border-gray-300 px-3 py-2 w-48", onchange: "this.form.submit()" } %>
+    <% end %>
+    <% if @filter_in_need_id.present? %>
+      <span class="ml-2 text-sm text-gray-500">（已篩選此屆數）</span>
+    <% end %>
+  </div>
+
   <%= form_with url: bulk_destroy_books_path, method: :delete, id: "bulk-destroy-books-form" do |f| %>
+    <%= hidden_field_tag :in_need_id, @filter_in_need_id if @filter_in_need_id.present? %>
     <div class="flex gap-2 items-center mb-4">
       <button type="submit" class="rounded-md px-3.5 py-2.5 bg-red-600 hover:bg-red-500 text-white font-medium cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed" id="bulk-destroy-btn" disabled data-turbo-confirm="確定要刪除所選的書籍嗎？">
         刪除所選
@@ -46,7 +57,7 @@
                   <input type="checkbox" name="book_ids[]" value="<%= book.id %>" class="book-checkbox rounded" title="選擇以刪除">
                 </td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900"><%= book.title %></td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500"><%= book.batch_year&.display_label || "—" %></td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500"><%= book.in_need&.display_label || "—" %></td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500"><%= book.isbn %></td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500"><%= book.volume %></td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500"><%= book.total %></td>
