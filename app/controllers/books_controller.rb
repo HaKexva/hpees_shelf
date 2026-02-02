@@ -65,7 +65,7 @@ class BooksController < ApplicationController
               skipped_count += 1
               next
             end
-          # "import" - import all duplicates, continue to save
+            # "import" - import all duplicates, continue to save
           end
         end
 
