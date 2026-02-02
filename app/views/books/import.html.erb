@@ -33,7 +33,7 @@
         <h3 class="font-semibold text-yellow-800 mb-2">欄位不符警告</h3>
         <p class="text-yellow-700 text-sm mb-2">您的 CSV 欄位與預期格式不符，請修正您的 CSV 檔案：</p>
         <% if @missing_columns.present? %>
-          <p class="text-yellow-700 text-sm"><strong>缺少的欄位：</strong> <%= @missing_columns.join("、") %></p>
+          <p class="text-yellow-700 text-sm"><strong>缺少的欄位：</strong> <%= @missing_columns.map { |c| @column_names_zh[c] || c }.join("、") %></p>
         <% end %>
         <% if @extra_columns.present? %>
           <p class="text-yellow-700 text-sm"><strong>多餘的欄位（將被忽略）：</strong> <%= @extra_columns.join("、") %></p>

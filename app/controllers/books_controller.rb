@@ -13,6 +13,13 @@ class BooksController < ApplicationController
     @imported_data = []
     @headers = []
     @expected_columns = %w[title isbn total volume note]
+    @column_names_zh = {
+      "title" => "書名",
+      "isbn" => "ISBN",
+      "total" => "總數",
+      "volume" => "冊數",
+      "note" => "備註"
+    }
 
     return unless request.post?
 
