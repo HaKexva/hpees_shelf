@@ -97,7 +97,7 @@ class BooksController < ApplicationController
         content = file.read.force_encoding("UTF-8")
         csv = CSV.parse(content, headers: true)
         @headers = csv.headers
-        
+
         # Filter out empty/blank rows
         @imported_data = csv.map(&:to_h).reject do |row|
           row.values.all? { |v| v.nil? || v.to_s.strip.empty? }
