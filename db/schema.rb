@@ -10,8 +10,8 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_02_02_030005) do
-  create_table "batches", force: :cascade do |t|
+ActiveRecord::Schema[8.1].define(version: 2026_02_02_120000) do
+  create_table "batch_years", force: :cascade do |t|
     t.integer "batch_number"
     t.datetime "created_at", null: false
     t.integer "entry_month"
@@ -22,7 +22,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_02_02_030005) do
   end
 
   create_table "books", force: :cascade do |t|
-    t.integer "batch_id"
+    t.integer "batch_year_id"
     t.datetime "created_at", null: false
     t.integer "grade_id"
     t.string "isbn"
@@ -32,22 +32,20 @@ ActiveRecord::Schema[8.1].define(version: 2026_02_02_030005) do
     t.datetime "updated_at", null: false
     t.integer "user_id"
     t.integer "volume"
-    t.index ["batch_id"], name: "index_books_on_batch_id"
     t.index ["user_id"], name: "index_books_on_user_id"
   end
 
   create_table "users", force: :cascade do |t|
     t.boolean "admin", default: false, null: false
-    t.integer "batch_id"
+    t.integer "batch_year_id"
     t.datetime "created_at", null: false
     t.string "email"
     t.string "id_number"
     t.string "name"
     t.datetime "updated_at", null: false
-    t.index ["batch_id"], name: "index_users_on_batch_id"
   end
 
-  add_foreign_key "books", "batches"
+  add_foreign_key "books", "batch_years"
   add_foreign_key "books", "users"
-  add_foreign_key "users", "batches"
+  add_foreign_key "users", "batch_years"
 end
