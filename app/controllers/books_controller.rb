@@ -106,21 +106,35 @@ class BooksController < ApplicationController
         end
 
         # Check for column mismatches
-        @missing_columns = @expected_columns - @headers.map(&:downcase)
-        @extra_columns = @headers.map(&:downcase) - @expected_columns
+        headers_downcase = @headers.map { |h| h&.downcase }
+        @missing_columns = @expected_columns - headers_downcase
+        @extra_columns = headers_downcase.compact - @expected_columns
 
-        # Check for duplicates in database
+        # Check if required columns exist (title or Title)
+        has_title_column = headers_downcase.include?("title")
+        has_isbn_column = headers_downcase.include?("isbn")
+
+        # Only check for duplicates if required columns exist
         @duplicates = []
         @new_books = []
-        @imported_data.each_with_index do |row, index|
-          book_attrs = {
-            title: row["title"] || row["Title"],
-            isbn: row["isbn"] || row["ISBN"]
-          }
-          existing = Book.find_by(title: book_attrs[:title], isbn: book_attrs[:isbn])
-          if existing
-            @duplicates << { index: index, row: row, existing: existing }
-          else
+        if has_title_column && has_isbn_column
+          @imported_data.each_with_index do |row, index|
+            title = row["title"] || row["Title"]
+            isbn = row["isbn"] || row["ISBN"]
+
+            # Skip rows with empty title
+            next if title.blank?
+
+            existing = Book.find_by(title: title, isbn: isbn)
+            if existing
+              @duplicates << { index: index, row: row, existing: existing }
+            else
+              @new_books << { index: index, row: row }
+            end
+          end
+        else
+          # No duplicate check if columns don't match
+          @imported_data.each_with_index do |row, index|
             @new_books << { index: index, row: row }
           end
         end
