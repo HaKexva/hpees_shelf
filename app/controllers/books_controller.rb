@@ -4,7 +4,7 @@ class BooksController < ApplicationController
   # GET /books or /books.json
   def index
     # Filter out books with empty title
-    @books = Book.where.not(title: [ nil, "" ])
+    @books = Book.where.not(title: [ nil, "" ]).includes(:batch)
   end
 
   # GET /books/import
@@ -29,9 +29,25 @@ class BooksController < ApplicationController
       require "base64"
       import_data = JSON.parse(Base64.strict_decode64(params[:import_data]))
 
+      selected_grade_id = params[:grade_id].presence&.to_i
+      selected_batch_id = params[:batch_id].presence&.to_i
+      if selected_grade_id.blank? || selected_grade_id < 1
+        _restore_import_preview(import_data)
+        @batches = Batch.order(:name)
+        flash.now[:alert] = "請選擇年級。"
+        render :import, status: :unprocessable_entity
+        return
+      end
+      if selected_batch_id.blank? || selected_batch_id < 1
+        _restore_import_preview(import_data)
+        @batches = Batch.order(:name)
+        flash.now[:alert] = "請選擇屆數。"
+        render :import, status: :unprocessable_entity
+        return
+      end
+
       imported_count = 0
       skipped_count = 0
-      selected_grade_id = params[:grade_id].presence&.to_i
       duplicate_action = params[:duplicate_action] || "skip"
       selected_duplicates = (params[:selected_duplicates] || []).map(&:to_i)
 
@@ -48,7 +64,8 @@ class BooksController < ApplicationController
           total: (row["total"] || row["Total"]).to_i,
           volume: (row["volume"] || row["Volume"]).to_i,
           note: row["note"] || row["Note"],
-          grade_id: selected_grade_id || (row["grade_id"] || row["Grade ID"]).presence&.to_i
+          grade_id: selected_grade_id || (row["grade_id"] || row["Grade ID"]).presence&.to_i,
+          batch_id: selected_batch_id
         }
 
         # Check for duplicate (same title and isbn)
@@ -128,6 +145,7 @@ class BooksController < ApplicationController
           end
         end
 
+        @batches = Batch.order(:name)
         render :import
       rescue StandardError => e
         flash.now[:alert] = "Error parsing file: #{e.message}"
@@ -146,6 +164,7 @@ class BooksController < ApplicationController
   # GET /books/new
   def new
     @book = Book.new
+    @batches = Batch.order(:name)
   end
 
   # GET /books/1/edit
@@ -161,6 +180,7 @@ class BooksController < ApplicationController
         format.html { redirect_to @book, notice: "Book was successfully created." }
         format.json { render :show, status: :created, location: @book }
       else
+        @batches = Batch.order(:name)
         format.html { render :new, status: :unprocessable_entity }
         format.json { render json: @book.errors, status: :unprocessable_entity }
       end
@@ -169,8 +189,10 @@ class BooksController < ApplicationController
 
   # PATCH/PUT /books/1 or /books/1.json
   def update
+    # 屆數不可變更，更新時不允許修改 batch_id
+    update_params = book_params.except(:batch_id, "batch_id")
     respond_to do |format|
-      if @book.update(book_params)
+      if @book.update(update_params)
         format.html { redirect_to @book, notice: "Book was successfully updated.", status: :see_other }
         format.json { render :show, status: :ok, location: @book }
       else
@@ -202,13 +224,40 @@ class BooksController < ApplicationController
   end
 
   private
-    # Use callbacks to share common setup or constraints between actions.
     def set_book
       @book = Book.find(params.expect(:id))
     end
 
-    # Only allow a list of trusted parameters through.
     def book_params
-      params.expect(book: [ :title, :isbn, :total, :volume, :note, :grade_id ])
+      params.expect(book: [ :title, :isbn, :total, :volume, :note, :grade_id, :batch_id ])
+    end
+
+    def _restore_import_preview(import_data)
+      @imported_data = import_data
+      @headers = import_data.first&.keys || []
+      headers_downcase = @headers.map { |h| h&.to_s&.downcase }
+      @missing_columns = @expected_columns - headers_downcase
+      @extra_columns = headers_downcase.compact - @expected_columns
+      has_title_column = headers_downcase.include?("title")
+      has_isbn_column = headers_downcase.include?("isbn")
+      @duplicates = []
+      @new_books = []
+      if has_title_column && has_isbn_column
+        @imported_data.each_with_index do |row, index|
+          title = row["title"] || row["Title"]
+          isbn = row["isbn"] || row["ISBN"]
+          next if title.blank?
+          existing = Book.find_by(title: title, isbn: isbn)
+          if existing
+            @duplicates << { index: index, row: row, existing: existing }
+          else
+            @new_books << { index: index, row: row }
+          end
+        end
+      else
+        @imported_data.each_with_index do |row, index|
+          @new_books << { index: index, row: row }
+        end
+      end
     end
 end

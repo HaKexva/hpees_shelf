@@ -20,6 +20,10 @@
     <%= book.note %>
   </div>
   <div>
+    <strong class="block font-medium mb-1">屆數：</strong>
+    <%= book.batch&.name || "—" %>
+  </div>
+  <div>
     <strong class="block font-medium mb-1">年級：</strong>
     <%= book.grade_id %>
   </div>

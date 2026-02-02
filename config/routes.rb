@@ -1,4 +1,5 @@
 Rails.application.routes.draw do
+  resources :batches
   resources :books do
     collection do
       get :import

@@ -1,0 +1,51 @@
+<% content_for :title, "屆數列表" %>
+
+<div class="w-full">
+  <% if notice.present? %>
+    <p class="py-2 px-3 bg-green-50 mb-5 text-green-500 font-medium rounded-md inline-block" id="notice"><%= notice %></p>
+  <% end %>
+
+  <div class="flex justify-between items-center mb-6">
+    <h1 class="font-bold text-4xl">屆數列表</h1>
+    <%= link_to "新增屆數", new_batch_path, class: "rounded-md px-3.5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white block font-medium" %>
+  </div>
+
+  <div class="bg-white rounded-lg shadow overflow-hidden">
+    <table class="min-w-full divide-y divide-gray-200">
+      <thead class="bg-gray-50">
+          <tr>
+          <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">屆數名稱</th>
+          <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">書籍數</th>
+          <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">人員數</th>
+          <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">操作</th>
+        </tr>
+      </thead>
+      <tbody class="bg-white divide-y divide-gray-200">
+        <% if @batches.any? %>
+          <% @batches.each do |batch| %>
+            <tr class="hover:bg-gray-50">
+              <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                <%= link_to batch.name, batch, class: "text-blue-600 hover:text-blue-900" %>
+              </td>
+              <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500"><%= batch.books.count %></td>
+              <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500"><%= batch.users.count %></td>
+              <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2">
+                <%= link_to "編輯", edit_batch_path(batch), class: "text-indigo-600 hover:text-indigo-900" %>
+                <%= button_to "刪除", batch, method: :delete, class: "text-red-600 hover:text-red-900 bg-transparent border-0 cursor-pointer inline", data: { turbo_confirm: "確定要刪除此屆數嗎？" } %>
+              </td>
+            </tr>
+          <% end %>
+        <% else %>
+          <tr>
+            <td colspan="4" class="px-6 py-10 text-center text-gray-500">尚無屆數。</td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  </div>
+
+  <p class="mt-4">
+    <%= link_to "返回書籍列表", books_path, class: "rounded-md px-3.5 py-2.5 bg-gray-100 hover:bg-gray-50 font-medium" %>
+  </p>
+  <p class="mt-2 text-sm text-gray-500">屆數設定後不可變更。書籍與人員建立時選擇屆數。</p>
+</div>

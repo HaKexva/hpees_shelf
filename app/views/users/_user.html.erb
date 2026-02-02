@@ -17,6 +17,11 @@
   <% end %>
 
   <p class="my-2">
+    <strong class="block font-medium text-sm text-gray-500">屆數：</strong>
+    <%= user.batch&.name || "—" %>
+  </p>
+
+  <p class="my-2">
     <strong class="block font-medium text-sm text-gray-500">管理員：</strong>
     <%= user.admin ? "是" : "否" %>
   </p>
