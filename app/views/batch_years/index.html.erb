@@ -5,9 +5,16 @@
     <p class="py-2 px-3 bg-green-50 mb-5 text-green-500 font-medium rounded-md inline-block" id="notice"><%= notice %></p>
   <% end %>
 
-  <div class="flex justify-between items-center mb-6">
-    <h1 class="font-bold text-4xl">屆數列表</h1>
-    <%= link_to "新增屆數", new_batch_year_path, class: "rounded-md px-3.5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white block font-medium" %>
+  <div class="flex justify-between items-center mb-6 flex-wrap gap-2">
+    <div>
+      <h1 class="font-bold text-4xl">屆數列表</h1>
+      <p class="mt-1 text-sm text-gray-500">目前學年度：<%= BatchYear.current_school_year_roc %>學年度</p>
+    </div>
+    <div class="flex gap-2 flex-wrap">
+      <%= button_to "一鍵建立屆數（第1屆～第 #{BatchYear.max_batch_number_for_auto_create} 屆）", auto_create_batch_years_path, method: :post, class: "rounded-md px-3.5 py-2.5 bg-green-600 hover:bg-green-500 text-white font-medium cursor-pointer", form: { data: { turbo_confirm: "將自動建立第1屆～第 #{BatchYear.max_batch_number_for_auto_create} 屆。確定？" } } %>
+      <%= button_to "依屆數排名重設年級", reassign_grades_batch_years_path, method: :post, class: "rounded-md px-3.5 py-2.5 bg-amber-600 hover:bg-amber-500 text-white font-medium cursor-pointer", form: { data: { turbo_confirm: "將依屆數編號排名重設年級。確定？" } } %>
+      <%= link_to "新增屆數", new_batch_year_path, class: "rounded-md px-3.5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white block font-medium" %>
+    </div>
   </div>
 
   <%= form_with url: bulk_destroy_batch_years_path, method: :delete, id: "bulk-destroy-batch-years-form" do |f| %>
@@ -62,10 +69,6 @@
       </table>
     </div>
   <% end %>
-
-  <p class="mt-4">
-    <%= link_to "返回書籍列表", books_path, class: "rounded-md px-3.5 py-2.5 bg-gray-100 hover:bg-gray-50 font-medium" %>
-  </p>
 
   <script>
     (function() {

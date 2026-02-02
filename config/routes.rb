@@ -8,6 +8,8 @@ Rails.application.routes.draw do
 
   resources :batch_years do
     collection do
+      post :auto_create
+      post :reassign_grades
       delete :bulk_destroy
     end
   end

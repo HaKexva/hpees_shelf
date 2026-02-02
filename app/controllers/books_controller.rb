@@ -144,11 +144,11 @@ class BooksController < ApplicationController
         @batch_years = BatchYear.by_number_desc
         render :import
       rescue StandardError => e
-        flash.now[:alert] = "Error parsing file: #{e.message}"
+        flash.now[:alert] = "解析檔案時發生錯誤：#{e.message}"
         render :import
       end
     else
-      flash.now[:alert] = "Please select a file to upload."
+      flash.now[:alert] = "請選擇要上傳的檔案。"
       render :import
     end
   end
@@ -176,7 +176,7 @@ class BooksController < ApplicationController
 
     respond_to do |format|
       if @book.save
-        format.html { redirect_to @book, notice: "Book was successfully created." }
+        format.html { redirect_to @book, notice: "書籍已建立。" }
         format.json { render :show, status: :created, location: @book }
       else
         @batch_years = BatchYear.by_number_desc
@@ -192,7 +192,7 @@ class BooksController < ApplicationController
       if @book.update(book_params)
         # 屆數變更時可同步年級（若表單未改年級則從屆數帶入）
         @book.update_column(:grade_id, @book.batch_year&.grade_id) if @book.batch_year_id.present?
-        format.html { redirect_to @book, notice: "Book was successfully updated.", status: :see_other }
+        format.html { redirect_to @book, notice: "書籍已更新。", status: :see_other }
         format.json { render :show, status: :ok, location: @book }
       else
         @batch_years = BatchYear.by_number_desc
@@ -207,7 +207,7 @@ class BooksController < ApplicationController
     @book.destroy!
 
     respond_to do |format|
-      format.html { redirect_to books_path, notice: "Book was successfully destroyed.", status: :see_other }
+      format.html { redirect_to books_path, notice: "書籍已刪除。", status: :see_other }
       format.json { head :no_content }
     end
   end

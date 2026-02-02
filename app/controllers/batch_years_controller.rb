@@ -38,6 +38,23 @@ class BatchYearsController < ApplicationController
     redirect_to batch_years_path, notice: "屆數已刪除。", status: :see_other
   end
 
+  def auto_create
+    max = BatchYear.max_batch_number_for_auto_create
+    1.upto(max) do |n|
+      by = BatchYear.find_or_initialize_by(batch_number: n)
+      by.grade_id = BatchYear::GRADE_GRADUATED if by.grade_id.blank?
+      by.name = "第#{n}屆" if by.name.blank?
+      by.save!
+    end
+    BatchYear.reassign_grades_by_rank!
+    redirect_to batch_years_path, notice: "已建立／更新第1屆～第 #{max} 屆。", status: :see_other
+  end
+
+  def reassign_grades
+    BatchYear.reassign_grades_by_rank!
+    redirect_to batch_years_path, notice: "已依屆數編號排名重設年級。", status: :see_other
+  end
+
   def bulk_destroy
     ids = Array(params[:batch_year_ids]).reject(&:blank?).map(&:to_i)
     if ids.any?

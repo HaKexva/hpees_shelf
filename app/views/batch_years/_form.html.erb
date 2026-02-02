@@ -11,13 +11,13 @@
   <% end %>
 
   <div class="my-5">
-    <%= form.label :batch_number, "屆數編號" %>
-    <%= form.number_field :batch_number, min: 1, class: [ "block shadow-sm rounded-md border px-3 py-2 mt-2 w-full max-w-xs", (batch_year.errors[:batch_number].none? ? "border-gray-400 focus:outline-blue-600" : "border-red-400 focus:outline-red-600") ] %>
+    <%= form.label :batch_number, "屆數（必填）" %>
+    <%= form.number_field :batch_number, min: 1, required: true, class: [ "block shadow-sm rounded-md border px-3 py-2 mt-2 w-full max-w-xs", (batch_year.errors[:batch_number].none? ? "border-gray-400 focus:outline-blue-600" : "border-red-400 focus:outline-red-600") ] %>
     <p class="mt-1 text-sm text-gray-500">2026/09 入學為第 12 屆，之後依序為 13、14、15…</p>
   </div>
 
   <div class="my-5">
-    <%= form.label :grade_id, "年級（必填，此屆數對應年級，新增/匯入書籍時會自動帶入；可選「畢業」）" %>
+    <%= form.label :grade_id, "年級（必填）" %>
     <%= form.select :grade_id, BatchYear.required_grade_options, {}, { required: true, class: [ "block shadow-sm rounded-md border px-3 py-2 mt-2 w-full max-w-xs", (batch_year.errors[:grade_id].none? ? "border-gray-400 focus:outline-blue-600" : "border-red-400 focus:outline-red-600") ] } %>
   </div>
 

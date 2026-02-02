@@ -27,7 +27,7 @@ class UsersController < ApplicationController
 
     respond_to do |format|
       if @user.save
-        format.html { redirect_to @user, notice: "User was successfully created." }
+        format.html { redirect_to @user, notice: "人員已建立。" }
         format.json { render :show, status: :created, location: @user }
       else
         @batch_years = BatchYear.by_number_desc
@@ -41,7 +41,7 @@ class UsersController < ApplicationController
   def update
     respond_to do |format|
       if @user.update(user_params)
-        format.html { redirect_to @user, notice: "User was successfully updated.", status: :see_other }
+        format.html { redirect_to @user, notice: "人員已更新。", status: :see_other }
         format.json { render :show, status: :ok, location: @user }
       else
         @batch_years = BatchYear.by_number_desc
@@ -56,7 +56,7 @@ class UsersController < ApplicationController
     @user.destroy!
 
     respond_to do |format|
-      format.html { redirect_to users_path, notice: "User was successfully destroyed.", status: :see_other }
+      format.html { redirect_to users_path, notice: "人員已刪除。", status: :see_other }
       format.json { head :no_content }
     end
   end
