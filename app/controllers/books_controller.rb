@@ -3,42 +3,35 @@ class BooksController < ApplicationController
 
   # GET /books or /books.json
   def index
-    @books = Book.all
+    # Filter out books with empty title
+    @books = Book.where.not(title: [nil, ""])
 
     # Check for duplicate books (same title and isbn)
-    @duplicates = Book.select(:title, :isbn)
+    @duplicates = Book.where.not(title: [nil, ""])
+                      .select(:title, :isbn)
                       .group(:title, :isbn)
                       .having("COUNT(*) > 1")
                       .map do |dup|
-                        Book.where(title: dup.title, isbn: dup.isbn).to_a
+                        Book.where(title: dup.title, isbn: dup.isbn).order(:id).to_a
                       end
   end
 
   # POST /books/resolve_duplicate
   def resolve_duplicate
-    keep_id = params[:keep_id]
     delete_id = params[:delete_id]
-    delete_all = params[:delete_all]
+    delete_group_title = params[:delete_group_title]
+    delete_group_isbn = params[:delete_group_isbn]
 
-    if delete_all.present?
-      # Delete all duplicates, keep only the first one of each group
-      duplicates = Book.select(:title, :isbn)
-                       .group(:title, :isbn)
-                       .having("COUNT(*) > 1")
-      deleted_count = 0
-      duplicates.each do |dup|
-        books = Book.where(title: dup.title, isbn: dup.isbn).order(:id)
-        books.offset(1).destroy_all
-        deleted_count += books.count - 1
-      end
-      redirect_to books_path, notice: "已刪除 #{deleted_count} 本重複書籍。"
+    if delete_group_title.present? && delete_group_isbn.present?
+      # Delete all duplicates in this group, keep only the first one
+      books = Book.where(title: delete_group_title, isbn: delete_group_isbn).order(:id)
+      deleted_count = books.count - 1
+      books.offset(1).destroy_all
+      redirect_to books_path, notice: "已刪除此組 #{deleted_count} 本重複書籍。"
     elsif delete_id.present?
       book = Book.find_by(id: delete_id)
       book&.destroy
-      redirect_to books_path, notice: "已刪除重複書籍。"
-    elsif keep_id.present?
-      # Mark as reviewed (keep both) - just redirect
-      redirect_to books_path, notice: "已保留兩本書籍。"
+      redirect_to books_path, notice: "已刪除書籍。"
     else
       redirect_to books_path
     end
