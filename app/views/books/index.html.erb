@@ -7,7 +7,10 @@
 
   <% if @duplicates.present? && @duplicates.any? %>
     <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
-      <h3 class="font-semibold text-yellow-800 mb-2">發現 <%= @duplicates.size %> 組重複書籍</h3>
+      <div class="flex justify-between items-center mb-2">
+        <h3 class="font-semibold text-yellow-800">發現 <%= @duplicates.size %> 組重複書籍</h3>
+        <%= button_to "刪除所有重複書籍", resolve_duplicate_books_path(delete_all: true), method: :post, class: "px-3 py-1.5 bg-red-600 text-white text-sm rounded hover:bg-red-500", data: { turbo_confirm: "確定要刪除所有重複書籍嗎？（每組只保留一本）" } %>
+      </div>
       <p class="text-yellow-700 text-sm mb-4">以下書籍有重複紀錄，請選擇保留或刪除：</p>
       
       <% @duplicates.each do |dup_group| %>

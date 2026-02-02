@@ -18,8 +18,21 @@ class BooksController < ApplicationController
   def resolve_duplicate
     keep_id = params[:keep_id]
     delete_id = params[:delete_id]
+    delete_all = params[:delete_all]
 
-    if delete_id.present?
+    if delete_all.present?
+      # Delete all duplicates, keep only the first one of each group
+      duplicates = Book.select(:title, :isbn)
+                       .group(:title, :isbn)
+                       .having("COUNT(*) > 1")
+      deleted_count = 0
+      duplicates.each do |dup|
+        books = Book.where(title: dup.title, isbn: dup.isbn).order(:id)
+        books.offset(1).destroy_all
+        deleted_count += books.count - 1
+      end
+      redirect_to books_path, notice: "已刪除 #{deleted_count} 本重複書籍。"
+    elsif delete_id.present?
       book = Book.find_by(id: delete_id)
       book&.destroy
       redirect_to books_path, notice: "已刪除重複書籍。"
@@ -84,7 +97,11 @@ class BooksController < ApplicationController
         content = file.read.force_encoding("UTF-8")
         csv = CSV.parse(content, headers: true)
         @headers = csv.headers
-        @imported_data = csv.map(&:to_h)
+        
+        # Filter out empty/blank rows
+        @imported_data = csv.map(&:to_h).reject do |row|
+          row.values.all? { |v| v.nil? || v.to_s.strip.empty? }
+        end
 
         # Check for column mismatches
         @missing_columns = @expected_columns - @headers.map(&:downcase)
