@@ -46,7 +46,7 @@
                   <input type="checkbox" name="book_ids[]" value="<%= book.id %>" class="book-checkbox rounded" title="選擇以刪除">
                 </td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900"><%= book.title %></td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500"><%= book.batch&.display_label || "—" %></td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500"><%= book.batch_year&.display_label || "—" %></td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500"><%= book.isbn %></td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500"><%= book.volume %></td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500"><%= book.total %></td>

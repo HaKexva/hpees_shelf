@@ -1,9 +1,9 @@
-class Batch < ApplicationRecord
+class BatchYear < ApplicationRecord
   # 年級：0 表示「畢業」
   GRADE_GRADUATED = 0
 
-  has_many :books, dependent: :nullify
-  has_many :users, dependent: :nullify
+  has_many :books, foreign_key: :batch_year_id, dependent: :nullify
+  has_many :users, foreign_key: :batch_year_id, dependent: :nullify
 
   # 屆數依編號由大至小（14, 13, 12…），無編號排最後
   scope :by_number_desc, -> { order(Arel.sql("CASE WHEN batch_number IS NULL THEN 1 ELSE 0 END"), batch_number: :desc) }
@@ -24,6 +24,6 @@ class Batch < ApplicationRecord
 
   # 年級選項：選填、畢業、1～6（空字串會存成 nil）
   def self.grade_options
-    [["（選填）", ""], ["畢業", GRADE_GRADUATED]] + (1..6).map { |n| [n.to_s, n] }
+    [ [ "（選填）", "" ], [ "畢業", GRADE_GRADUATED ]  ] + (1..6).map { |n| [ n.to_s, n ] }
   end
 end
