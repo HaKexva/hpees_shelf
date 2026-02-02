@@ -26,8 +26,9 @@ class BooksController < ApplicationController
       skipped_count = 0
       selected_grade_id = params[:grade_id].presence&.to_i
       duplicate_action = params[:duplicate_action] || "skip"
+      selected_duplicates = (params[:selected_duplicates] || []).map(&:to_i)
 
-      import_data.each do |row|
+      import_data.each_with_index do |row, index|
         title = row["title"] || row["Title"]
         isbn = row["isbn"] || row["ISBN"]
 
@@ -46,15 +47,26 @@ class BooksController < ApplicationController
         # Check for duplicate (same title and isbn)
         is_duplicate = Book.exists?(title: title, isbn: isbn)
 
-        if is_duplicate && duplicate_action == "skip"
-          skipped_count += 1
-        else
-          book = Book.new(book_attrs)
-          if book.save
-            imported_count += 1
-          else
-            Rails.logger.error "Failed to save book: #{book.errors.full_messages.join(', ')}"
+        if is_duplicate
+          case duplicate_action
+          when "skip"
+            skipped_count += 1
+            next
+          when "select"
+            # Only import if this index was selected
+            unless selected_duplicates.include?(index)
+              skipped_count += 1
+              next
+            end
+          # "import" - import all duplicates, continue to save
           end
+        end
+
+        book = Book.new(book_attrs)
+        if book.save
+          imported_count += 1
+        else
+          Rails.logger.error "Failed to save book: #{book.errors.full_messages.join(', ')}"
         end
       end
 
