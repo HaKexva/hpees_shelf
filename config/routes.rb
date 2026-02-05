@@ -23,6 +23,8 @@ Rails.application.routes.draw do
     collection do
       get :import
       post :import
+      get :return_to_library_batch
+      post :apply_return_to_library_batch
       delete :bulk_destroy
     end
   end
@@ -33,6 +35,10 @@ Rails.application.routes.draw do
   get "up" => "rails/health#show", as: :rails_health_check
 
   resources :users do
+    member do
+      get :cancel_resignation, to: redirect("/users/%{id}")
+      post :cancel_resignation
+    end
     collection do
       delete :bulk_destroy
     end

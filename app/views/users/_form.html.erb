@@ -1,4 +1,4 @@
-<%= form_with(model: user, class: "contents", data: { controller: "unsaved-form" }) do |form| %>
+<%= form_with(model: user, class: "contents", data: { controller: "unsaved-form user-form" }) do |form| %>
   <% if user.errors.any? %>
     <div id="error_explanation" class="bg-red-50 text-red-500 px-3 py-2 font-medium rounded-md mt-3">
       <h2>有 <%= user.errors.count %> 個錯誤，無法儲存此人員：</h2>
@@ -17,8 +17,73 @@
   </div>
 
   <div class="my-5">
-    <%= form.label :batch_year_id, "屆數（必填）" %>
-    <%= form.collection_select :batch_year_id, @batch_years || BatchYear.by_number_desc, :id, :display_label_with_grade, { include_blank: "請選擇屆數" }, { required: true, class: [ "block shadow-sm rounded-md border px-3 py-2 mt-2 w-full", (user.errors[:batch_year_id].none? ? "border-gray-400 focus:outline-blue-600" : "border-red-400 focus:outline-red-600") ] } %>
+    <%= form.label :batch_year_id, "屆數（必填）", class: "block text-sm font-medium text-gray-700" %>
+
+    <!-- 學生：單選屆數 -->
+    <div class="<%= 'hidden' if user.admin %> mt-2" data-user-form-target="primaryBatchRow">
+      <%= form.collection_select :batch_year_id,
+            @batch_years || BatchYear.by_number_desc,
+            :id,
+            :display_label_with_grade,
+            { include_blank: "請選擇屆數" },
+            required: true,
+            class: [
+              "block shadow-sm rounded-md border px-3 py-2 w-full",
+              (user.errors[:batch_year_id].none? ? "border-gray-400 focus:outline-blue-600" : "border-red-400 focus:outline-red-600")
+            ] %>
+    </div>
+
+    <!-- 管理員：多選屆數（美化版） -->
+    <div class="<%= 'hidden' unless user.admin %> mt-2" data-user-form-target="extraBatchRow" data-controller="extra-batch-select">
+      <!-- Hidden real multi-select for Rails -->
+      <%= form.collection_select :extra_batch_year_ids,
+            BatchYear.class_batches_by_number_desc,
+            :id,
+            :display_label_with_grade,
+            { include_hidden: false },
+            multiple: true,
+            class: "hidden",
+            data: { extra_batch_select_target: "select" } %>
+
+      <!-- Visible Stimulus multi-select UI -->
+      <div class="border border-gray-300 rounded-md px-3 py-2 bg-white">
+        <button type="button"
+                class="w-full flex justify-between items-center text-sm text-gray-700"
+                data-action="click->extra-batch-select#togglePanel"
+                aria-haspopup="listbox">
+          <span data-extra-batch-select-target="summary">尚未選擇屆數</span>
+          <span class="text-gray-400 text-xs">▼</span>
+        </button>
+        <div class="mt-2 border-t border-gray-200 pt-2 hidden max-h-48 overflow-y-auto"
+             data-extra-batch-select-target="panel">
+          <div class="flex justify-between items-center mb-1">
+            <span class="text-xs text-gray-500">勾選要連結的屆數</span>
+            <button type="button"
+                    class="text-xs text-gray-400 hover:text-gray-600"
+                    data-action="click->extra-batch-select#clearAll">
+              清除選取
+            </button>
+          </div>
+          <div class="space-y-1 text-sm">
+            <% BatchYear.class_batches_by_number_desc.each do |by| %>
+              <label class="flex items-center gap-2">
+                <input type="checkbox"
+                       class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-600"
+                       value="<%= by.id %>"
+                       data-extra-batch-select-target="checkbox"
+                       data-action="change->extra-batch-select#toggleOption"
+                       <%= "checked" if user.extra_batch_year_ids&.include?(by.id) %>>
+                <span class="text-gray-700"><%= by.display_label_with_grade %></span>
+              </label>
+            <% end %>
+          </div>
+        </div>
+      </div>
+
+      <p class="mt-1 text-xs text-gray-500">
+        管理員可以在此選擇多個班級屆數；學生只會有一個屆數。
+      </p>
+    </div>
   </div>
 
   <% unless user.admin %>
@@ -33,9 +98,12 @@
   <% end %>
 
   <div class="my-5 flex items-center">
-    <%= form.check_box :admin, class: "h-4 w-4 rounded border-gray-400 text-blue-600 focus:ring-blue-600" %>
+    <%= form.check_box :admin,
+          class: "h-4 w-4 rounded border-gray-400 text-blue-600 focus:ring-blue-600",
+          data: { user_form_target: "adminCheckbox", action: "change->user-form#toggleBatchRows" } %>
     <%= form.label :admin, "管理員", class: "ml-2" %>
   </div>
+
 
   <div class="inline">
     <%= form.submit "儲存", class: "w-full sm:w-auto rounded-md px-3.5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white inline-block font-medium cursor-pointer" %>

@@ -4,13 +4,26 @@ class BooksController < ApplicationController
   # GET /books or /books.json
   def index
     BatchYear.ensure_office_exists!
-    # Filter out books with empty title in normal listing
-    @books = Book.where.not(title: [ nil, "" ]).includes(:batch_year)
+    # Filter out books with empty title and those "Returned to library" (hidden after return)
+    @books = Book.where.not(title: [ nil, "" ]).where.not(status: Book::STATUS_RETURNED_LIBRARY).includes(:batch_year)
     @books = @books.where(batch_year_id: params[:batch_year_id]) if params[:batch_year_id].present?
-    @books = @books.where(tag: params[:tag]) if params[:tag].present?
+    if params[:tag].present?
+      if params[:tag] == Book::TAG_TEACHER_PREFIX
+        # Teacher books: can further filter by which teacher
+        @books = if params[:teacher_tag].present?
+          @books.where(tag: params[:teacher_tag])
+        else
+          @books.where("tag LIKE ?", "%老師的書")
+        end
+      else
+        @books = @books.where(tag: params[:tag])
+      end
+    end
     @batch_years = BatchYear.by_number_desc
     @filter_batch_year_id = params[:batch_year_id]
     @filter_tag = params[:tag]
+    @filter_teacher_tag = params[:teacher_tag]
+    @teacher_tag_options = Book.where("tag LIKE ?", "%老師的書").distinct.pluck(:tag).sort
     @invalid_books = @books.select { |b| b.missing_required_fields.any? }
   end
 
@@ -101,20 +114,16 @@ class BooksController < ApplicationController
       message += " 已跳過 #{skipped_count} 本重複書籍。" if skipped_count > 0
       redirect_to books_path, notice: message, status: :see_other
     elsif params[:file].present?
-      # Preview uploaded file
+      # Preview uploaded file (parse CSV without gem to avoid load path issues)
       file = params[:file]
       begin
-        require "csv"
         content = file.read.force_encoding("UTF-8")
-        csv = CSV.parse(content, headers: true)
-        @headers = csv.headers
-
-        # Filter out empty/blank rows
-        @imported_data = csv.map(&:to_h).reject do |row|
+        @headers, rows = _parse_csv(content)
+        @imported_data = rows.reject do |row|
           row.values.all? { |v| v.nil? || v.to_s.strip.empty? }
         end
 
-        # Check for column mismatches（依欄位名稱辨識，順序不拘；中英文欄名皆可）
+        # Check for column mismatches (match by column name, order does not matter; both English and Chinese headers are accepted)
         headers_downcase = @headers.map { |h| h&.to_s&.strip }
         normalized_headers = headers_downcase.map do |h|
           h_d = h&.downcase
@@ -135,7 +144,7 @@ class BooksController < ApplicationController
         has_title_column = normalized_headers.include?("title")
         has_isbn_column = normalized_headers.include?("isbn")
 
-        # 標題符合時：逐筆檢查是否符合匯入格式（書名、標籤必填），不符合的列在預覽狀態欄顯示「不符合」
+        # When headers are valid: validate each row against import format (title and tag required); invalid rows show "不符合" in the preview status column
         @invalid_row_indices = []
         @imported_data.each_with_index do |row, index|
           title = _import_row_value(row, "title", "Title", "書名")
@@ -203,7 +212,7 @@ class BooksController < ApplicationController
   def create
     @book = Book.new(book_params)
     apply_tag_teacher_name!(@book)
-    # 年級由屆數帶入
+    # Grade is derived from the selected batch_year
     @book.grade_id = @book.batch_year&.grade_id if @book.batch_year_id.present? && @book.grade_id.blank?
 
     respond_to do |format|
@@ -227,7 +236,7 @@ class BooksController < ApplicationController
     apply_tag_teacher_name!(attrs)
     respond_to do |format|
       if @book.update(attrs)
-        # 屆數變更時可同步年級（若表單未改年級則從屆數帶入）
+        # When batch_year changes, optionally sync grade (if grade was not changed in the form, derive from batch_year)
         @book.update_column(:grade_id, @book.batch_year&.grade_id) if @book.batch_year_id.present?
         format.html { redirect_to @book, notice: "書籍已更新。", status: :see_other }
         format.json { render :show, status: :ok, location: @book }
@@ -252,7 +261,7 @@ class BooksController < ApplicationController
     end
   end
 
-  # POST /books/1/return_to_library — 圖書館的書：標記為「歸還圖書館」
+  # POST /books/1/return_to_library — Library books: mark as "Returned to library"
   def return_to_library
     if @book.library_book?
       @book.update!(status: Book::STATUS_RETURNED_LIBRARY)
@@ -262,12 +271,38 @@ class BooksController < ApplicationController
     end
   end
 
+  # GET /books/return_to_library_batch — Choose which batch's library books to mark as returned
+  def return_to_library_batch
+    return redirect_to books_path, alert: "目前非開放歸還圖書館書籍期間。" unless Book.show_return_to_library_button?
+    @batch_years = BatchYear.class_batches_by_number_desc
+  end
+
+  # POST /books/apply_return_to_library_batch — Mark all library books in the selected batch as "Returned to library"
+  def apply_return_to_library_batch
+    return redirect_to books_path, alert: "目前非開放歸還圖書館書籍期間。" unless Book.show_return_to_library_button?
+    raw = params[:batch_year_id].to_s
+    scope = Book.where(tag: Book::TAG_LIBRARY)
+
+    if raw == "all"
+      # Library books from all batches
+      count = scope.update_all(status: Book::STATUS_RETURNED_LIBRARY)
+      redirect_to books_path, notice: "已將全部屆數 #{count} 本圖書館的書標記為「歸還圖書館」。", status: :see_other
+    elsif raw.present?
+      batch_year_id = raw.to_i
+      count = scope.where(batch_year_id: batch_year_id).update_all(status: Book::STATUS_RETURNED_LIBRARY)
+      redirect_to books_path, notice: "已將該屆 #{count} 本圖書館的書標記為「歸還圖書館」。", status: :see_other
+    else
+      redirect_to return_to_library_batch_books_path, alert: "請選擇屆數（或全部）。", status: :see_other
+    end
+  end
+
   # DELETE /books/bulk_destroy
   def bulk_destroy
     ids = Array(params[:book_ids]).reject(&:blank?).map(&:to_i)
     redirect_params = {}
     redirect_params[:batch_year_id] = params[:batch_year_id] if params[:batch_year_id].present?
     redirect_params[:tag] = params[:tag] if params[:tag].present?
+    redirect_params[:teacher_tag] = params[:teacher_tag] if params[:teacher_tag].present?
     if ids.any?
       count = Book.where(id: ids).destroy_all.size
       redirect_to books_path(redirect_params), notice: "已刪除 #{count} 本書籍。", status: :see_other
@@ -297,7 +332,51 @@ class BooksController < ApplicationController
       end
     end
 
-    # 依欄位名稱讀取匯入列的值，順序不拘；支援英文與中文欄名
+    # Lightweight CSV parser (without the csv gem), returns [headers, rows], where rows is an Array of Hashes
+    def _parse_csv(content)
+      lines = content.split(/\r?\n/)
+      return [[], []] if lines.empty?
+      headers = _parse_csv_line(lines[0])
+      rows = lines[1..].filter_map do |line|
+        next nil if line.strip.empty?
+        values = _parse_csv_line(line)
+        headers.each_with_index.to_h { |h, i| [h, values[i]] }
+      end
+      [headers, rows]
+    end
+
+    def _parse_csv_line(line)
+      fields = []
+      i = 0
+      while i < line.length
+        if line[i] == '"'
+          i += 1
+          field = +""
+          while i < line.length
+            if line[i] == '"'
+              if line[i + 1] == '"'
+                field << '"'
+                i += 2
+              else
+                i += 1
+                break
+              end
+            else
+              field << line[i]
+              i += 1
+            end
+          end
+          fields << field
+        else
+          end_idx = line.index(",", i) || line.length
+          fields << line[i...end_idx].to_s.strip
+          i = end_idx + 1
+        end
+      end
+      fields
+    end
+
+    # Read a value from an import row by column name, order-independent; supports both English and Chinese headers
     def _import_row_value(row, *keys)
       keys.each do |k|
         v = row[k]

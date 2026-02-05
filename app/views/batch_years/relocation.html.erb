@@ -10,22 +10,32 @@
     <% if @pending_books.present? %>
       <div class="bg-white rounded-lg shadow p-6">
         <h2 class="font-semibold text-lg mb-4">書籍需指定屆數（<%= @pending_books.size %> 本）</h2>
-        <p class="text-sm text-gray-600 mb-4">老師的書、捐贈的書、以及六年級班級的書請選擇要歸屬的屆數。</p>
+        <p class="text-sm text-gray-600 mb-4">同一老師的書請選一個屆數，該老師的書會一併歸到該屆。捐贈的書、六年級班級的書請逐本選擇屆數。</p>
         <div class="overflow-x-auto">
           <table class="min-w-full divide-y divide-gray-200">
             <thead class="bg-gray-50">
               <tr>
-                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">書名</th>
-                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">標籤</th>
+                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">書名／標籤</th>
                 <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">目前屆數</th>
                 <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">新屆數</th>
               </tr>
             </thead>
             <tbody class="bg-white divide-y divide-gray-200">
-              <% @pending_books.each do |book| %>
+              <% @pending_books_by_teacher_tag.each do |tag, books| %>
                 <tr>
-                  <td class="px-4 py-2 text-sm font-medium text-gray-900"><%= book.title %></td>
-                  <td class="px-4 py-2 text-sm text-gray-600"><%= book.tag %></td>
+                  <td class="px-4 py-2 text-sm font-medium text-gray-900">
+                    <span class="text-gray-700"><%= tag %></span>
+                    <span class="text-gray-500 font-normal">（<%= books.size %> 本）</span>
+                  </td>
+                  <td class="px-4 py-2 text-sm text-gray-600"><%= books.first.batch_year&.display_label_with_grade %></td>
+                  <td class="px-4 py-2">
+                    <%= select_tag "book_assignments_by_teacher[#{tag}]", options_from_collection_for_select(@batch_years, :id, :display_label_with_grade, books.first.batch_year_id), { include_blank: "請選擇", class: "block shadow-sm rounded-md border border-gray-300 px-3 py-2 text-sm w-48" } %>
+                  </td>
+                </tr>
+              <% end %>
+              <% @pending_books_other.each do |book| %>
+                <tr>
+                  <td class="px-4 py-2 text-sm font-medium text-gray-900"><%= book.title %> <span class="text-gray-500 font-normal">（<%= book.tag %>）</span></td>
                   <td class="px-4 py-2 text-sm text-gray-600"><%= book.batch_year&.display_label_with_grade %></td>
                   <td class="px-4 py-2">
                     <%= select_tag "book_assignments[#{book.id}]", options_from_collection_for_select(@batch_years, :id, :display_label_with_grade, book.batch_year_id), { include_blank: "請選擇", class: "block shadow-sm rounded-md border border-gray-300 px-3 py-2 text-sm w-48" } %>
@@ -41,14 +51,14 @@
     <% if @pending_users.present? %>
       <div class="bg-white rounded-lg shadow p-6">
         <h2 class="font-semibold text-lg mb-4">人員需指定屆數（<%= @pending_users.size %> 人）</h2>
-        <p class="text-sm text-gray-600 mb-4">原屬「老師」屆數的人員請選擇新屆數（可繼續選「老師」或改選班級屆數）。</p>
+        <p class="text-sm text-gray-600 mb-4">原屬「老師」屆數的人員請選擇新屆數（可繼續選「老師」或改選班級屆數）；若已離職請選「離職」，離職後會歸在老師屆數以便查詢。</p>
         <div class="overflow-x-auto">
           <table class="min-w-full divide-y divide-gray-200">
             <thead class="bg-gray-50">
               <tr>
                 <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">姓名</th>
                 <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">目前屆數</th>
-                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">新屆數</th>
+                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">新屆數或離職</th>
               </tr>
             </thead>
             <tbody class="bg-white divide-y divide-gray-200">
@@ -57,7 +67,8 @@
                   <td class="px-4 py-2 text-sm font-medium text-gray-900"><%= user.name %></td>
                   <td class="px-4 py-2 text-sm text-gray-600"><%= user.batch_year&.display_label_with_grade %></td>
                   <td class="px-4 py-2">
-                    <%= select_tag "user_assignments[#{user.id}]", options_from_collection_for_select(BatchYear.by_number_desc, :id, :display_label_with_grade, user.batch_year_id), { include_blank: "請選擇", class: "block shadow-sm rounded-md border border-gray-300 px-3 py-2 text-sm w-48" } %>
+                    <% user_batch_options = [ [ "請選擇", "" ], [ "— 離職 —", "resigned" ] ] + @batch_years_with_office.map { |b| [ b.display_label_with_grade, b.id ] } %>
+                    <%= select_tag "user_assignments[#{user.id}]", options_for_select(user_batch_options, user.batch_year_id), { class: "block shadow-sm rounded-md border border-gray-300 px-3 py-2 text-sm w-48" } %>
                   </td>
                 </tr>
               <% end %>
