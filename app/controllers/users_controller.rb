@@ -12,12 +12,14 @@ class UsersController < ApplicationController
 
   # GET /users/new
   def new
+    BatchYear.ensure_office_exists!
     @user = User.new
     @batch_years = BatchYear.by_number_desc
   end
 
   # GET /users/1/edit
   def edit
+    BatchYear.ensure_office_exists!
     @batch_years = BatchYear.by_number_desc
   end
 
@@ -61,6 +63,17 @@ class UsersController < ApplicationController
     end
   end
 
+  # DELETE /users/bulk_destroy
+  def bulk_destroy
+    ids = Array(params[:user_ids]).reject(&:blank?).map(&:to_i)
+    if ids.any?
+      count = User.where(id: ids).destroy_all.size
+      redirect_to users_path, notice: "已刪除 #{count} 位人員。", status: :see_other
+    else
+      redirect_to users_path, alert: "請至少選擇一位人員。", status: :see_other
+    end
+  end
+
   private
     # Use callbacks to share common setup or constraints between actions.
     def set_user
@@ -69,6 +82,6 @@ class UsersController < ApplicationController
 
     # Only allow a list of trusted parameters through.
     def user_params
-      params.expect(user: [ :name, :email, :id_number, :admin, :batch_year_id ])
+      params.expect(user: [ :name, :id_number, :seat_number, :admin, :batch_year_id ])
     end
 end

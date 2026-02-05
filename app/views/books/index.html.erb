@@ -1,17 +1,36 @@
 <% content_for :title, "書籍列表" %>
 
 <div class="w-full">
-  <% if notice.present? %>
-    <p class="py-2 px-3 bg-green-50 mb-5 text-green-500 font-medium rounded-md inline-block" id="notice"><%= notice %></p>
-  <% end %>
-
   <div class="flex justify-between items-center mb-6">
-    <h1 class="font-bold text-4xl">書籍列表</h1>
+    <div>
+      <h1 class="font-bold text-4xl">書籍列表</h1>
+    </div>
     <div class="flex gap-2">
       <%= link_to "匯入 CSV", import_books_path, class: "rounded-md px-3.5 py-2.5 bg-green-600 hover:bg-green-500 text-white block font-medium" %>
       <%= link_to "新增書籍", new_book_path, class: "rounded-md px-3.5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white block font-medium" %>
     </div>
   </div>
+
+  <% if @invalid_books.present? %>
+    <div class="mb-4 py-2 px-3 bg-red-50 text-red-700 text-sm rounded-md border border-red-200">
+      <p class="font-medium mb-1">下列書籍的必填欄位尚未填寫完整：</p>
+      <ul class="list-disc ml-5 space-y-0.5">
+        <% @invalid_books.each do |book| %>
+          <li class="flex items-center justify-between gap-2">
+            <span>
+              <span class="font-semibold"><%= book.title.presence || "（未填書名）" %></span>
+              ：<%= book.missing_required_fields.join("、") %> 未填
+            </span>
+            <%= link_to edit_book_path(book), class: "inline-flex text-indigo-600 hover:text-indigo-900 shrink-0", title: "編輯", aria: { label: "編輯" } do %>
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+              </svg>
+            <% end %>
+          </li>
+        <% end %>
+      </ul>
+    </div>
+  <% end %>
 
   <div class="mb-4">
     <label class="block text-sm font-medium text-gray-700 mb-2">依屆數篩選</label>
@@ -45,7 +64,9 @@
             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ISBN</th>
             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">冊數</th>
             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">總數</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">狀態</th>
             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">備註</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">標籤</th>
             <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">編輯</th>
           </tr>
         </thead>
@@ -61,7 +82,17 @@
                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500"><%= book.isbn %></td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500"><%= book.volume %></td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500"><%= book.total %></td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500"><%= book.display_status %></td>
                 <td class="px-6 py-4 text-sm text-gray-500 max-w-xs truncate"><%= book.note %></td>
+                <td class="px-6 py-4 text-sm">
+                  <% if book.tag.present? %>
+                    <span class="inline-flex flex-wrap items-center gap-1.5">
+                      <%= book_tag_badge(book.tag) %>
+                    </span>
+                  <% else %>
+                    —
+                  <% end %>
+                </td>
                 <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2" data-no-row-click>
                   <%= link_to edit_book_path(book), class: "inline-flex text-indigo-600 hover:text-indigo-900", title: "編輯", aria: { label: "編輯" } do %>
                   <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
@@ -73,7 +104,7 @@
             <% end %>
           <% else %>
             <tr>
-              <td colspan="8" class="px-6 py-10 text-center text-gray-500">找不到任何書籍。</td>
+              <td colspan="10" class="px-6 py-10 text-center text-gray-500">找不到任何書籍。</td>
             </tr>
           <% end %>
         </tbody>

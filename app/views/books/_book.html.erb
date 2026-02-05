@@ -23,4 +23,16 @@
     <strong class="block font-medium mb-1">屆數：</strong>
     <%= book.batch_year&.display_label_with_grade || "—" %>
   </div>
+  <div>
+    <strong class="block font-medium mb-1">目前狀態：</strong>
+    <%= book.display_status %>
+  </div>
+  <% if book.tag.present? %>
+    <div>
+      <strong class="block font-medium mb-1">標籤：</strong>
+      <span class="inline-flex flex-wrap items-center gap-1.5">
+        <%= book_tag_badge(book.tag) %>
+      </span>
+    </div>
+  <% end %>
 </div>

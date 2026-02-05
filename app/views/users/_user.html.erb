@@ -4,21 +4,20 @@
     <%= user.name %>
   </p>
 
-  <p class="my-2">
-    <strong class="block font-medium text-sm text-gray-500">電子郵件：</strong>
-    <%= user.email %>
-  </p>
-
   <% unless user.admin %>
     <p class="my-2">
       <strong class="block font-medium text-sm text-gray-500">學號：</strong>
-      <%= user.id_number %>
+      <%= user.id_number || "—" %>
+    </p>
+    <p class="my-2">
+      <strong class="block font-medium text-sm text-gray-500">座號：</strong>
+      <%= user.seat_number || "—" %>
     </p>
   <% end %>
 
   <p class="my-2">
-    <strong class="block font-medium text-sm text-gray-500">屆數：</strong>
-    <%= user.batch_year&.name || "—" %>
+    <strong class="block font-medium text-sm text-gray-500"><%= user.office_teacher? ? "辦公室老師" : "屆數" %>：</strong>
+    <%= user.office_teacher? ? "辦公室老師" : (user.batch_year&.display_label || "—") %>
   </p>
 
   <p class="my-2">

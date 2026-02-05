@@ -10,10 +10,16 @@ Rails.application.routes.draw do
     collection do
       post :auto_create
       post :reassign_grades
+      get :relocation
+      post :apply_relocation
+      post :rollback_school_year
       delete :bulk_destroy
     end
   end
   resources :books do
+    member do
+      post :return_to_library
+    end
     collection do
       get :import
       post :import
@@ -26,7 +32,11 @@ Rails.application.routes.draw do
   # Can be used by load balancers and uptime monitors to verify that the app is live.
   get "up" => "rails/health#show", as: :rails_health_check
 
-  resources :users
+  resources :users do
+    collection do
+      delete :bulk_destroy
+    end
+  end
 
   # Render dynamic PWA files from app/views/pwa/* (remember to link manifest in application.html.erb)
   # get "manifest" => "rails/pwa#manifest", as: :pwa_manifest
