@@ -5,8 +5,11 @@
     <div>
       <h1 class="font-bold text-4xl">書籍列表</h1>
     </div>
-    <div class="flex gap-2">
+    <div class="flex gap-2 flex-wrap">
       <%= link_to "匯入 CSV", import_books_path, class: "rounded-md px-3.5 py-2.5 bg-green-600 hover:bg-green-500 text-white block font-medium" %>
+      <% if Book.show_return_to_library_button? %>
+        <%= link_to "歸還圖書館書籍", return_to_library_batch_books_path, class: "rounded-md px-3.5 py-2.5 bg-amber-600 hover:bg-amber-500 text-white block font-medium" %>
+      <% end %>
       <%= link_to "新增書籍", new_book_path, class: "rounded-md px-3.5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white block font-medium" %>
     </div>
   </div>
@@ -32,85 +35,150 @@
     </div>
   <% end %>
 
-  <div class="mb-4">
-    <label class="block text-sm font-medium text-gray-700 mb-2">依屆數篩選</label>
-    <%= form_with url: books_path, method: :get, local: true, class: "inline" do |f| %>
-      <%= f.select :batch_year_id, options_from_collection_for_select(@batch_years, :id, :display_label_with_grade, @filter_batch_year_id), { include_blank: "全部屆數" }, { class: "block shadow-sm rounded-md border border-gray-300 px-3 py-2 w-48", onchange: "this.form.submit()" } %>
+  <div class="mb-4 flex flex-wrap items-end gap-4">
+    <%= form_with url: books_path, method: :get, local: true, class: "flex flex-wrap items-end gap-4" do |f| %>
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-2">依屆數篩選</label>
+        <%= f.select :batch_year_id, options_from_collection_for_select(@batch_years, :id, :display_label_with_grade, @filter_batch_year_id), { include_blank: "全部屆數" }, { class: "block shadow-sm rounded-md border border-gray-300 px-3 py-2 w-48", onchange: "this.form.submit()" } %>
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-2">依標籤篩選</label>
+        <%= f.select :tag, options_for_select(Book::TAG_FILTER_OPTIONS, @filter_tag), { include_blank: "全部標籤" }, { class: "block shadow-sm rounded-md border border-gray-300 px-3 py-2 w-40", onchange: "this.form.submit()" } %>
+      </div>
+      <% if @filter_tag == Book::TAG_TEACHER_PREFIX %>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">請選擇老師</label>
+          <%= select_tag :teacher_tag, options_for_select([ [ "全部老師", "" ] ] + @teacher_tag_options.map { |t| [ t, t ] }, @filter_teacher_tag), { class: "block shadow-sm rounded-md border border-gray-300 px-3 py-2 w-48", onchange: "this.form.submit()" } %>
+        </div>
+      <% end %>
     <% end %>
-    <% if @filter_batch_year_id.present? %>
-      <span class="ml-2 text-sm text-gray-500">（已篩選此屆數）</span>
+    <% if @filter_batch_year_id.present? || @filter_tag.present? %>
+      <span class="text-sm text-gray-500">（已套用篩選）</span>
     <% end %>
   </div>
 
-  <%= form_with url: bulk_destroy_books_path, method: :delete, id: "bulk-destroy-books-form" do |f| %>
-    <%= hidden_field_tag :batch_year_id, @filter_batch_year_id if @filter_batch_year_id.present? %>
-    <div class="flex gap-2 items-center mb-4">
-      <button type="submit" class="rounded-md px-3.5 py-2.5 bg-red-600 hover:bg-red-500 text-white font-medium cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed" id="bulk-destroy-btn" disabled data-turbo-confirm="確定要刪除所選的書籍嗎？">
-        刪除所選
-      </button>
-      <span class="text-sm text-gray-500" id="bulk-destroy-count">已選 0 本</span>
-    </div>
-    <div class="overflow-x-auto">
-      <table class="min-w-full divide-y divide-gray-200">
-        <thead class="bg-gray-50">
-          <tr>
-            <th class="px-4 py-3 text-left w-12 sticky left-0 bg-gray-50 z-10 border-r border-gray-200">
-              <% if @books.any? %>
-                <input type="checkbox" id="select-all-books" class="rounded" title="全選">
-              <% end %>
-            </th>
-            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">書名</th>
-            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">屆數</th>
-            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ISBN</th>
-            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">冊數</th>
-            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">總數</th>
-            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">狀態</th>
-            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">備註</th>
-            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">標籤</th>
-            <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">編輯</th>
-          </tr>
-        </thead>
-        <tbody class="bg-white divide-y divide-gray-200">
-          <% if @books.any? %>
-            <% @books.each do |book| %>
-              <tr class="hover:bg-gray-50 cursor-pointer book-row" data-book-url="<%= book_path(book) %>" role="button" tabindex="0">
-                <td class="px-4 py-4 w-12 sticky left-0 bg-white z-10 border-r border-gray-200 align-middle" data-no-row-click>
-                  <input type="checkbox" name="book_ids[]" value="<%= book.id %>" class="book-checkbox rounded" title="選擇以刪除">
-                </td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900"><%= book.title %></td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500"><%= book.batch_year&.display_label || "—" %></td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500"><%= book.isbn %></td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500"><%= book.volume %></td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500"><%= book.total %></td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500"><%= book.display_status %></td>
-                <td class="px-6 py-4 text-sm text-gray-500 max-w-xs truncate"><%= book.note %></td>
-                <td class="px-6 py-4 text-sm">
-                  <% if book.tag.present? %>
-                    <span class="inline-flex flex-wrap items-center gap-1.5">
-                      <%= book_tag_badge(book.tag) %>
-                    </span>
-                  <% else %>
-                    —
-                  <% end %>
-                </td>
-                <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2" data-no-row-click>
-                  <%= link_to edit_book_path(book), class: "inline-flex text-indigo-600 hover:text-indigo-900", title: "編輯", aria: { label: "編輯" } do %>
-                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                  </svg>
+  <!-- 桌機版：表格 + 批次刪除 -->
+  <div class="hidden md:block">
+    <%= form_with url: bulk_destroy_books_path, method: :delete, id: "bulk-destroy-books-form" do |f| %>
+      <%= hidden_field_tag :batch_year_id, @filter_batch_year_id if @filter_batch_year_id.present? %>
+      <%= hidden_field_tag :tag, @filter_tag if @filter_tag.present? %>
+      <%= hidden_field_tag :teacher_tag, @filter_teacher_tag if @filter_teacher_tag.present? %>
+      <div class="flex gap-2 items-center mb-4">
+        <button type="submit" class="rounded-md px-3.5 py-2.5 bg-red-600 hover:bg-red-500 text-white font-medium cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed" id="bulk-destroy-btn" disabled data-turbo-confirm="確定要刪除所選的書籍嗎？">
+          刪除所選
+        </button>
+        <span class="text-sm text-gray-500" id="bulk-destroy-count">已選 0 本</span>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="min-w-full divide-y divide-gray-200">
+          <thead class="bg-gray-50">
+            <tr>
+              <th class="px-4 py-3 text-left w-12 sticky left-0 bg-gray-50 z-10 border-r border-gray-200">
+                <% if @books.any? %>
+                  <input type="checkbox" id="select-all-books" class="rounded" title="全選">
                 <% end %>
-                </td>
+              </th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">書名</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">屆數</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ISBN</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">冊數</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">總數</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">狀態</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">備註</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">標籤</th>
+              <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">編輯</th>
+            </tr>
+          </thead>
+          <tbody class="bg-white divide-y divide-gray-200">
+            <% if @books.any? %>
+              <% @books.each do |book| %>
+                <tr class="hover:bg-gray-50 cursor-pointer book-row" data-book-url="<%= book_path(book) %>" role="button" tabindex="0">
+                  <td class="px-4 py-4 w-12 sticky left-0 bg-white z-10 border-r border-gray-200 align-middle" data-no-row-click>
+                    <input type="checkbox" name="book_ids[]" value="<%= book.id %>" class="book-checkbox rounded" title="選擇以刪除">
+                  </td>
+                  <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900"><%= book.title %></td>
+                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500"><%= book.batch_year&.display_label || "—" %></td>
+                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500"><%= book.isbn %></td>
+                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500"><%= book.volume %></td>
+                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500"><%= book.total %></td>
+                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500"><%= book.display_status %></td>
+                  <td class="px-6 py-4 text-sm text-gray-500 max-w-xs truncate"><%= book.note %></td>
+                  <td class="px-6 py-4 text-sm">
+                    <% if book.tag.present? %>
+                      <span class="inline-flex flex-wrap items-center gap-1.5">
+                        <%= book_tag_badge(book.tag) %>
+                      </span>
+                    <% else %>
+                      —
+                    <% end %>
+                  </td>
+                  <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2" data-no-row-click>
+                    <%= link_to edit_book_path(book), class: "inline-flex text-indigo-600 hover:text-indigo-900", title: "編輯", aria: { label: "編輯" } do %>
+                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                      </svg>
+                    <% end %>
+                  </td>
+                </tr>
+              <% end %>
+            <% else %>
+              <tr>
+                <td colspan="10" class="px-6 py-10 text-center text-gray-500">找不到任何書籍。</td>
               </tr>
             <% end %>
-          <% else %>
-            <tr>
-              <td colspan="10" class="px-6 py-10 text-center text-gray-500">找不到任何書籍。</td>
-            </tr>
-          <% end %>
-        </tbody>
-      </table>
-    </div>
-  <% end %>
+          </tbody>
+        </table>
+      </div>
+    <% end %>
+  </div>
+
+  <!-- 手機版：Card 風格列表 -->
+  <div class="block md:hidden">
+    <% if @books.any? %>
+      <div class="space-y-3">
+        <% @books.each do |book| %>
+          <div class="bg-white border border-gray-200 rounded-lg shadow-sm p-3 flex flex-col gap-1 cursor-pointer book-card" data-book-url="<%= book_path(book) %>" role="button" tabindex="0">
+            <div class="flex justify-between items-start gap-2">
+              <div>
+                <p class="text-sm font-semibold text-gray-900"><%= book.title %></p>
+                <p class="text-xs text-gray-500 mt-0.5"><%= book.batch_year&.display_label_with_grade || "—" %></p>
+              </div>
+              <% if book.tag.present? %>
+                <div class="shrink-0 text-xs">
+                  <%= book_tag_badge(book.tag) %>
+                </div>
+              <% end %>
+            </div>
+            <div class="mt-1 text-xs text-gray-600 space-y-0.5">
+              <% if book.isbn.present? %>
+                <p>ISBN：<%= book.isbn %></p>
+              <% end %>
+              <p>冊數：<%= book.volume %></p>
+              <p>總數：<%= book.total %></p>
+              <p>狀態：<%= book.display_status %></p>
+            </div>
+            <% if book.note.present? %>
+              <p class="text-xs text-gray-500 mt-1 line-clamp-2"><%= book.note %></p>
+            <% end %>
+            <div class="flex justify-end gap-2 mt-2 text-xs" data-no-row-click>
+              <%= link_to edit_book_path(book), class: "inline-flex items-center justify-center w-8 h-8 rounded-full bg-indigo-50 text-indigo-600 hover:bg-indigo-100", title: "編輯", aria: { label: "編輯" } do %>
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                </svg>
+              <% end %>
+              <%= button_to book, method: :delete, form: { class: "inline" }, class: "inline-flex items-center justify-center w-8 h-8 rounded-full bg-red-50 text-red-600 hover:bg-red-100 border-0 cursor-pointer", data: { turbo_confirm: "確定要刪除此書籍嗎？" }, title: "刪除", aria: { label: "刪除" } do %>
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 7h12M9 7V5a2 2 0 012-2h2a2 2 0 012 2v2m-9 0h10l-1 12a2 2 0 01-2 2H9a2 2 0 01-2-2L6 7z" />
+                </svg>
+              <% end %>
+            </div>
+          </div>
+        <% end %>
+      </div>
+    <% else %>
+      <p class="py-8 text-center text-gray-500 text-sm">找不到任何書籍。</p>
+    <% end %>
+  </div>
 
   <script>
     (function() {
@@ -148,6 +216,26 @@
           if (e.target.closest('[data-no-row-click]')) return;
           e.preventDefault();
           var url = row.getAttribute('data-book-url');
+          if (url) window.location = url;
+        });
+      });
+    })();
+
+    // 手機版 card 點擊導頁（不影響桌機版表格）
+    (function() {
+      var cards = document.querySelectorAll('.book-card');
+      if (!cards.length) return;
+      cards.forEach(function(card) {
+        card.addEventListener('click', function(e) {
+          if (e.target.closest('[data-no-row-click]')) return;
+          var url = card.getAttribute('data-book-url');
+          if (url) window.location = url;
+        });
+        card.addEventListener('keydown', function(e) {
+          if (e.key !== 'Enter' && e.key !== ' ') return;
+          if (e.target.closest('[data-no-row-click]')) return;
+          e.preventDefault();
+          var url = card.getAttribute('data-book-url');
           if (url) window.location = url;
         });
       });

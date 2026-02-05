@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_02_03_100000) do
+ActiveRecord::Schema[8.1].define(version: 2026_02_05_202720) do
   create_table "app_settings", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.string "key", null: false
@@ -57,8 +57,14 @@ ActiveRecord::Schema[8.1].define(version: 2026_02_03_100000) do
     t.string "id_number"
     t.boolean "is_office", default: false, null: false
     t.string "name"
+    t.datetime "resigned_at"
     t.string "seat_number"
     t.datetime "updated_at", null: false
+  end
+
+  create_table "users_batch_years", force: :cascade do |t|
+    t.integer "batch_year_id", null: false
+    t.integer "user_id", null: false
   end
 
   add_foreign_key "books", "batch_years"

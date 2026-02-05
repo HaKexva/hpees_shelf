@@ -1,9 +1,12 @@
 class UsersController < ApplicationController
-  before_action :set_user, only: %i[ show edit update destroy ]
+  before_action :set_user, only: %i[ show edit update destroy cancel_resignation ]
 
   # GET /users or /users.json
   def index
-    @users = User.includes(:batch_year).all
+    scope = User.includes(:batch_year)
+    scope = scope.active unless params[:include_resigned] == "1"
+    @users = scope.order(:name)
+    @include_resigned = params[:include_resigned] == "1"
   end
 
   # GET /users/1 or /users/1.json
@@ -53,6 +56,16 @@ class UsersController < ApplicationController
     end
   end
 
+  # POST /users/:id/cancel_resignation
+  def cancel_resignation
+    if @user.resigned?
+      @user.update!(resigned_at: nil)
+      redirect_to @user, notice: "已取消離職。", status: :see_other
+    else
+      redirect_to @user, alert: "此人員未標記為離職。", status: :see_other
+    end
+  end
+
   # DELETE /users/1 or /users/1.json
   def destroy
     @user.destroy!
@@ -82,6 +95,15 @@ class UsersController < ApplicationController
 
     # Only allow a list of trusted parameters through.
     def user_params
-      params.expect(user: [ :name, :id_number, :seat_number, :admin, :batch_year_id ])
+      params.expect(
+        user: [
+          :name,
+          :id_number,
+          :seat_number,
+          :admin,
+          :batch_year_id,
+          { extra_batch_year_ids: [] }
+        ]
+      )
     end
 end

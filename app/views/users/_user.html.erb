@@ -2,6 +2,9 @@
   <p class="my-2">
     <strong class="block font-medium text-sm text-gray-500">姓名：</strong>
     <%= user.name %>
+    <% if user.resigned? %>
+      <span class="ml-1.5 inline-flex items-center rounded px-1.5 py-0.5 text-xs font-medium bg-amber-100 text-amber-800">離職</span>
+    <% end %>
   </p>
 
   <% unless user.admin %>

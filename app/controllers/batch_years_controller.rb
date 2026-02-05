@@ -59,7 +59,7 @@ class BatchYearsController < ApplicationController
     pending_book_ids = []
     pending_user_ids = []
 
-    # Books: 班級的書 → 不移動屆數，只更新 grade_id；若該屆為六年級則需指定去向
+    # Books: class books → keep batch_year, only update grade_id; if the batch is currently grade 6, a new destination must be specified
     Book.includes(:batch_year).find_each do |book|
       next if book.batch_year.blank?
       if book.tag == Book::TAG_CLASS
@@ -71,11 +71,15 @@ class BatchYearsController < ApplicationController
       elsif book.teacher_tag? || book.tag == Book::TAG_DONATED
         pending_book_ids << book.id
       end
-      # 圖書館的書：不變動，由使用者按「歸還圖書館」按鈕
+      # Library books: unchanged here; users can handle them via the "Return to library" button
     end
 
-    # Users: 學生（班級）→ 不移動屆數，只更新 grade_id；老師（老師屆數）→ 需指定去向
+    # Users: all admins (teachers) must be assigned a new batch or marked resigned; students (class batches) only update grade_id
     User.includes(:batch_year).find_each do |user|
+      if user.admin?
+        pending_user_ids << user.id
+        next
+      end
       next if user.batch_year.blank?
       if user.batch_year.is_office?
         pending_user_ids << user.id
@@ -94,9 +98,15 @@ class BatchYearsController < ApplicationController
   end
 
   def relocation
-    @pending_books = Book.where(id: session[:pending_relocation_book_ids].to_a).includes(:batch_year).to_a
+    pending_book_ids = session[:pending_relocation_book_ids].to_a
+    @pending_books = Book.where(id: pending_book_ids).includes(:batch_year).to_a
+    # Books from the same teacher are grouped together; assign one batch for the whole group
+    teacher_books = @pending_books.select(&:teacher_tag?)
+    @pending_books_by_teacher_tag = teacher_books.group_by(&:tag)
+    @pending_books_other = @pending_books.reject(&:teacher_tag?)
     @pending_users = User.where(id: session[:pending_relocation_user_ids].to_a).includes(:batch_year).to_a
     @batch_years = BatchYear.class_batches_by_number_desc
+    @batch_years_with_office = BatchYear.by_number_desc
     if @pending_books.empty? && @pending_users.empty?
       session.delete(:pending_relocation_book_ids)
       session.delete(:pending_relocation_user_ids)
@@ -107,8 +117,23 @@ class BatchYearsController < ApplicationController
   end
 
   def apply_relocation
+    BatchYear.ensure_office_exists!
+    pending_book_ids = session[:pending_relocation_book_ids].to_a
+    office_batch = BatchYear.find_by(is_office: true)
+
+    # Books from the same teacher: assign batch by tag in one operation
+    by_teacher = params[:book_assignments_by_teacher].to_unsafe_h
+    by_teacher.each do |tag, batch_year_id|
+      next if batch_year_id.blank?
+      batch_year = BatchYear.find_by(id: batch_year_id)
+      next if batch_year.blank? || batch_year.is_office?
+      Book.where(id: pending_book_ids, tag: tag).find_each do |book|
+        book.update(batch_year_id: batch_year.id, grade_id: batch_year.grade_id)
+      end
+    end
+
+    # Other books (donated, grade-6 class books, etc.): assign batch one by one
     book_assignments = params[:book_assignments].to_unsafe_h
-    user_assignments = params[:user_assignments].to_unsafe_h
     book_assignments.each do |book_id, batch_year_id|
       next if batch_year_id.blank?
       book = Book.find_by(id: book_id)
@@ -116,22 +141,36 @@ class BatchYearsController < ApplicationController
       next if book.blank? || batch_year.blank? || batch_year.is_office?
       book.update(batch_year_id: batch_year.id, grade_id: batch_year.grade_id)
     end
-    user_assignments.each do |user_id, batch_year_id|
-      next if batch_year_id.blank?
+
+    # Users: can be assigned to a batch or marked as "resigned"
+    user_assignments = params[:user_assignments].to_unsafe_h
+    user_assignments.each do |user_id, value|
+      next if value.blank?
       user = User.find_by(id: user_id)
-      batch_year = BatchYear.find_by(id: batch_year_id)
-      next if user.blank? || batch_year.blank?
-      user.update(batch_year_id: batch_year.id, grade_id: batch_year.is_office? ? nil : batch_year.grade_id)
+      next if user.blank?
+      if value == "resigned"
+        user.update!(resigned_at: Time.current, batch_year_id: office_batch&.id, grade_id: nil)
+      else
+        batch_year = BatchYear.find_by(id: value)
+        next if batch_year.blank?
+        user.update(batch_year_id: batch_year.id, grade_id: batch_year.is_office? ? nil : batch_year.grade_id, resigned_at: nil)
+      end
     end
+
     session.delete(:pending_relocation_book_ids)
     session.delete(:pending_relocation_user_ids)
     redirect_to batch_years_path, notice: "已儲存屆數指定。", status: :see_other
   end
 
-  # 測試用：返回前一學年度（屆數一併還原：刪除最新一屆、年級 -1、儲存值 -1）
+  # For testing: roll back to the previous school year and restore batches as well; cannot go earlier than the actual current school year
   def rollback_school_year
+    before_roc = BatchYear.display_current_school_year_roc
     prev_roc = BatchYear.rollback_school_year!
-    redirect_to batch_years_path, notice: "已返回#{prev_roc}學年度（測試用）。", status: :see_other
+    if prev_roc == before_roc
+      redirect_to batch_years_path, alert: "不可返回超過目前實際學年度（#{BatchYear.current_school_year_roc}學年度）。", status: :see_other
+    else
+      redirect_to batch_years_path, notice: "已返回#{prev_roc}學年度（測試用）。", status: :see_other
+    end
   end
 
   def bulk_destroy

@@ -1,5 +1,5 @@
 module ApplicationHelper
-  # 一進到頁面就檢查當前資源的必填欄位是否都有填寫，回傳錯誤訊息字串或 nil
+  # On page load, check required fields for the current resource and return an error message string or nil
   def required_fields_alert
     return nil unless controller.is_a?(ActionController::Base)
     msgs = []
@@ -30,11 +30,10 @@ module ApplicationHelper
     msgs.any? ? msgs.join("；") : nil
   end
 
-  # 年級顯示：nil → "—"，0 → "畢業"，7 → "辦公室老師"，1～6 → 數字
+  # Grade display: nil → "—", 0 → "Graduated", 7 → "Office teacher", 1–6 → the grade number
   def grade_label(grade_id)
     return "—" if grade_id.nil?
     return "畢業" if grade_id == BatchYear::GRADE_GRADUATED
-    return "辦公室老師" if grade_id == BatchYear::GRADE_OFFICE
     grade_id.to_s
   end
 end

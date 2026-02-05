@@ -5,6 +5,11 @@
     <%= render @user %>
 
     <%= link_to "編輯此人員", edit_user_path(@user), class: "mt-2 rounded-md px-3.5 py-2.5 bg-gray-100 hover:bg-gray-50 inline-block font-medium" %>
+    <% if @user.resigned? %>
+      <div class="inline-block ml-2">
+        <%= button_to "取消離職", cancel_resignation_user_path(@user), method: :post, class: "rounded-md px-3.5 py-2.5 bg-amber-100 hover:bg-amber-200 text-amber-800 font-medium cursor-pointer", data: { turbo_confirm: "確定要取消離職嗎？" } %>
+      </div>
+    <% end %>
     <div class="inline-block ml-2">
       <%= button_to "刪除此人員", @user, method: :delete, class: "rounded-md px-3.5 py-2.5 text-white bg-red-600 hover:bg-red-500 font-medium cursor-pointer", data: { turbo_confirm: "確定要刪除嗎？" } %>
     </div>
