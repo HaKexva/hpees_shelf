@@ -93,9 +93,5 @@ class Book < ApplicationRecord
     self.total = 1 if total.blank?
   end
 
-  def batch_year_not_office
-    return if batch_year_id.blank?
-    by = batch_year
-    errors.add(:batch_year_id, "書籍不可歸於「老師」屆數（僅人員）") if by&.is_office?
-  end
+  def batch_year_not_office; end
 end

@@ -55,7 +55,6 @@ class BatchYearsController < ApplicationController
   def reassign_grades
     BatchYear.advance_to_next_school_year!
     next_roc = BatchYear.advance_stored_school_year!
-    office_batch = BatchYear.find_by(is_office: true)
     pending_book_ids = []
     pending_user_ids = []
 
@@ -74,18 +73,14 @@ class BatchYearsController < ApplicationController
       # Library books: unchanged here; users can handle them via the "Return to library" button
     end
 
-    # Users: all admins (teachers) must be assigned a new batch or marked resigned; students (class batches) only update grade_id
+    # Users: all admins (teachers) must be assigned a new batch or marked resigned; students only update grade_id
     User.includes(:batch_year).find_each do |user|
       if user.admin?
         pending_user_ids << user.id
         next
       end
       next if user.batch_year.blank?
-      if user.batch_year.is_office?
-        pending_user_ids << user.id
-      else
-        user.update_column(:grade_id, user.batch_year.grade_id)
-      end
+      user.update_column(:grade_id, user.batch_year.grade_id)
     end
 
     if pending_book_ids.any? || pending_user_ids.any?
@@ -106,7 +101,6 @@ class BatchYearsController < ApplicationController
     @pending_books_other = @pending_books.reject(&:teacher_tag?)
     @pending_users = User.where(id: session[:pending_relocation_user_ids].to_a).includes(:batch_year).to_a
     @batch_years = BatchYear.class_batches_by_number_desc
-    @batch_years_with_office = BatchYear.by_number_desc
     if @pending_books.empty? && @pending_users.empty?
       session.delete(:pending_relocation_book_ids)
       session.delete(:pending_relocation_user_ids)
@@ -117,16 +111,14 @@ class BatchYearsController < ApplicationController
   end
 
   def apply_relocation
-    BatchYear.ensure_office_exists!
     pending_book_ids = session[:pending_relocation_book_ids].to_a
-    office_batch = BatchYear.find_by(is_office: true)
 
     # Books from the same teacher: assign batch by tag in one operation
     by_teacher = params[:book_assignments_by_teacher].to_unsafe_h
     by_teacher.each do |tag, batch_year_id|
       next if batch_year_id.blank?
       batch_year = BatchYear.find_by(id: batch_year_id)
-      next if batch_year.blank? || batch_year.is_office?
+      next if batch_year.blank?
       Book.where(id: pending_book_ids, tag: tag).find_each do |book|
         book.update(batch_year_id: batch_year.id, grade_id: batch_year.grade_id)
       end
@@ -138,7 +130,7 @@ class BatchYearsController < ApplicationController
       next if batch_year_id.blank?
       book = Book.find_by(id: book_id)
       batch_year = BatchYear.find_by(id: batch_year_id)
-      next if book.blank? || batch_year.blank? || batch_year.is_office?
+      next if book.blank? || batch_year.blank?
       book.update(batch_year_id: batch_year.id, grade_id: batch_year.grade_id)
     end
 
@@ -149,11 +141,11 @@ class BatchYearsController < ApplicationController
       user = User.find_by(id: user_id)
       next if user.blank?
       if value == "resigned"
-        user.update!(resigned_at: Time.current, batch_year_id: office_batch&.id, grade_id: nil)
+        user.update!(resigned_at: Time.current, grade_id: nil)
       else
         batch_year = BatchYear.find_by(id: value)
         next if batch_year.blank?
-        user.update(batch_year_id: batch_year.id, grade_id: batch_year.is_office? ? nil : batch_year.grade_id, resigned_at: nil)
+        user.update(batch_year_id: batch_year.id, grade_id: batch_year.grade_id, resigned_at: nil)
       end
     end
 
@@ -176,7 +168,7 @@ class BatchYearsController < ApplicationController
   def bulk_destroy
     ids = Array(params[:batch_year_ids]).reject(&:blank?).map(&:to_i)
     if ids.any?
-      count = BatchYear.where(id: ids).where(is_office: false).destroy_all.size
+      count = BatchYear.where(id: ids).destroy_all.size
       redirect_to batch_years_path, notice: "已刪除 #{count} 個屆數。", status: :see_other
     else
       redirect_to batch_years_path, alert: "請至少選擇一個屆數。", status: :see_other
@@ -189,6 +181,6 @@ class BatchYearsController < ApplicationController
     end
 
     def batch_year_params
-      params.expect(batch_year: [ :grade_id, :batch_number, :is_office, :name ])
+      params.expect(batch_year: [ :grade_id, :batch_number, :name ])
     end
 end

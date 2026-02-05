@@ -19,8 +19,8 @@
   <% end %>
 
   <p class="my-2">
-    <strong class="block font-medium text-sm text-gray-500"><%= user.office_teacher? ? "辦公室老師" : "屆數" %>：</strong>
-    <%= user.office_teacher? ? "辦公室老師" : (user.batch_year&.display_label || "—") %>
+    <strong class="block font-medium text-sm text-gray-500">屆數：</strong>
+    <%= user.batch_year&.display_label || "—" %>
   </p>
 
   <p class="my-2">

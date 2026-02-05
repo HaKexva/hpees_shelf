@@ -22,7 +22,7 @@ module ApplicationHelper
       end
     when "batch_years"
       batch_year = controller.instance_variable_get(:@batch_year)
-      if batch_year.present? && %w[show edit].include?(controller.action_name) && !batch_year.is_office?
+      if batch_year.present? && %w[show edit].include?(controller.action_name)
         msgs << "屆數（編號）為必填" if batch_year.batch_number.blank?
         msgs << "年級為必填" if batch_year.grade_id.blank?
       end
