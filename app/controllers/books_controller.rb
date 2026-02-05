@@ -335,14 +335,14 @@ class BooksController < ApplicationController
     # Lightweight CSV parser (without the csv gem), returns [headers, rows], where rows is an Array of Hashes
     def _parse_csv(content)
       lines = content.split(/\r?\n/)
-      return [[], []] if lines.empty?
+      return [ [], [] ] if lines.empty?
       headers = _parse_csv_line(lines[0])
       rows = lines[1..].filter_map do |line|
         next nil if line.strip.empty?
         values = _parse_csv_line(line)
-        headers.each_with_index.to_h { |h, i| [h, values[i]] }
+        headers.each_with_index.to_h { |h, i| [ h, values[i] ] }
       end
-      [headers, rows]
+      [ headers, rows ]
     end
 
     def _parse_csv_line(line)

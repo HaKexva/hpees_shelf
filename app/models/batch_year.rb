@@ -1,7 +1,6 @@
 class BatchYear < ApplicationRecord
-  # Grade: 0 means "Graduated", 7 means "Office teacher" (only users, no books/grade)
+  # Grade: 0 means "Graduated"
   GRADE_GRADUATED = 0
-  GRADE_OFFICE    = 7
 
   has_many :books, foreign_key: :batch_year_id, dependent: :nullify
   # Primary users (students / main assignment)
@@ -39,12 +38,12 @@ class BatchYear < ApplicationRecord
   end
 
   def self.grade_options
-    [ [ "（選填）", "" ], [ "畢業", GRADE_GRADUATED ], [ "辦公室老師", GRADE_OFFICE ] ] + (1..6).map { |n| [ n.to_s, n ] }
+    [ [ "（選填）", "" ], [ "畢業", GRADE_GRADUATED ] ] + (1..6).map { |n| [ n.to_s, n ] }
   end
 
   # For required-field selects: excludes optional blank value
   def self.required_grade_options
-    [ [ "畢業", GRADE_GRADUATED ], [ "辦公室老師", GRADE_OFFICE ] ] + (1..6).map { |n| [ n.to_s, n ] }
+    [ [ "畢業", GRADE_GRADUATED ] ] + (1..6).map { |n| [ n.to_s, n ] }
   end
 
   # Reference: cohort entering in 2026/09 is batch 12 (grade 1). Each year advances one grade; after 6 years they automatically become "Graduated".
@@ -165,7 +164,6 @@ class BatchYear < ApplicationRecord
     return unless column_names.include?("is_office")
     find_or_create_by!(is_office: true) do |b|
       b.batch_number = 0
-      b.grade_id = GRADE_OFFICE
       b.name = "辦公室老師"
     end
   end

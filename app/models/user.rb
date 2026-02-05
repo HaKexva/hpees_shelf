@@ -6,7 +6,6 @@ class User < ApplicationRecord
   has_and_belongs_to_many :extra_batch_years,
                           class_name: "BatchYear",
                           join_table: "users_batch_years"
-  
   before_save :sync_is_office_from_batch_year
   before_save :sync_grade_id_from_batch_year
 
