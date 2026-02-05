@@ -101,7 +101,8 @@ class BatchYearsController < ApplicationController
       session.delete(:pending_relocation_book_ids)
       session.delete(:pending_relocation_user_ids)
       redirect_to batch_years_path, notice: "無待指定屆數的項目。"
-      return
+    else
+      render :relocation
     end
   end
 

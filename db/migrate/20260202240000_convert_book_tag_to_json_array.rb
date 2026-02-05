@@ -7,7 +7,7 @@ class ConvertBookTagToJsonArray < ActiveRecord::Migration[8.1]
       raw = book.read_attribute(:tag)
       next if raw.blank?
       next if raw.is_a?(String) && raw.strip.start_with?("[")
-      arr = [raw].to_json
+      arr = [ raw ].to_json
       book.update_column(:tag, arr)
     end
   end

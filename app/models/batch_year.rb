@@ -28,10 +28,10 @@ class BatchYear < ApplicationRecord
     return base if base == "—"
     return base if grade_id.nil?
     grade_text = case grade_id
-                 when GRADE_GRADUATED then "畢業"
-                 when GRADE_OFFICE then "辦公室老師"
-                 else "#{grade_id}年級"
-                 end
+    when GRADE_GRADUATED then "畢業"
+    when GRADE_OFFICE then "辦公室老師"
+    else "#{grade_id}年級"
+    end
     "#{base}（#{grade_text}）"
   end
 
