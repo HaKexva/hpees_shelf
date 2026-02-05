@@ -1,7 +1,6 @@
 class BatchYear < ApplicationRecord
-  # Grade: 0 means "Graduated", 7 means "Office teacher" (only users, no books/grade)
+  # Grade: 0 means "Graduated"
   GRADE_GRADUATED = 0
-  GRADE_OFFICE    = 7
 
   has_many :books, foreign_key: :batch_year_id, dependent: :nullify
   # Primary users (students / main assignment)
@@ -10,24 +9,18 @@ class BatchYear < ApplicationRecord
   has_and_belongs_to_many :admins,
                           class_name: "User",
                           join_table: "users_batch_years"
-  before_destroy :prevent_destroy_office
 
-  validates :batch_number, presence: true, unless: :is_office?
-  validates :grade_id, presence: true, unless: :is_office?
+  validates :batch_number, presence: true
+  validates :grade_id, presence: true
 
-  scope :class_batches, -> { where(is_office: false) }
-  scope :office_only, -> { where(is_office: true) }
-  scope :by_number_desc, -> { order(Arel.sql("CASE WHEN is_office THEN 0 WHEN batch_number IS NULL THEN 1 ELSE 0 END"), is_office: :desc, batch_number: :desc) }
-  # For book storage batch options: only class batches, excluding office
-  scope :class_batches_by_number_desc, -> { class_batches.order(batch_number: :desc) }
+  scope :by_number_desc, -> { order(batch_number: :desc) }
+  scope :class_batches_by_number_desc, -> { order(batch_number: :desc) }
 
   def display_label
-    return "辦公室老師" if is_office?
-    batch_number.present? ? "第 #{batch_number} 屆" : "—"
+    batch_number.present? ? "第 #{batch_number} 屆" : (name.presence || "—")
   end
 
   def display_label_with_grade
-    return "辦公室老師" if is_office?
     base = display_label
     return base if base == "—"
     return base if grade_id.nil?
@@ -39,12 +32,12 @@ class BatchYear < ApplicationRecord
   end
 
   def self.grade_options
-    [ [ "（選填）", "" ], [ "畢業", GRADE_GRADUATED ], [ "辦公室老師", GRADE_OFFICE ] ] + (1..6).map { |n| [ n.to_s, n ] }
+    [ [ "（選填）", "" ], [ "畢業", GRADE_GRADUATED ] ] + (1..6).map { |n| [ n.to_s, n ] }
   end
 
   # For required-field selects: excludes optional blank value
   def self.required_grade_options
-    [ [ "畢業", GRADE_GRADUATED ], [ "辦公室老師", GRADE_OFFICE ] ] + (1..6).map { |n| [ n.to_s, n ] }
+    [ [ "畢業", GRADE_GRADUATED ] ] + (1..6).map { |n| [ n.to_s, n ] }
   end
 
   # Reference: cohort entering in 2026/09 is batch 12 (grade 1). Each year advances one grade; after 6 years they automatically become "Graduated".
@@ -160,19 +153,8 @@ class BatchYear < ApplicationRecord
     end
   end
 
-  # Ensure there is always one "Office teacher" batch (only users, no books/grade). If the is_office column does not exist yet (migration not run), skip.
+  # Legacy: keep method for callers but do nothing special now that there is no office flag behavior.
   def self.ensure_office_exists!
-    return unless column_names.include?("is_office")
-    find_or_create_by!(is_office: true) do |b|
-      b.batch_number = 0
-      b.grade_id = GRADE_OFFICE
-      b.name = "辦公室老師"
-    end
-  end
-
-  private
-
-  def prevent_destroy_office
-    throw(:abort) if is_office?
+    # no-op; kept for backwards compatibility
   end
 end

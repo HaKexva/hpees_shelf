@@ -30,7 +30,7 @@
               <% end %>
             </th>
             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">姓名</th>
-            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">屆數／辦公室老師</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">屆數</th>
             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">學號</th>
             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">座號</th>
             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">管理員</th>
@@ -50,7 +50,7 @@
                     <span class="ml-1.5 inline-flex items-center rounded px-1.5 py-0.5 text-xs font-medium bg-amber-100 text-amber-800">離職</span>
                   <% end %>
                 </td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500"><%= user.office_teacher? ? "辦公室老師" : (user.batch_year&.display_label || "—") %></td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500"><%= user.batch_year&.display_label || "—" %></td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500"><%= user.admin ? "—" : (user.id_number || "—") %></td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500"><%= user.admin ? "—" : (user.seat_number || "—") %></td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500"><%= user.admin ? "是" : "否" %></td>

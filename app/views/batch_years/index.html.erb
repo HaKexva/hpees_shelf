@@ -44,13 +44,11 @@
             <% @batch_years.each do |batch_year| %>
               <tr class="hover:bg-gray-50 cursor-pointer batch-year-row" data-batch-year-url="<%= batch_year_path(batch_year) %>" role="button" tabindex="0">
                 <td class="px-4 py-4 w-12 sticky left-0 bg-white z-10 border-r border-gray-200 align-middle" data-no-row-click>
-                  <% unless batch_year.is_office? %>
-                    <input type="checkbox" name="batch_year_ids[]" value="<%= batch_year.id %>" class="batch-year-checkbox rounded" title="選擇以刪除">
-                  <% end %>
+                  <input type="checkbox" name="batch_year_ids[]" value="<%= batch_year.id %>" class="batch-year-checkbox rounded" title="選擇以刪除">
                 </td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900"><%= batch_year.display_label %></td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500"><%= batch_year.is_office? ? "—" : grade_label(batch_year.grade_id) %></td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500"><%= batch_year.is_office? ? "—" : batch_year.books.count %></td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500"><%= grade_label(batch_year.grade_id) %></td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500"><%= batch_year.books.count %></td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500"><%= batch_year.users.count %></td>
                 <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2" data-no-row-click>
                   <%= link_to edit_batch_year_path(batch_year), class: "inline-flex text-indigo-600 hover:text-indigo-900", title: "編輯", aria: { label: "編輯" } do %>
