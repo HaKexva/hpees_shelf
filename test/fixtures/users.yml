@@ -5,9 +5,11 @@ one:
   id_number: ID001
   name: User One
   admin: false
+  batch_year: one
 
 two:
   email: user2@example.com
   id_number: ID002
   name: User Two
   admin: true
+  batch_year: one

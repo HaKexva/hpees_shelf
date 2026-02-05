@@ -16,6 +16,7 @@ module RubyUI
 
           # 4. Page Content
           main(class: "flex-1 overflow-y-auto p-4") do
+            render_flash_messages
             block.call
           end
         end
@@ -23,6 +24,26 @@ module RubyUI
     end
 
     private
+
+    def render_flash_messages
+      required_alert = helpers.respond_to?(:required_fields_alert) ? helpers.required_fields_alert : nil
+      return if flash.blank? && required_alert.blank?
+      div(class: "mb-4 space-y-2") do
+        if flash[:alert].present?
+          div(class: "py-2 px-3 bg-red-50 text-red-600 font-medium rounded-md border border-red-200", role: "alert") { flash[:alert] }
+        end
+        if required_alert.present?
+          div(class: "py-2 px-3 bg-red-50 text-red-600 font-medium rounded-md border border-red-200", role: "alert") { required_alert }
+        end
+        if flash[:notice].present?
+          div(class: "py-2 px-3 bg-green-50 text-green-600 font-medium rounded-md border border-green-200", role: "status") { flash[:notice] }
+        end
+      end
+    end
+
+    def flash
+      helpers.flash
+    end
 
     def render_desktop_sidebar
       # 'hidden md:flex' ensures this is only visible on desktop
@@ -52,7 +73,7 @@ module RubyUI
           # The Sheet slides in. You can use side: :top, :left, or :right
           SheetContent(side: :right) do
             SheetHeader do
-              SheetTitle { "Navigation" }
+              SheetTitle { "導覽選單" }
             end
             div(class: "mt-4 flex flex-col gap-2") do
               render_nav_links
@@ -66,6 +87,7 @@ module RubyUI
     def render_nav_links
       nav_link(href: root_path) { "借還書" }
       nav_link(href: books_path) { "書籍管理" }
+      nav_link(href: batch_years_path) { "屆數管理" }
       nav_link(href: users_path) { "人員管理" }
     end
 

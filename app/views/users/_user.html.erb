@@ -1,21 +1,27 @@
 <div id="<%= dom_id user %>" class="py-5 flex flex-col w-full">
   <p class="my-2">
-    <strong class="block font-medium text-sm text-gray-500">Name:</strong>
+    <strong class="block font-medium text-sm text-gray-500">姓名：</strong>
     <%= user.name %>
   </p>
 
+  <% unless user.admin %>
+    <p class="my-2">
+      <strong class="block font-medium text-sm text-gray-500">學號：</strong>
+      <%= user.id_number || "—" %>
+    </p>
+    <p class="my-2">
+      <strong class="block font-medium text-sm text-gray-500">座號：</strong>
+      <%= user.seat_number || "—" %>
+    </p>
+  <% end %>
+
   <p class="my-2">
-    <strong class="block font-medium text-sm text-gray-500">Email:</strong>
-    <%= user.email %>
+    <strong class="block font-medium text-sm text-gray-500"><%= user.office_teacher? ? "辦公室老師" : "屆數" %>：</strong>
+    <%= user.office_teacher? ? "辦公室老師" : (user.batch_year&.display_label || "—") %>
   </p>
 
   <p class="my-2">
-    <strong class="block font-medium text-sm text-gray-500">ID Number:</strong>
-    <%= user.id_number %>
-  </p>
-
-  <p class="my-2">
-    <strong class="block font-medium text-sm text-gray-500">Admin:</strong>
-    <%= user.admin ? "Yes" : "No" %>
+    <strong class="block font-medium text-sm text-gray-500">管理員：</strong>
+    <%= user.admin ? "是" : "否" %>
   </p>
 </div>

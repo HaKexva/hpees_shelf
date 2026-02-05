@@ -1,0 +1,75 @@
+<% content_for :title, "指定屆數（學年度切換後）" %>
+
+<div class="w-full">
+  <div class="mb-6">
+    <h1 class="font-bold text-4xl">指定屆數</h1>
+    <p class="text-gray-600 mt-1">學年度已切換，請為下列書籍與人員指定新屆數（可選「老師」或班級屆數）。</p>
+  </div>
+
+  <%= form_with url: apply_relocation_batch_years_path, method: :post, class: "space-y-8", data: { turbo: false } do |f| %>
+    <% if @pending_books.present? %>
+      <div class="bg-white rounded-lg shadow p-6">
+        <h2 class="font-semibold text-lg mb-4">書籍需指定屆數（<%= @pending_books.size %> 本）</h2>
+        <p class="text-sm text-gray-600 mb-4">老師的書、捐贈的書、以及六年級班級的書請選擇要歸屬的屆數。</p>
+        <div class="overflow-x-auto">
+          <table class="min-w-full divide-y divide-gray-200">
+            <thead class="bg-gray-50">
+              <tr>
+                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">書名</th>
+                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">標籤</th>
+                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">目前屆數</th>
+                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">新屆數</th>
+              </tr>
+            </thead>
+            <tbody class="bg-white divide-y divide-gray-200">
+              <% @pending_books.each do |book| %>
+                <tr>
+                  <td class="px-4 py-2 text-sm font-medium text-gray-900"><%= book.title %></td>
+                  <td class="px-4 py-2 text-sm text-gray-600"><%= book.tag %></td>
+                  <td class="px-4 py-2 text-sm text-gray-600"><%= book.batch_year&.display_label_with_grade %></td>
+                  <td class="px-4 py-2">
+                    <%= select_tag "book_assignments[#{book.id}]", options_from_collection_for_select(@batch_years, :id, :display_label_with_grade, book.batch_year_id), { include_blank: "請選擇", class: "block shadow-sm rounded-md border border-gray-300 px-3 py-2 text-sm w-48" } %>
+                  </td>
+                </tr>
+              <% end %>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    <% end %>
+
+    <% if @pending_users.present? %>
+      <div class="bg-white rounded-lg shadow p-6">
+        <h2 class="font-semibold text-lg mb-4">人員需指定屆數（<%= @pending_users.size %> 人）</h2>
+        <p class="text-sm text-gray-600 mb-4">原屬「老師」屆數的人員請選擇新屆數（可繼續選「老師」或改選班級屆數）。</p>
+        <div class="overflow-x-auto">
+          <table class="min-w-full divide-y divide-gray-200">
+            <thead class="bg-gray-50">
+              <tr>
+                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">姓名</th>
+                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">目前屆數</th>
+                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">新屆數</th>
+              </tr>
+            </thead>
+            <tbody class="bg-white divide-y divide-gray-200">
+              <% @pending_users.each do |user| %>
+                <tr>
+                  <td class="px-4 py-2 text-sm font-medium text-gray-900"><%= user.name %></td>
+                  <td class="px-4 py-2 text-sm text-gray-600"><%= user.batch_year&.display_label_with_grade %></td>
+                  <td class="px-4 py-2">
+                    <%= select_tag "user_assignments[#{user.id}]", options_from_collection_for_select(BatchYear.by_number_desc, :id, :display_label_with_grade, user.batch_year_id), { include_blank: "請選擇", class: "block shadow-sm rounded-md border border-gray-300 px-3 py-2 text-sm w-48" } %>
+                  </td>
+                </tr>
+              <% end %>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    <% end %>
+
+    <div class="flex gap-2">
+      <%= f.submit "儲存屆數指定", class: "rounded-md px-3.5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-medium cursor-pointer" %>
+      <%= link_to "返回屆數列表", batch_years_path, class: "rounded-md px-3.5 py-2.5 bg-gray-100 hover:bg-gray-50 font-medium" %>
+    </div>
+  <% end %>
+</div>

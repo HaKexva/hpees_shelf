@@ -22,3 +22,12 @@ Things you may want to cover:
 * Deployment instructions
 
 * ...
+
+## Deployment – database
+
+On deploy, **do not clear the database**. Use one of:
+
+* `bin/rails db:prepare` – migrates if the DB exists, or creates and loads schema if it does not (used by Docker entrypoint).
+* `bin/rails db:migrate` – only runs pending migrations.
+
+Do **not** use `db:reset`, `db:drop`, or `db:schema:load` in production or in any release/build step; they will wipe existing data.

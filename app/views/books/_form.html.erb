@@ -1,7 +1,7 @@
-<%= form_with(model: book, class: "contents") do |form| %>
+<%= form_with(model: book, class: "contents", data: { controller: "unsaved-form" }) do |form| %>
   <% if book.errors.any? %>
     <div id="error_explanation" class="bg-red-50 text-red-500 px-3 py-2 font-medium rounded-md mt-3">
-      <h2><%= pluralize(book.errors.count, "error") %> prohibited this book from being saved:</h2>
+      <h2>有 <%= book.errors.count %> 個錯誤，無法儲存此書籍：</h2>
 
       <ul class="list-disc ml-6">
         <% book.errors.each do |error| %>
@@ -12,36 +12,62 @@
   <% end %>
 
   <div class="my-5">
-    <%= form.label :title %>
+    <%= form.label :title, "書名" %>
     <%= form.text_field :title, class: ["block shadow-sm rounded-md border px-3 py-2 mt-2 w-full", {"border-gray-400 focus:outline-blue-600": book.errors[:title].none?, "border-red-400 focus:outline-red-600": book.errors[:title].any?}] %>
   </div>
 
   <div class="my-5">
-    <%= form.label :isbn %>
+    <%= form.label :batch_year_id, "屆數（必填）" %>
+    <%= form.collection_select :batch_year_id, @batch_years || BatchYear.class_batches_by_number_desc, :id, :display_label_with_grade, { include_blank: "請選擇屆數" }, { required: true, class: [ "block shadow-sm rounded-md border px-3 py-2 mt-2 w-full", (book.errors[:batch_year_id].none? ? "border-gray-400 focus:outline-blue-600" : "border-red-400 focus:outline-red-600") ] } %>
+  </div>
+
+  <div class="my-5">
+    <%= form.label :isbn, "ISBN" %>
     <%= form.text_field :isbn, class: ["block shadow-sm rounded-md border px-3 py-2 mt-2 w-full", {"border-gray-400 focus:outline-blue-600": book.errors[:isbn].none?, "border-red-400 focus:outline-red-600": book.errors[:isbn].any?}] %>
   </div>
 
   <div class="my-5">
-    <%= form.label :total %>
+    <%= form.label :total, "總數" %>
     <%= form.number_field :total, class: ["block shadow-sm rounded-md border px-3 py-2 mt-2 w-full", {"border-gray-400 focus:outline-blue-600": book.errors[:total].none?, "border-red-400 focus:outline-red-600": book.errors[:total].any?}] %>
   </div>
 
   <div class="my-5">
-    <%= form.label :volume %>
+    <%= form.label :volume, "冊數" %>
     <%= form.number_field :volume, class: ["block shadow-sm rounded-md border px-3 py-2 mt-2 w-full", {"border-gray-400 focus:outline-blue-600": book.errors[:volume].none?, "border-red-400 focus:outline-red-600": book.errors[:volume].any?}] %>
   </div>
 
+  <div class="my-5" data-controller="book-form">
+    <%= form.label :tag, "標籤（書類型）", class: "block font-medium text-gray-700 mb-2" %>
+    <% current_tag = book.tag.to_s %>
+    <% current_tag_radio = book.teacher_tag? ? Book::TAG_TEACHER_PREFIX : current_tag %>
+    <% has_teacher_tag = book.teacher_tag? %>
+    <div class="mt-2 space-y-3">
+      <div class="flex flex-wrap gap-2">
+        <% [ [ "圖書館的書", Book::TAG_LIBRARY ], [ "捐贈的書", Book::TAG_DONATED ], [ "班級的書", Book::TAG_CLASS ], [ "老師的書", Book::TAG_TEACHER_PREFIX ] ].each do |label, value| %>
+          <label class="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-sm font-medium bg-gray-100 text-gray-700 cursor-pointer border border-transparent has-[:checked]:bg-blue-100 has-[:checked]:text-blue-800 has-[:checked]:ring-1 has-[:checked]:ring-blue-600 has-[:checked]:border-blue-600">
+            <% tag_radio_opts = { checked: (current_tag_radio == value), data: { book_form_target: (value == Book::TAG_TEACHER_PREFIX ? "teacherRadio" : nil), action: (value == Book::TAG_TEACHER_PREFIX ? "change->book-form#toggleTeacherName" : nil) }, class: "sr-only peer" } %>
+            <% tag_radio_opts[:required] = true if value == Book::TAG_LIBRARY %>
+            <%= form.radio_button :tag, value, tag_radio_opts %>
+            <svg class="w-3.5 h-3.5 shrink-0" fill="currentColor" viewBox="0 0 20 20" aria-hidden="true"><path fill-rule="evenodd" d="M5 2a1 1 0 0 0-.707.293l-2 2a1 1 0 0 0 0 1.414l8 8a1 1 0 0 0 1.414 0l6-6A1 1 0 0 0 19 7V3a1 1 0 0 0-1-1H5zm2 3a1 1 0 1 0 0 2 1 1 0 0 0 0-2z" clip-rule="evenodd"/></svg>
+            <span><%= label %></span>
+          </label>
+        <% end %>
+      </div>
+      <div class="pt-2 border-t border-gray-200 <%= 'hidden' unless has_teacher_tag %>" data-book-form-target="teacherNameRow">
+        <%= label_tag :tag_teacher_name, "老師（選管理員）", class: "block text-sm text-gray-600 mb-1" %>
+        <% admin_users = @admin_users || User.where(admin: true).order(:name) %>
+        <% selected_name = selected_teacher_name_for_book(book, admin_users) %>
+        <%= select_tag :tag_teacher_name, options_for_select([ [ "請選擇", "" ] ] + admin_users.map { |u| [ u.name, u.name ] }, selected_name), { disabled: !has_teacher_tag, class: "block shadow-sm rounded-md border border-gray-400 px-3 py-2 w-full max-w-xs", data: { book_form_target: "teacherNameInput" } } %>
+      </div>
+    </div>
+  </div>
+
   <div class="my-5">
-    <%= form.label :note %>
+    <%= form.label :note, "備註" %>
     <%= form.textarea :note, rows: 4, class: ["block shadow-sm rounded-md border px-3 py-2 mt-2 w-full", {"border-gray-400 focus:outline-blue-600": book.errors[:note].none?, "border-red-400 focus:outline-red-600": book.errors[:note].any?}] %>
   </div>
 
-  <div class="my-5">
-    <%= form.label :grade_id %>
-    <%= form.number_field :grade_id, class: ["block shadow-sm rounded-md border px-3 py-2 mt-2 w-full", {"border-gray-400 focus:outline-blue-600": book.errors[:grade_id].none?, "border-red-400 focus:outline-red-600": book.errors[:grade_id].any?}] %>
-  </div>
-
   <div class="inline">
-    <%= form.submit class: "w-full sm:w-auto rounded-md px-3.5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white inline-block font-medium cursor-pointer" %>
+    <%= form.submit "儲存", class: "w-full sm:w-auto rounded-md px-3.5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white inline-block font-medium cursor-pointer" %>
   </div>
 <% end %>
