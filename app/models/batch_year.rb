@@ -137,7 +137,7 @@ class BatchYear < ApplicationRecord
     create!(batch_number: max + 1, grade_id: 1, name: "第#{max + 1}屆", is_office: false)
   end
 
-  # Whether to show the "Switch to next school year" button: only show from July to September, and only if we have not switched yet (stored value == actual current school year). After switching, hide it.
+  # Whether to show the "Switch to next school year" button: only show in July–September, and only when stored displayed year equals date-based current year (e.g. now 114學年度, in Jul–Sep button shows; after user clicks "切換學年度", stored becomes 115學年度 and button hides).
   def self.show_advance_school_year_button?
     return false unless (7..9).cover?(Date.current.month)
     display_current_school_year_roc == current_school_year_roc

@@ -76,3 +76,5 @@ gem "phlex-rails", "~> 2.4"
 gem "tailwind_merge", "~> 1.3"
 
 gem "rouge", "~> 4.7"
+
+gem 'acts-as-taggable-on'
