@@ -2,7 +2,7 @@
 
 namespace :school_year do
   desc "Set current_school_year_roc (學年度). In Jul–Sep, run without args to be prompted; or pass the year, e.g. school_year:set[114]"
-  task :set, [:roc] => :environment do |_t, args|
+  task :set, [ :roc ] => :environment do |_t, args|
     month = Date.current.month
     stored = AppSetting.get("current_school_year_roc").presence&.to_i
     date_based = BatchYear.current_school_year_roc
