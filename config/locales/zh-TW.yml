@@ -29,3 +29,17 @@
 
 zh-TW:
   hello: "哈囉世界"
+  activerecord:
+    attributes:
+      book:
+        tag: "標籤"
+        title: "書名"
+        batch_year_id: "屆數"
+        grade_id: "年級"
+    errors:
+      models:
+        book:
+          attributes:
+            tag:
+              teacher_must_select: "老師的書請選擇老師"
+

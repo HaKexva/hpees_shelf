@@ -46,7 +46,7 @@ module RubyUI
     end
 
     def render_desktop_sidebar
-      # 'hidden md:flex' ensures this is only visible on desktop
+      # "hidden md:flex" ensures this is only visible on desktop
       div(class: "hidden md:flex w-64 flex-col border-r bg-card h-full") do
         div(class: "p-6") do
           h1(class: "text-lg font-semibold") { APP_NAME }
@@ -58,7 +58,7 @@ module RubyUI
     end
 
     def render_mobile_header
-      # 'md:hidden' ensures this is only visible on mobile
+      # "md:hidden" ensures this is only visible on mobile
       header(class: "md:hidden flex items-center justify-between border-b px-4 py-3 bg-card") do
         span(class: "font-semibold") { APP_NAME }
 

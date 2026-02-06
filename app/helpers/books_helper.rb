@@ -9,7 +9,8 @@ module BooksHelper
   def book_tag_badge(text, selected: false)
     return "" if text.blank?
     content = safe_join([ TAG_ICON_SVG.html_safe, content_tag(:span, text) ], " ")
-    content_tag(:span, content, class: "inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium #{selected ? 'bg-blue-100 text-blue-800 ring-1 ring-blue-600' : 'bg-gray-100 text-gray-700'}")
+    badge_class = selected ? "bg-blue-100 text-blue-800 ring-1 ring-blue-600" : "bg-gray-100 text-gray-700"
+    content_tag(:span, content, class: "inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium #{badge_class}")
   end
 
   # Import preview: if this column is a status column and the value is not in the valid options (including "—", blank, or a dash), show "不符合"

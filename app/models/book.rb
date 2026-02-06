@@ -86,7 +86,7 @@ class Book < ApplicationRecord
 
   def teacher_tag_must_have_teacher_name
     return unless tag.to_s == TAG_TEACHER_PREFIX
-    errors.add(:tag, "老師的書請選擇老師")
+    errors.add(:tag, :teacher_must_select)
   end
 
   def set_total_to_one_if_blank
