@@ -1,5 +1,6 @@
 class Book < ApplicationRecord
   belongs_to :batch_year
+  belongs_to :user, optional: true # borrower (for library books)
   validates :batch_year_id, presence: true
   validates :title, presence: true
   validates :tag, presence: true

@@ -7,6 +7,10 @@ class BooksController < ApplicationController
     # Filter out books with empty title and those "Returned to library" (hidden after return)
     @books = Book.where.not(title: [ nil, "" ]).where.not(status: Book::STATUS_RETURNED_LIBRARY).includes(:batch_year)
     @books = @books.where(batch_year_id: params[:batch_year_id]) if params[:batch_year_id].present?
+    if params[:q].to_s.strip.present?
+      pattern = "%#{Book.sanitize_sql_like(params[:q].strip)}%"
+      @books = @books.where("title LIKE ?", pattern)
+    end
     if params[:tag].present?
       if params[:tag] == Book::TAG_TEACHER_PREFIX
         # Teacher books: can further filter by which teacher
@@ -21,6 +25,7 @@ class BooksController < ApplicationController
     end
     @batch_years = BatchYear.by_number_desc
     @filter_batch_year_id = params[:batch_year_id]
+    @filter_q = params[:q].to_s.strip.presence
     @filter_tag = params[:tag]
     @filter_teacher_tag = params[:teacher_tag]
     @teacher_tag_options = Book.where("tag LIKE ?", "%老師的書").distinct.pluck(:tag).sort
@@ -261,11 +266,19 @@ class BooksController < ApplicationController
     end
   end
 
-  # POST /books/1/return_to_library — Library books: mark as "Returned to library"
+  # POST /books/1/return_to_library — Library books: save borrow history then delete the book
   def return_to_library
     if @book.library_book?
-      @book.update!(status: Book::STATUS_RETURNED_LIBRARY)
-      redirect_to @book, notice: "已標記為「歸還圖書館」。", status: :see_other
+      LibraryLoanHistory.create!(
+        user_id: @book.user_id,
+        book_title: @book.title.to_s.presence || "（無書名）",
+        book_isbn: @book.isbn,
+        borrowed_at: @book.borrowed_at,
+        returned_at: Time.current,
+        batch_year_id: @book.batch_year_id
+      )
+      @book.destroy!
+      redirect_to books_path, notice: "已歸還圖書館並刪除書籍資料，借閱紀錄已保留。", status: :see_other
     else
       redirect_to @book, alert: "僅圖書館的書可執行此操作。", status: :see_other
     end
@@ -277,23 +290,34 @@ class BooksController < ApplicationController
     @batch_years = BatchYear.class_batches_by_number_desc
   end
 
-  # POST /books/apply_return_to_library_batch — Mark all library books in the selected batch as "Returned to library"
+  # POST /books/apply_return_to_library_batch — Save borrow history for each library book then delete the books
   def apply_return_to_library_batch
     return redirect_to books_path, alert: "目前非開放歸還圖書館書籍期間。" unless Book.show_return_to_library_button?
     raw = params[:batch_year_id].to_s
     scope = Book.where(tag: Book::TAG_LIBRARY)
+    scope = scope.where(batch_year_id: raw.to_i) if raw.present? && raw != "all"
 
-    if raw == "all"
-      # Library books from all batches
-      count = scope.update_all(status: Book::STATUS_RETURNED_LIBRARY)
-      redirect_to books_path, notice: "已將全部屆數 #{count} 本圖書館的書標記為「歸還圖書館」。", status: :see_other
-    elsif raw.present?
-      batch_year_id = raw.to_i
-      count = scope.where(batch_year_id: batch_year_id).update_all(status: Book::STATUS_RETURNED_LIBRARY)
-      redirect_to books_path, notice: "已將該屆 #{count} 本圖書館的書標記為「歸還圖書館」。", status: :see_other
-    else
+    if raw.blank?
       redirect_to return_to_library_batch_books_path, alert: "請選擇屆數（或全部）。", status: :see_other
+      return
     end
+
+    count = 0
+    scope.find_each do |book|
+      LibraryLoanHistory.create!(
+        user_id: book.user_id,
+        book_title: book.title.to_s.presence || "（無書名）",
+        book_isbn: book.isbn,
+        borrowed_at: book.borrowed_at,
+        returned_at: Time.current,
+        batch_year_id: book.batch_year_id
+      )
+      book.destroy!
+      count += 1
+    end
+
+    label = raw == "all" ? "全部屆數" : "該屆"
+    redirect_to books_path, notice: "已將#{label} #{count} 本圖書館的書歸還並刪除書籍資料，借閱紀錄已保留。", status: :see_other
   end
 
   # DELETE /books/bulk_destroy
@@ -317,7 +341,7 @@ class BooksController < ApplicationController
     end
 
     def book_params
-      params.expect(book: [ :title, :isbn, :total, :volume, :note, :tag, :borrowed_at, :edition_part, :batch_year_id, :grade_id ])
+      params.expect(book: [ :title, :isbn, :total, :volume, :note, :tag, :borrowed_at, :edition_part, :batch_year_id, :grade_id, :user_id ])
     end
 
     def apply_tag_teacher_name!(book_or_attrs)

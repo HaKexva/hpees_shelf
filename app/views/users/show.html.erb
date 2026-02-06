@@ -4,6 +4,33 @@
   <div class="w-full text-left">
     <%= render @user %>
 
+    <% if @user.library_loan_histories.any? %>
+      <div class="mt-6">
+        <h2 class="font-bold text-xl mb-2">圖書館借閱歷史</h2>
+        <p class="text-sm text-gray-500 mb-2">此人員曾借閱並已歸還的圖書館書籍（書本資料已刪除，僅保留紀錄）。</p>
+        <div class="overflow-x-auto rounded-md border border-gray-200">
+          <table class="min-w-full divide-y divide-gray-200">
+            <thead class="bg-gray-50">
+              <tr>
+                <th scope="col" class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">書名</th>
+                <th scope="col" class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">借閱時間</th>
+                <th scope="col" class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">歸還時間</th>
+              </tr>
+            </thead>
+            <tbody class="bg-white divide-y divide-gray-200">
+              <% @user.library_loan_histories.order(returned_at: :desc).each do |h| %>
+                <tr>
+                  <td class="px-4 py-2 text-sm text-gray-900"><%= h.book_title %><%= "（#{h.book_isbn}）" if h.book_isbn.present? %></td>
+                  <td class="px-4 py-2 text-sm text-gray-500"><%= h.borrowed_at ? l(h.borrowed_at, format: :short) : "—" %></td>
+                  <td class="px-4 py-2 text-sm text-gray-500"><%= l(h.returned_at, format: :short) %></td>
+                </tr>
+              <% end %>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    <% end %>
+
     <%= link_to "編輯此人員", edit_user_path(@user), class: "mt-2 rounded-md px-3.5 py-2.5 bg-gray-100 hover:bg-gray-50 inline-block font-medium" %>
     <% if @user.resigned? %>
       <div class="inline-block ml-2">

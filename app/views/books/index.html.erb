@@ -38,6 +38,10 @@
   <div class="mb-4 flex flex-wrap items-end gap-4">
     <%= form_with url: books_path, method: :get, local: true, class: "flex flex-wrap items-end gap-4" do |f| %>
       <div>
+        <label class="block text-sm font-medium text-gray-700 mb-2">依書名搜尋</label>
+        <%= text_field_tag :q, @filter_q, placeholder: "輸入書名", class: "block shadow-sm rounded-md border border-gray-300 px-3 py-2 w-48", onchange: "this.form.submit()" %>
+      </div>
+      <div>
         <label class="block text-sm font-medium text-gray-700 mb-2">依屆數篩選</label>
         <%= f.select :batch_year_id, options_from_collection_for_select(@batch_years, :id, :display_label_with_grade, @filter_batch_year_id), { include_blank: "全部屆數" }, { class: "block shadow-sm rounded-md border border-gray-300 px-3 py-2 w-48", onchange: "this.form.submit()" } %>
       </div>
@@ -51,8 +55,11 @@
           <%= select_tag :teacher_tag, options_for_select([ [ "全部老師", "" ] ] + @teacher_tag_options.map { |t| [ t, t ] }, @filter_teacher_tag), { class: "block shadow-sm rounded-md border border-gray-300 px-3 py-2 w-48", onchange: "this.form.submit()" } %>
         </div>
       <% end %>
+      <div class="flex items-end">
+        <%= f.submit "搜尋", class: "rounded-md px-3.5 py-2 bg-gray-100 hover:bg-gray-200 font-medium cursor-pointer" %>
+      </div>
     <% end %>
-    <% if @filter_batch_year_id.present? || @filter_tag.present? %>
+    <% if @filter_batch_year_id.present? || @filter_tag.present? || @filter_q.present? %>
       <span class="text-sm text-gray-500">（已套用篩選）</span>
     <% end %>
   </div>
@@ -61,6 +68,7 @@
   <div class="hidden md:block">
     <%= form_with url: bulk_destroy_books_path, method: :delete, id: "bulk-destroy-books-form" do |f| %>
       <%= hidden_field_tag :batch_year_id, @filter_batch_year_id if @filter_batch_year_id.present? %>
+      <%= hidden_field_tag :q, @filter_q if @filter_q.present? %>
       <%= hidden_field_tag :tag, @filter_tag if @filter_tag.present? %>
       <%= hidden_field_tag :teacher_tag, @filter_teacher_tag if @filter_teacher_tag.present? %>
       <div class="flex gap-2 items-center mb-4">

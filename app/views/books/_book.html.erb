@@ -27,6 +27,12 @@
     <strong class="block font-medium mb-1">目前狀態：</strong>
     <%= book.display_status %>
   </div>
+  <% if book.tag.to_s == Book::TAG_LIBRARY && book.user.present? %>
+    <div>
+      <strong class="block font-medium mb-1">借閱人：</strong>
+      <%= book.user.name %>
+    </div>
+  <% end %>
   <% if book.tag.present? %>
     <div>
       <strong class="block font-medium mb-1">標籤：</strong>
