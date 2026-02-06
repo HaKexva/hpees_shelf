@@ -16,4 +16,3 @@ class DeleteZeroBatchYears < ActiveRecord::Migration[8.1]
     # no-op: we don't recreate the \"第0屆\" row once deleted
   end
 end
-

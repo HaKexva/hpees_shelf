@@ -14,6 +14,7 @@ class BatchYear < ApplicationRecord
   validates :grade_id, presence: true
 
   scope :by_number_desc, -> { order(batch_number: :desc) }
+  scope :class_batches, -> { all }
   scope :class_batches_by_number_desc, -> { order(batch_number: :desc) }
 
   def display_label
@@ -40,12 +41,12 @@ class BatchYear < ApplicationRecord
     [ [ "畢業", GRADE_GRADUATED ] ] + (1..6).map { |n| [ n.to_s, n ] }
   end
 
-  # Reference: cohort entering in 2026/09 is batch 12 (grade 1). Each year advances one grade; after 6 years they automatically become "Graduated".
+  # Reference: cohort entering in 2025/09 is batch 11 (grade 1). Each year advances one grade; after 6 years they automatically become "Graduated".
   # School year starts in September: current September–next August are the same school year.
   YEARS_UNTIL_GRADUATION = 6
-  BASE_BATCH = 11       # ROC school year 115 = batches 1–11
-  BASE_SCHOOL_YEAR = 2026
-  BASE_SCHOOL_YEAR_ROC = 115 # ROC school year 115 = batches 1–11; each additional school year adds one batch
+  BASE_BATCH = 11       # ROC school year 114 = batches 1–11
+  BASE_SCHOOL_YEAR = 2025
+  BASE_SCHOOL_YEAR_ROC = 114 # ROC school year 114 = batches 1–11; each additional school year adds one batch
 
   def self.current_school_year
     today = Time.zone.today
@@ -111,7 +112,7 @@ class BatchYear < ApplicationRecord
     rollback_stored_school_year!
   end
 
-  # One-click creation of a batch range: calculated from the "current school year" (stored value); when the school year changes this also changes. ROC year 115 = 12 batches; every additional school year adds one batch.
+  # One-click creation of a batch range: calculated from the "current school year" (stored value); when the school year changes this also changes. ROC year 114 = 11 batches; every additional school year adds one batch.
   def self.max_batch_number_for_auto_create
     n = BASE_BATCH + (display_current_school_year_roc - BASE_SCHOOL_YEAR_ROC)
     [ n, 1 ].max
