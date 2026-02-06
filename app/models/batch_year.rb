@@ -48,20 +48,26 @@ class BatchYear < ApplicationRecord
   BASE_SCHOOL_YEAR = 2025
   BASE_SCHOOL_YEAR_ROC = 114 # ROC school year 114 = batches 1–11; each additional school year adds one batch
 
-  def self.current_school_year
-    today = Time.zone.today
-    today.month >= 9 ? today.year + 1 : today.year
-  end
-
-  # Current school year in ROC years (Gregorian year - 1911), calculated from the current date
+  # Date-based 學年: month 1–6 => ROC-1, 10–12 => ROC, 7–9 => ambiguous (use stored or run school_year:set when deploying)
   def self.current_school_year_roc
-    current_school_year - 1911
+    today = Time.zone.today
+    roc = today.year - 1911
+    month = today.month
+    if (1..6).cover?(month)
+      roc - 1
+    elsif (10..12).cover?(month)
+      roc
+    else
+      # 7–9: no single date-based value; caller should use display_current_school_year_roc (stored or set via school_year:set)
+      roc - 1
+    end
   end
 
-  # Displayed current school year in ROC years (use stored value if present, otherwise calculate from date); updated after switching school year
+  # Displayed current school year in ROC years. Month 7–9 uses stored value only (set via UI "切換學年度" or rake school_year:set when deploying).
   def self.display_current_school_year_roc
     stored = AppSetting.get("current_school_year_roc").presence&.to_i
-    stored || current_school_year_roc
+    return stored if stored.present?
+    current_school_year_roc
   end
 
   # When switching school year, store: current displayed value + 1
