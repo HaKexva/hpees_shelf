@@ -1,0 +1,127 @@
+<% content_for :title, "匯入人員" %>
+
+<div class="w-full">
+  <div class="flex justify-between items-center mb-6">
+    <h1 class="font-bold text-4xl">匯入人員</h1>
+    <%= link_to "返回人員列表", users_path, class: "rounded-md px-3.5 py-2.5 bg-gray-100 hover:bg-gray-50 block font-medium" %>
+  </div>
+
+  <div class="bg-white rounded-lg shadow p-6 mb-6">
+    <h2 class="font-semibold text-lg mb-4">上傳 CSV 檔案</h2>
+    <p class="text-gray-600 mb-4">
+      上傳包含<strong>姓名</strong>欄位的 CSV 檔案。可選欄位：<code class="bg-gray-100 px-1 rounded">學號</code>、<code class="bg-gray-100 px-1 rounded">座號</code>、<code class="bg-gray-100 px-1 rounded">管理員</code>（填 1 或 是 則匯入後勾選管理員）。信箱由系統依學號自動帶入（學號@hpees.tp.edu.tw），學生不需填寫信箱。<br>
+      系統會在下方匯入步驟中<strong>要求選擇「屆數」</strong>並套用到本次匯入的所有人員。與該屆數中已存在之同名人員將自動跳過。
+    </p>
+
+    <%= form_with url: import_users_path, method: :post, multipart: true, class: "space-y-4", data: { turbo: false } do |f| %>
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-2">選擇 CSV 檔案</label>
+        <input type="file" name="file" accept=".csv,text/csv" class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100" required>
+      </div>
+      <div>
+        <%= f.submit "上傳並預覽", class: "rounded-md px-3.5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-medium cursor-pointer" %>
+      </div>
+    <% end %>
+  </div>
+
+  <% if @imported_data.present? && @imported_data.any? %>
+    <% if @missing_columns.present? %>
+      <div class="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+        <h3 class="font-semibold text-red-800 mb-2">欄位不符，無法匯入</h3>
+        <p class="text-red-700 text-sm mb-2">您的 CSV 必須包含「姓名」欄位，請修正後重新上傳：</p>
+        <p class="text-red-700 text-sm"><strong>缺少的欄位：</strong> <%= @missing_columns.map { |c| @column_names_zh[c] || c }.join("、") %></p>
+      </div>
+    <% end %>
+
+    <% if @extra_columns.present? %>
+      <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
+        <h3 class="font-semibold text-yellow-800 mb-2">欄位提示</h3>
+        <p class="text-yellow-700 text-sm"><strong>多餘的欄位（將被忽略）：</strong> <%= @extra_columns.join("、") %></p>
+      </div>
+    <% end %>
+
+    <div class="bg-white rounded-lg shadow p-6">
+      <h2 class="font-semibold text-lg mb-4">
+        預覽（共 <%= @imported_data.size %> 筆<%= "，" if @missing_columns.blank? %>
+        <% if @missing_columns.blank? %>
+          <span class="text-green-600"><%= @new_users&.size || 0 %> 位將匯入</span>）
+        <% else %>
+          — 請補齊「姓名」欄位後重新上傳）
+        <% end %>
+      </h2>
+
+      <% if @missing_columns.present? %>
+        <div class="overflow-x-auto mb-4">
+          <table class="min-w-full divide-y divide-gray-200">
+            <thead class="bg-gray-50">
+              <tr>
+                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">狀態</th>
+                <% @headers.each do |header| %>
+                  <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"><%= header %></th>
+                <% end %>
+              </tr>
+            </thead>
+            <tbody class="bg-white divide-y divide-gray-200">
+              <% @imported_data.each_with_index do |row, index| %>
+                <tr class="hover:bg-gray-50">
+                  <td class="px-4 py-2 text-sm">
+                    <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">不符合</span>
+                  </td>
+                  <% @headers.each do |header| %>
+                    <td class="px-4 py-2 text-sm text-gray-900"><%= row[header].to_s.presence || "—" %></td>
+                  <% end %>
+                </tr>
+              <% end %>
+            </tbody>
+          </table>
+        </div>
+        <p class="text-gray-600 text-sm">請補齊缺少欄位後重新上傳 CSV，即可進行確認匯入。</p>
+      <% else %>
+        <%= form_with url: import_users_path, method: :post, data: { turbo: false }, id: "import-form" do |f| %>
+          <input type="hidden" name="confirm" value="true">
+          <%= hidden_field_tag :import_data, Base64.strict_encode64(@imported_data.to_json) %>
+
+          <div class="overflow-x-auto mb-4">
+            <table class="min-w-full divide-y divide-gray-200">
+              <thead class="bg-gray-50">
+                <tr>
+                  <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">狀態</th>
+                  <% @headers.each do |header| %>
+                    <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"><%= header %></th>
+                  <% end %>
+                </tr>
+              </thead>
+              <tbody class="bg-white divide-y divide-gray-200">
+                <% @imported_data.each_with_index do |row, index| %>
+                  <% invalid = (@invalid_row_indices || []).include?(index) %>
+                  <tr class="<%= invalid ? 'bg-red-50' : 'hover:bg-gray-50' %>">
+                    <td class="px-4 py-2 text-sm">
+                      <% if invalid %>
+                        <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">不符合（缺姓名）</span>
+                      <% else %>
+                        <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">新增</span>
+                      <% end %>
+                    </td>
+                    <% @headers.each do |header| %>
+                      <td class="px-4 py-2 text-sm text-gray-900"><%= row[header].to_s.presence || "—" %></td>
+                    <% end %>
+                  </tr>
+                <% end %>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="mb-4">
+            <label class="block text-sm font-medium text-gray-700 mb-2">屆數（必填，套用至所有匯入的人員）</label>
+            <%= select_tag :batch_year_id, options_from_collection_for_select(@batch_years || BatchYear.class_batches_by_number_desc, :id, :display_label_with_grade), { include_blank: "請選擇屆數", required: true, class: "block w-48 shadow-sm rounded-md border border-gray-300 px-3 py-2" } %>
+          </div>
+
+          <div class="flex gap-2 items-center">
+            <%= f.submit "確認匯入", class: "rounded-md px-3.5 py-2.5 bg-green-600 hover:bg-green-500 text-white font-medium cursor-pointer" %>
+            <%= link_to "取消", import_users_path, class: "rounded-md px-3.5 py-2.5 bg-gray-100 hover:bg-gray-50 font-medium" %>
+          </div>
+        <% end %>
+      <% end %>
+    </div>
+  <% end %>
+</div>

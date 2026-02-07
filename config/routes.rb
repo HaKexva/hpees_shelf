@@ -40,6 +40,8 @@ Rails.application.routes.draw do
       post :cancel_resignation
     end
     collection do
+      get :import
+      post :import
       delete :bulk_destroy
     end
   end

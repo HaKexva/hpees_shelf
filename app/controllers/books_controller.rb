@@ -13,7 +13,6 @@ class BooksController < ApplicationController
     end
     if params[:tag].present?
       if params[:tag] == Book::TAG_TEACHER_PREFIX
-        # Teacher books: can further filter by which teacher
         @books = if params[:teacher_tag].present?
           @books.where(tag: params[:teacher_tag])
         else
