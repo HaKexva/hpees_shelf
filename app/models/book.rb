@@ -3,7 +3,7 @@ class Book < ApplicationRecord
   belongs_to :user, optional: true # borrower (for library books)
   validates :batch_year_id, presence: true
   validates :title, presence: true
-  enum :source, { owned_by_library: 0, donated: 1, owned_by_class: 2, owned_by_teacher: 3 }, prefix: true
+  enum :source, { owned_by_library: 0, donated: 1, owned_by_class: 2, owned_by_teacher: 3 }
   before_validation :set_total_to_one_if_blank
 
   # Current status (stored in Chinese): on-shelf, borrowed, missing, returned-to-library
