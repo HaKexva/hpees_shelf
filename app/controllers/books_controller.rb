@@ -247,7 +247,7 @@ class BooksController < ApplicationController
 
   # POST /books/1/return_to_library — Library books: save borrow history then delete the book
   def return_to_library
-    if @book.library_book?
+    if @book.owned_by_library?
       LibraryLoanHistory.create!(
         user_id: @book.user_id,
         book_title: @book.title.to_s.presence || "（無書名）",
@@ -273,7 +273,7 @@ class BooksController < ApplicationController
   def apply_return_to_library_batch
     return redirect_to books_path, alert: "目前非開放歸還圖書館書籍期間。" unless Book.show_return_to_library_button?
     raw = params[:batch_year_id].to_s
-    scope = Book.where(library_book: true)
+    scope = Book.where(source: :owned_by_library)
     scope = scope.where(batch_year_id: raw.to_i) if raw.present? && raw != "all"
 
     if raw.blank?
@@ -318,7 +318,7 @@ class BooksController < ApplicationController
     end
 
     def book_params
-      params.expect(book: [ :title, :isbn, :total, :volume, :note, :library_book, :borrowed_at, :edition_part, :batch_year_id, :grade_id, :user_id ])
+      params.expect(book: [ :title, :isbn, :total, :volume, :note, :owned_by_library, :borrowed_at, :edition_part, :batch_year_id, :grade_id, :user_id ])
     end
 
     # Lightweight CSV parser (without the csv gem), returns [headers, rows], where rows is an Array of Hashes
