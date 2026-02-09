@@ -1,20 +1,30 @@
 import { Controller } from "@hotwired/stimulus"
 
-// 選「老師的書」時才顯示名字欄位
+// 單選時依選中 radio 顯示對應內聯列；複選時依勾選的 checkbox 顯示對應內聯列（手動輸入 / 選單等）
 export default class extends Controller {
-  static targets = ["teacherRadio", "teacherNameRow", "teacherNameInput"]
+  static targets = [ "sourceRadio", "sourceCheckbox", "inlineRow" ]
 
   connect() {
-    this.toggleTeacherName()
+    this.toggleInlineRows()
   }
 
-  toggleTeacherName() {
-    if (!this.hasTeacherRadioTarget || !this.hasTeacherNameRowTarget) return
-    const checked = this.teacherRadioTarget.checked
-    this.teacherNameRowTarget.classList.toggle("hidden", !checked)
-    if (this.hasTeacherNameInputTarget) {
-      this.teacherNameInputTarget.disabled = !checked
-      if (!checked) this.teacherNameInputTarget.value = ""
+  toggleInlineRows() {
+    let selectedValues = []
+    if (this.hasSourceRadioTarget && this.sourceRadioTargets.length > 0) {
+      const checked = this.sourceRadioTargets.find((r) => r.checked)
+      if (checked) selectedValues = [ checked.value ]
+    }
+    if (selectedValues.length === 0 && this.hasSourceCheckboxTarget && this.sourceCheckboxTargets.length > 0) {
+      selectedValues = this.sourceCheckboxTargets.filter((c) => c.checked).map((c) => c.value)
+    }
+    if (this.hasInlineRowTarget) {
+      this.inlineRowTargets.forEach((row) => {
+        const rowTag = row.dataset.bookFormInlineRowValue
+        const isVisible = selectedValues.includes(rowTag)
+        row.classList.toggle("hidden", !isVisible)
+        const input = row.querySelector("input, select")
+        if (input) input.disabled = !isVisible
+      })
     }
   }
 }

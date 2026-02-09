@@ -29,10 +29,23 @@ module BooksHelper
     h.downcase == "status" || h == "狀態" || h.include?("狀態")
   end
 
-  # Teacher books: derive the admin name that should be selected from book.tag (used for dropdown pre-selection)
+  # Teacher books: derive the admin name that should be selected from book.tag_list (used for dropdown pre-selection)
   def selected_teacher_name_for_book(book, admin_users)
-    return "" unless book&.teacher_tag? && book.tag.present?
-    tag = book.tag.to_s
-    admin_users.find { |u| Book.tag_from_teacher_name(u.name) == tag }&.name.to_s
+    return "" unless book&.teacher_tag? && book.tag_list.present?
+    teacher_tag = book.tag_list.find { |t| t.to_s.end_with?("老師的書") && t != Book::TAG_TEACHER_PREFIX }
+    return "" if teacher_tag.blank?
+    admin_users.find { |u| Book.tag_from_teacher_name(u.name) == teacher_tag }&.name.to_s
+  end
+
+  # 第一組目前選中的標籤（用於表單 radio 預選；王老師的書 → 回傳 "老師的書"）
+  def book_source_tag_for_form(book)
+    return "" if book.blank? || book.tag_list.blank?
+    groups = Book::TagRules.groups
+    return "" if groups.empty?
+    source_tags = (groups[0]["options"] || []).map { |o| o["tag_name"].to_s }
+    found = book.tag_list.find { |t| source_tags.include?(t) }
+    return found.to_s if found.present?
+    return Book::TAG_TEACHER_PREFIX if book.tag_list.any? { |t| t.to_s.end_with?("老師的書") }
+    ""
   end
 end

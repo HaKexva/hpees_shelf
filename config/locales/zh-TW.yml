@@ -41,5 +41,6 @@ zh-TW:
         book:
           attributes:
             tag:
+              blank: "請選擇標籤"
               teacher_must_select: "老師的書請選擇老師"
 

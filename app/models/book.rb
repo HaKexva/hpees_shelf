@@ -1,8 +1,13 @@
+# frozen_string_literal: true
+
 class Book < ApplicationRecord
+  acts_as_taggable_on :tags
+
   belongs_to :batch_year
+  belongs_to :user, optional: true # borrower (for library books)
   validates :batch_year_id, presence: true
   validates :title, presence: true
-  validates :tag, presence: true
+  validate :tag_list_presence
   validate :batch_year_not_office
   validate :teacher_tag_must_have_teacher_name
 
@@ -15,13 +20,12 @@ class Book < ApplicationRecord
   STATUS_RETURNED_LIBRARY = "歸還圖書館"
   STATUS_OPTIONS = [ [ "架上", STATUS_ON_SHELF ], [ "借閱中", STATUS_BORROWED ], [ "失蹤", STATUS_MISSING ], [ "歸還圖書館", STATUS_RETURNED_LIBRARY ] ].freeze
 
-  # Tag (single choice): four types. External: library books, ___ teacher's books, donated books; internal: class books.
+  # Tag type constants (used in logic; actual tag names are managed in 設定 → 標籤)
   TAG_LIBRARY = "圖書館的書"
   TAG_DONATED = "捐贈的書"
   TAG_CLASS = "班級的書"
-  TAG_TEACHER_PREFIX = "老師的書" # When this is selected and a name is given, it is stored as "王老師的書"
-  TAG_OPTIONS = [ TAG_LIBRARY, TAG_DONATED, TAG_CLASS, TAG_TEACHER_PREFIX ].freeze
-  TAG_FILTER_OPTIONS = [ [ "圖書館的書", TAG_LIBRARY ], [ "捐贈的書", TAG_DONATED ], [ "班級的書", TAG_CLASS ], [ "老師的書", TAG_TEACHER_PREFIX ] ].freeze
+  TAG_TEACHER_PREFIX = "老師的書" # 勾選後需選老師，存成 e.g. "王老師的書"
+  TAG_STUDENT = "學生的書"
 
   # Chinese names: if two characters, show full name (e.g. "王明老師的書"); if three or more, use the last two characters. English names use the full name (e.g. "Momo老師的書").
   def self.tag_from_teacher_name(name)
@@ -39,8 +43,23 @@ class Book < ApplicationRecord
     end
   end
 
+  # 相容舊 view/helper：回傳第一個標籤（或書來源標籤）
+  def tag
+    tag_list.first
+  end
+
   def teacher_tag?
-    tag.to_s.end_with?("老師的書")
+    tag_list.any? { |t| t.to_s.end_with?("老師的書") }
+  end
+
+  # For relocation: group teacher books by this tag (e.g. "王老師的書")
+  def primary_teacher_tag
+    tag_list.find { |t| t.to_s.end_with?("老師的書") }
+  end
+
+  # For teacher books: does the list contain only the generic "老師的書" (no specific teacher name)?
+  def teacher_tag_without_name?
+    tag_list.include?(TAG_TEACHER_PREFIX) && tag_list.none? { |t| t.to_s.end_with?("老師的書") && t != TAG_TEACHER_PREFIX }
   end
 
   # List-page validation: which required fields are still missing
@@ -48,12 +67,16 @@ class Book < ApplicationRecord
     msgs = []
     msgs << "書名" if title.blank?
     msgs << "屆數" if batch_year_id.blank?
-    msgs << "標籤" if tag.blank?
-    # For teacher books, if the tag is only "老師的書" without a specific name (e.g. "王老師的書"), treat it as a missing teacher name
-    if teacher_tag? && tag == TAG_TEACHER_PREFIX
+    msgs << "標籤" if tag_list.empty? && !self.class.source_group_optional?
+    if teacher_tag_without_name?
       msgs << "老師名字"
     end
     msgs
+  end
+
+  # 書來源群組是否為可都不選（允許整份表單不選任何標籤）
+  def self.source_group_optional?
+    (Book::TagRules.groups[0].nil? || Book::TagRules.optional?(0))
   end
 
   # Volume part (e.g., upper/lower volumes to distinguish identical ISBNs)
@@ -74,7 +97,7 @@ class Book < ApplicationRecord
   end
 
   def library_book?
-    tag == TAG_LIBRARY
+    tag_list.include?(TAG_LIBRARY)
   end
 
   # The "Return to library" button is only shown during December–February and July–September each year; hidden in other months
@@ -84,8 +107,14 @@ class Book < ApplicationRecord
 
   private
 
+  def tag_list_presence
+    return if tag_list.present?
+    return if self.class.source_group_optional?
+    errors.add(:base, I18n.t("activerecord.errors.models.book.attributes.tag.blank"))
+  end
+
   def teacher_tag_must_have_teacher_name
-    return unless tag.to_s == TAG_TEACHER_PREFIX
+    return unless teacher_tag_without_name?
     errors.add(:tag, :teacher_must_select)
   end
 

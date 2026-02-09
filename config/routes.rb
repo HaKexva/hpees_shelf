@@ -40,6 +40,8 @@ Rails.application.routes.draw do
       post :cancel_resignation
     end
     collection do
+      get :import
+      post :import
       delete :bulk_destroy
     end
   end
@@ -49,5 +51,17 @@ Rails.application.routes.draw do
   # get "service-worker" => "rails/pwa#service_worker", as: :pwa_service_worker
 
   # Defines the root path route ("/")
+  namespace :settings do
+    resources :tags, only: %i[ index create destroy ] do
+      collection do
+        patch :update_rules
+        post :add_group
+        post :add_option
+        delete :delete_group
+        delete :delete_option
+      end
+    end
+  end
+
   root "dashboard#index"
 end

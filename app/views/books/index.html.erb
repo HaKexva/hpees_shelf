@@ -7,7 +7,7 @@
     </div>
     <div class="flex gap-2 flex-wrap">
       <%= link_to "匯入 CSV", import_books_path, class: "rounded-md px-3.5 py-2.5 bg-green-600 hover:bg-green-500 text-white block font-medium" %>
-      <% if Book.show_return_to_library_button? %>
+      <% if Book.show_return_to_library_button? && @has_library_books %>
         <%= link_to "歸還圖書館書籍", return_to_library_batch_books_path, class: "rounded-md px-3.5 py-2.5 bg-amber-600 hover:bg-amber-500 text-white block font-medium" %>
       <% end %>
       <%= link_to "新增書籍", new_book_path, class: "rounded-md px-3.5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white block font-medium" %>
@@ -38,12 +38,16 @@
   <div class="mb-4 flex flex-wrap items-end gap-4">
     <%= form_with url: books_path, method: :get, local: true, class: "flex flex-wrap items-end gap-4" do |f| %>
       <div>
+        <label class="block text-sm font-medium text-gray-700 mb-2">依書名搜尋</label>
+        <%= text_field_tag :q, @filter_q, placeholder: "輸入書名", class: "block shadow-sm rounded-md border border-gray-300 px-3 py-2 w-48", onchange: "this.form.submit()" %>
+      </div>
+      <div>
         <label class="block text-sm font-medium text-gray-700 mb-2">依屆數篩選</label>
         <%= f.select :batch_year_id, options_from_collection_for_select(@batch_years, :id, :display_label_with_grade, @filter_batch_year_id), { include_blank: "全部屆數" }, { class: "block shadow-sm rounded-md border border-gray-300 px-3 py-2 w-48", onchange: "this.form.submit()" } %>
       </div>
       <div>
         <label class="block text-sm font-medium text-gray-700 mb-2">依標籤篩選</label>
-        <%= f.select :tag, options_for_select(Book::TAG_FILTER_OPTIONS, @filter_tag), { include_blank: "全部標籤" }, { class: "block shadow-sm rounded-md border border-gray-300 px-3 py-2 w-40", onchange: "this.form.submit()" } %>
+        <%= f.select :tag, options_for_select([ [ "全部標籤", "" ] ] + (@filter_tag_options || []), @filter_tag), {}, { class: "block shadow-sm rounded-md border border-gray-300 px-3 py-2 w-40", onchange: "this.form.submit()" } %>
       </div>
       <% if @filter_tag == Book::TAG_TEACHER_PREFIX %>
         <div>
@@ -51,8 +55,11 @@
           <%= select_tag :teacher_tag, options_for_select([ [ "全部老師", "" ] ] + @teacher_tag_options.map { |t| [ t, t ] }, @filter_teacher_tag), { class: "block shadow-sm rounded-md border border-gray-300 px-3 py-2 w-48", onchange: "this.form.submit()" } %>
         </div>
       <% end %>
+      <div class="flex items-end">
+        <%= f.submit "搜尋", class: "rounded-md px-3.5 py-2 bg-gray-100 hover:bg-gray-200 font-medium cursor-pointer" %>
+      </div>
     <% end %>
-    <% if @filter_batch_year_id.present? || @filter_tag.present? %>
+    <% if @filter_batch_year_id.present? || @filter_tag.present? || @filter_q.present? %>
       <span class="text-sm text-gray-500">（已套用篩選）</span>
     <% end %>
   </div>
@@ -61,6 +68,7 @@
   <div class="hidden md:block">
     <%= form_with url: bulk_destroy_books_path, method: :delete, id: "bulk-destroy-books-form" do |f| %>
       <%= hidden_field_tag :batch_year_id, @filter_batch_year_id if @filter_batch_year_id.present? %>
+      <%= hidden_field_tag :q, @filter_q if @filter_q.present? %>
       <%= hidden_field_tag :tag, @filter_tag if @filter_tag.present? %>
       <%= hidden_field_tag :teacher_tag, @filter_teacher_tag if @filter_teacher_tag.present? %>
       <div class="flex gap-2 items-center mb-4">
@@ -104,9 +112,11 @@
                   <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500"><%= book.display_status %></td>
                   <td class="px-6 py-4 text-sm text-gray-500 max-w-xs truncate"><%= book.note %></td>
                   <td class="px-6 py-4 text-sm">
-                    <% if book.tag.present? %>
+                    <% if book.tag_list.present? %>
                       <span class="inline-flex flex-wrap items-center gap-1.5">
-                        <%= book_tag_badge(book.tag) %>
+                        <% book.tag_list.each do |tag_name| %>
+                          <%= book_tag_badge(tag_name) %>
+                        <% end %>
                       </span>
                     <% else %>
                       —
@@ -143,9 +153,11 @@
                 <p class="text-sm font-semibold text-gray-900"><%= book.title %></p>
                 <p class="text-xs text-gray-500 mt-0.5"><%= book.batch_year&.display_label_with_grade || "—" %></p>
               </div>
-              <% if book.tag.present? %>
-                <div class="shrink-0 text-xs">
-                  <%= book_tag_badge(book.tag) %>
+              <% if book.tag_list.present? %>
+                <div class="shrink-0 text-xs inline-flex flex-wrap gap-1 justify-end">
+                  <% book.tag_list.each do |tag_name| %>
+                    <%= book_tag_badge(tag_name) %>
+                  <% end %>
                 </div>
               <% end %>
             </div>
