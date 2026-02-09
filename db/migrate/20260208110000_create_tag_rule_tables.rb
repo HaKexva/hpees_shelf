@@ -20,6 +20,6 @@ class CreateTagRuleTables < ActiveRecord::Migration[8.1]
 
       t.timestamps
     end
-    add_index :tag_rule_options, [:tag_rule_group_id, :position]
+    add_index :tag_rule_options, [ :tag_rule_group_id, :position ]
   end
 end

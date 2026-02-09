@@ -46,8 +46,7 @@ module Settings
         end
       end
       Book::TagRules.save_groups(groups_array)
-      # 刪除已不在規則中且無任何書籍使用的標籤
-      ActsAsTaggableOn::Tag.where.not(name: tag_names_in_rules).where(taggings_count: 0).destroy_all
+      _cleanup_unused_tags!
       if params[:auto_save].present?
         head :no_content
       else
@@ -79,6 +78,7 @@ module Settings
         return
       end
       group.destroy
+      _cleanup_unused_tags!
       _reorder_positions
       redirect_to settings_tags_path, notice: "已刪除組別。", status: :see_other
     end
@@ -97,6 +97,7 @@ module Settings
       end
       opt.destroy
       _reorder_option_positions(group)
+      _cleanup_unused_tags!
       redirect_to settings_tags_path, notice: "已刪除選項。", status: :see_other
     end
 
@@ -150,6 +151,15 @@ module Settings
 
     def _reorder_option_positions(group)
       group.tag_rule_options.reload.order(:position).each_with_index { |o, i| o.update_column(:position, i) }
+    end
+
+    # 刪除「已不在任何標籤規則中」且「未被任何書籍／人員使用」的標籤記錄
+    def _cleanup_unused_tags!
+      current_rule_tag_names = TagRuleGroup.includes(:tag_rule_options).flat_map do |grp|
+        grp.tag_rule_options.map { |opt| opt.tag_name.to_s.strip }.reject(&:blank?)
+      end.uniq
+
+      ActsAsTaggableOn::Tag.where.not(name: current_rule_tag_names).where(taggings_count: 0).destroy_all
     end
   end
 end

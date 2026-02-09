@@ -369,7 +369,7 @@ class BooksController < ApplicationController
       source_tag = bp[:source_tag].to_s.strip
       if source_tag.present? && Book::TagRules.option_source(0, source_tag) == "batch_years"
         by_id = params[:tag_teacher_name].to_s.strip
-        book.batch_year_id = by_id if by_id.present? && BatchYear.exists?(by_id)
+        book.batch_year_id = by_id if by_id.present? && BatchYear.exists?(id: by_id)
       end
       # 其餘組 group_1, group_2, ...
       groups = Book::TagRules.groups
@@ -380,7 +380,7 @@ class BooksController < ApplicationController
         next if selected.blank?
         next unless Book::TagRules.option_source(i, selected) == "batch_years"
         by_id = params["tag_inline_#{i}".to_sym].to_s.strip
-        book.batch_year_id = by_id if by_id.present? && BatchYear.exists?(by_id)
+        book.batch_year_id = by_id if by_id.present? && BatchYear.exists?(id: by_id)
       end
     end
 
