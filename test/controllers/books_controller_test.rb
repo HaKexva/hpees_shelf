@@ -19,14 +19,12 @@ class BooksControllerTest < ActionDispatch::IntegrationTest
     assert_difference("Book.count") do
       post books_url, params: {
         book: {
-          grade_id: @book.grade_id,
           batch_year_id: @book.batch_year_id,
           isbn: @book.isbn,
           note: @book.note,
           title: @book.title,
           total: @book.total,
           volume: @book.volume,
-          tag: Book::TAG_LIBRARY
         }
       }
     end
@@ -54,7 +52,6 @@ class BooksControllerTest < ActionDispatch::IntegrationTest
         title: @book.title,
         total: @book.total,
         volume: @book.volume,
-        tag: @book.tag
       }
     }
     assert_redirected_to book_url(@book)

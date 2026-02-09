@@ -8,7 +8,7 @@ one:
   note: MyText
   grade_id: 1
   batch_year: one
-  tag: "圖書館的書"
+
 
 two:
   title: MyString
@@ -18,4 +18,4 @@ two:
   note: MyText
   grade_id: 1
   batch_year: one
-  tag: "圖書館的書"
+

@@ -39,7 +39,6 @@ ActiveRecord::Schema[8.1].define(version: 2026_02_06_100000) do
     t.string "isbn"
     t.text "note"
     t.string "status", default: "架上", null: false
-    t.string "tag"
     t.string "title"
     t.integer "total"
     t.datetime "updated_at", null: false
@@ -60,38 +59,6 @@ ActiveRecord::Schema[8.1].define(version: 2026_02_06_100000) do
     t.index ["batch_year_id"], name: "index_library_loan_histories_on_batch_year_id"
     t.index ["user_id", "returned_at"], name: "index_library_loan_histories_on_user_returned"
     t.index ["user_id"], name: "index_library_loan_histories_on_user_id"
-  end
-
-  create_table "taggings", force: :cascade do |t|
-    t.string "context", limit: 128
-    t.datetime "created_at", precision: nil
-    t.integer "tag_id"
-    t.integer "taggable_id"
-    t.string "taggable_type"
-    t.integer "tagger_id"
-    t.string "tagger_type"
-    t.string "tenant", limit: 128
-    t.index ["context"], name: "index_taggings_on_context"
-    t.index ["tag_id", "taggable_id", "taggable_type", "context", "tagger_id", "tagger_type"], name: "taggings_idx", unique: true
-    t.index ["tag_id"], name: "index_taggings_on_tag_id"
-    t.index ["taggable_id", "taggable_type", "context"], name: "taggings_taggable_context_idx"
-    t.index ["taggable_id", "taggable_type", "tagger_id", "context"], name: "taggings_idy"
-    t.index ["taggable_id"], name: "index_taggings_on_taggable_id"
-    t.index ["taggable_type", "taggable_id"], name: "index_taggings_on_taggable_type_and_taggable_id"
-    t.index ["taggable_type"], name: "index_taggings_on_taggable_type"
-    t.index ["tagger_id", "tagger_type"], name: "index_taggings_on_tagger_id_and_tagger_type"
-    t.index ["tagger_id"], name: "index_taggings_on_tagger_id"
-    t.index ["tagger_type", "tagger_id"], name: "index_taggings_on_tagger_type_and_tagger_id"
-    t.index ["tenant"], name: "index_taggings_on_tenant"
-  end
-
-  create_table "tags", force: :cascade do |t|
-    t.datetime "created_at", null: false
-    t.string "name"
-    t.integer "taggings_count", default: 0
-    t.datetime "updated_at", null: false
-    t.index ["name"], name: "index_tags_on_name", unique: true
-  end
 
   create_table "users", force: :cascade do |t|
     t.boolean "admin", default: false, null: false
@@ -116,6 +83,5 @@ ActiveRecord::Schema[8.1].define(version: 2026_02_06_100000) do
   add_foreign_key "books", "users"
   add_foreign_key "library_loan_histories", "batch_years"
   add_foreign_key "library_loan_histories", "users"
-  add_foreign_key "taggings", "tags"
   add_foreign_key "users", "batch_years"
 end

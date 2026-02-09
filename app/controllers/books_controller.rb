@@ -11,24 +11,9 @@ class BooksController < ApplicationController
       pattern = "%#{Book.sanitize_sql_like(params[:q].strip)}%"
       @books = @books.where("title LIKE ?", pattern)
     end
-    if params[:tag].present?
-      if params[:tag] == Book::TAG_TEACHER_PREFIX
-        # Teacher books: can further filter by which teacher
-        @books = if params[:teacher_tag].present?
-          @books.where(tag: params[:teacher_tag])
-        else
-          @books.where("tag LIKE ?", "%老師的書")
-        end
-      else
-        @books = @books.where(tag: params[:tag])
-      end
-    end
     @batch_years = BatchYear.by_number_desc
     @filter_batch_year_id = params[:batch_year_id]
     @filter_q = params[:q].to_s.strip.presence
-    @filter_tag = params[:tag]
-    @filter_teacher_tag = params[:teacher_tag]
-    @teacher_tag_options = Book.where("tag LIKE ?", "%老師的書").distinct.pluck(:tag).sort
     @invalid_books = @books.select { |b| b.missing_required_fields.any? }
   end
 
@@ -38,14 +23,13 @@ class BooksController < ApplicationController
     BatchYear.ensure_office_exists!
     @imported_data = []
     @headers = []
-    @expected_columns = %w[title isbn total volume note tag]
+    @expected_columns = %w[title isbn total volume note]
     @column_names_zh = {
       "title" => "書名",
       "isbn" => "ISBN",
       "total" => "總數",
       "volume" => "冊數",
       "note" => "備註",
-      "tag" => "標籤"
     }
 
     return unless request.post?
@@ -84,7 +68,6 @@ class BooksController < ApplicationController
           total: _import_row_value(row, "total", "Total", "總數").to_s.to_i,
           volume: _import_row_value(row, "volume", "Volume", "冊數").to_s.to_i,
           note: _import_row_value(row, "note", "Note", "備註"),
-          tag: _import_row_value(row, "tag", "Tag", "標籤"),
           grade_id: batch_year&.grade_id,
           batch_year_id: selected_batch_year_id
         }
@@ -137,7 +120,6 @@ class BooksController < ApplicationController
           when "總數" then "total"
           when "冊數" then "volume"
           when "備註" then "note"
-          when "標籤" then "tag"
           when "國際標準書號" then "isbn"
           else h_d
           end
@@ -149,12 +131,11 @@ class BooksController < ApplicationController
         has_title_column = normalized_headers.include?("title")
         has_isbn_column = normalized_headers.include?("isbn")
 
-        # When headers are valid: validate each row against import format (title and tag required); invalid rows show "不符合" in the preview status column
+        # When headers are valid: validate each row against import format (title required); invalid rows show "不符合" in the preview status column
         @invalid_row_indices = []
         @imported_data.each_with_index do |row, index|
           title = _import_row_value(row, "title", "Title", "書名")
-          tag = _import_row_value(row, "tag", "Tag", "標籤")
-          @invalid_row_indices << index if title.blank? || tag.blank?
+          @invalid_row_indices << index if title.blank?
         end
 
         # Only check for duplicates if required columns exist
@@ -216,7 +197,6 @@ class BooksController < ApplicationController
   # POST /books or /books.json
   def create
     @book = Book.new(book_params)
-    apply_tag_teacher_name!(@book)
     # Grade is derived from the selected batch_year
     @book.grade_id = @book.batch_year&.grade_id if @book.batch_year_id.present? && @book.grade_id.blank?
 
@@ -238,7 +218,6 @@ class BooksController < ApplicationController
   # PATCH/PUT /books/1 or /books/1.json
   def update
     attrs = book_params
-    apply_tag_teacher_name!(attrs)
     respond_to do |format|
       if @book.update(attrs)
         # When batch_year changes, optionally sync grade (if grade was not changed in the form, derive from batch_year)
@@ -294,7 +273,7 @@ class BooksController < ApplicationController
   def apply_return_to_library_batch
     return redirect_to books_path, alert: "目前非開放歸還圖書館書籍期間。" unless Book.show_return_to_library_button?
     raw = params[:batch_year_id].to_s
-    scope = Book.where(tag: Book::TAG_LIBRARY)
+    scope = Book.where(library_book: true)
     scope = scope.where(batch_year_id: raw.to_i) if raw.present? && raw != "all"
 
     if raw.blank?
@@ -325,8 +304,6 @@ class BooksController < ApplicationController
     ids = Array(params[:book_ids]).reject(&:blank?).map(&:to_i)
     redirect_params = {}
     redirect_params[:batch_year_id] = params[:batch_year_id] if params[:batch_year_id].present?
-    redirect_params[:tag] = params[:tag] if params[:tag].present?
-    redirect_params[:teacher_tag] = params[:teacher_tag] if params[:teacher_tag].present?
     if ids.any?
       count = Book.where(id: ids).destroy_all.size
       redirect_to books_path(redirect_params), notice: "已刪除 #{count} 本書籍。", status: :see_other
@@ -341,19 +318,7 @@ class BooksController < ApplicationController
     end
 
     def book_params
-      params.expect(book: [ :title, :isbn, :total, :volume, :note, :tag, :borrowed_at, :edition_part, :batch_year_id, :grade_id, :user_id ])
-    end
-
-    def apply_tag_teacher_name!(book_or_attrs)
-      current = book_or_attrs.is_a?(Book) ? book_or_attrs.tag : book_or_attrs[:tag]
-      return unless current.to_s == Book::TAG_TEACHER_PREFIX
-      name = params[:tag_teacher_name].to_s.strip
-      value = Book.tag_from_teacher_name(name)
-      if book_or_attrs.is_a?(Book)
-        book_or_attrs.tag = value
-      else
-        book_or_attrs[:tag] = value
-      end
+      params.expect(book: [ :title, :isbn, :total, :volume, :note, :library_book, :borrowed_at, :edition_part, :batch_year_id, :grade_id, :user_id ])
     end
 
     # Lightweight CSV parser (without the csv gem), returns [headers, rows], where rows is an Array of Hashes
@@ -420,7 +385,6 @@ class BooksController < ApplicationController
         when "總數" then "total"
         when "冊數" then "volume"
         when "備註" then "note"
-        when "標籤" then "tag"
         when "國際標準書號" then "isbn"
         else h_d
         end
@@ -433,8 +397,7 @@ class BooksController < ApplicationController
       @invalid_row_indices = []
       @imported_data.each_with_index do |row, index|
         title = _import_row_value(row, "title", "Title", "書名")
-        tag = _import_row_value(row, "tag", "Tag", "標籤")
-        @invalid_row_indices << index if title.blank? || tag.blank?
+        @invalid_row_indices << index if title.blank?
       end
 
       @duplicates = []
