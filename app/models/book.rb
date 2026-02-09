@@ -40,7 +40,7 @@ class Book < ApplicationRecord
   end
 
   def library_book?
-    library_book
+    false
   end
 
   # The "Return to library" button is only shown during December–February and July–September each year; hidden in other months
