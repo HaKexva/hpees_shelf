@@ -1,4 +1,6 @@
 class User < ApplicationRecord
+  acts_as_taggable_on :tags
+
   # Primary batch_year: every user (student or admin) still belongs to one main batch_year
   belongs_to :batch_year
 

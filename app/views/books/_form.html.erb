@@ -36,30 +36,132 @@
     <%= form.number_field :volume, class: ["block shadow-sm rounded-md border px-3 py-2 mt-2 w-full", {"border-gray-400 focus:outline-blue-600": book.errors[:volume].none?, "border-red-400 focus:outline-red-600": book.errors[:volume].any?}] %>
   </div>
 
-  <div class="my-5" data-controller="book-form">
-    <%= form.label :tag, "標籤（書類型）", class: "block font-medium text-gray-700 mb-2" %>
-    <% current_tag = book.tag.to_s %>
-    <% current_tag_radio = book.teacher_tag? ? Book::TAG_TEACHER_PREFIX : current_tag %>
-    <% has_teacher_tag = book.teacher_tag? %>
-    <div class="mt-2 space-y-3">
-      <div class="flex flex-wrap gap-2">
-        <% [ [ "圖書館的書", Book::TAG_LIBRARY ], [ "捐贈的書", Book::TAG_DONATED ], [ "班級的書", Book::TAG_CLASS ], [ "老師的書", Book::TAG_TEACHER_PREFIX ] ].each do |label, value| %>
-          <label class="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-sm font-medium bg-gray-100 text-gray-700 cursor-pointer border border-transparent has-[:checked]:bg-blue-100 has-[:checked]:text-blue-800 has-[:checked]:ring-1 has-[:checked]:ring-blue-600 has-[:checked]:border-blue-600">
-            <% tag_radio_opts = { checked: (current_tag_radio == value), data: { book_form_target: (value == Book::TAG_TEACHER_PREFIX ? "teacherRadio" : nil), action: (value == Book::TAG_TEACHER_PREFIX ? "change->book-form#toggleTeacherName" : nil) }, class: "sr-only peer" } %>
-            <% tag_radio_opts[:required] = true if value == Book::TAG_LIBRARY %>
-            <%= form.radio_button :tag, value, tag_radio_opts %>
-            <svg class="w-3.5 h-3.5 shrink-0" fill="currentColor" viewBox="0 0 20 20" aria-hidden="true"><path fill-rule="evenodd" d="M5 2a1 1 0 0 0-.707.293l-2 2a1 1 0 0 0 0 1.414l8 8a1 1 0 0 0 1.414 0l6-6A1 1 0 0 0 19 7V3a1 1 0 0 0-1-1H5zm2 3a1 1 0 1 0 0 2 1 1 0 0 0 0-2z" clip-rule="evenodd"/></svg>
-            <span><%= label %></span>
-          </label>
-        <% end %>
+  <div class="my-5">
+    <% rule_groups = Book::TagRules.groups %>
+    <% if rule_groups.any? %>
+    <% selected_teacher = selected_teacher_name_for_book(book, @admin_users || User.where(admin: true).order(:name)) %>
+    <% available_tags = @available_tags || ActsAsTaggableOn::Tag.order(:name) %>
+    <% available_tag_names = available_tags.map { |t| t.respond_to?(:name) ? t.name : t.to_s } %>
+    <% other_tag_names = Book::TagRules.other_tag_names(available_tag_names) %>
+    <% current_other = (book.tag_list || []).reject { |t| Book::TagRules.all_tag_names_in_groups.include?(t) || t.to_s.end_with?("老師的書") } %>
+
+    <% rule_groups.each_with_index do |group, gi| %>
+      <% group_label = group["label"].presence || "組別#{gi + 1}" %>
+      <% opts = group["options"] || [] %>
+      <% opt_tag_names = opts.map { |o| o["tag_name"].to_s }.reject(&:blank?) %>
+      <% next if opt_tag_names.empty? %>
+      <% current_in_group = (book.tag_list || []).find { |t| opt_tag_names.include?(t) || (t.to_s.end_with?("老師的書") && opt_tag_names.include?(Book::TAG_TEACHER_PREFIX)) } %>
+      <% current_in_group = book_source_tag_for_form(book) if gi == 0 %>
+      <% single = Book::TagRules.single_select?(gi) %>
+      <% optional = Book::TagRules.optional?(gi) %>
+      <% group_has_inline = opt_tag_names.any? { |tn| Book::TagRules.option_popup_prompt(gi, tn).present? || Book::TagRules.option_source(gi, tn).present? } %>
+      <% inline_param = gi == 0 ? :tag_teacher_name : "tag_inline_#{gi}".to_sym %>
+
+      <div class="<%= 'mt-4' if gi > 0 %>">
+        <%= form.label (gi == 0 ? :source_tag : "group_#{gi}"), "#{group_label}#{optional ? '（可不選）' : '（必填）'}#{single ? '（選一）' : '（可多選）'}", class: "block font-medium text-gray-700 mb-2" %>
+        <div class="mt-2 space-y-3">
+          <% if group_has_inline %>
+            <div data-controller="book-form">
+              <div class="flex flex-wrap gap-2">
+                <% if optional %>
+                  <label class="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-sm font-medium bg-gray-100 text-gray-700 cursor-pointer border border-transparent has-[:checked]:bg-blue-100 has-[:checked]:text-blue-800 has-[:checked]:ring-1 has-[:checked]:ring-blue-600 has-[:checked]:border-blue-600">
+                    <% if gi == 0 %>
+                      <%= form.radio_button :source_tag, "", { checked: current_in_group.blank?, class: "sr-only peer" } %>
+                    <% else %>
+                      <%= radio_button_tag "book[group_#{gi}]", "", current_in_group.blank?, { class: "sr-only peer" } %>
+                    <% end %>
+                    <span>— 不選 —</span>
+                  </label>
+                <% end %>
+                <% opt_tag_names.each do |tag_name| %>
+                  <% is_teacher_tag = tag_name == Book::TAG_TEACHER_PREFIX || tag_name.to_s.end_with?("老師的書") %>
+                  <label class="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-sm font-medium bg-gray-100 text-gray-700 cursor-pointer border border-transparent has-[:checked]:bg-blue-100 has-[:checked]:text-blue-800 has-[:checked]:ring-1 has-[:checked]:ring-blue-600 has-[:checked]:border-blue-600">
+                    <% if gi == 0 %>
+                      <%= form.radio_button :source_tag, tag_name, { checked: (current_in_group == tag_name || (is_teacher_tag && book.teacher_tag?)), class: "sr-only peer", data: { book_form_target: "sourceRadio", action: "change->book-form#toggleInlineRows" } } %>
+                    <% else %>
+                      <% if single %>
+                        <%= form.radio_button "group_#{gi}", tag_name, { checked: current_in_group.to_s == tag_name, class: "sr-only peer", name: "book[group_#{gi}]", data: { book_form_target: "sourceRadio", action: "change->book-form#toggleInlineRows" } } %>
+                      <% else %>
+                        <%= check_box_tag "book[group_#{gi}][]", tag_name, (book.tag_list || []).include?(tag_name), { class: "sr-only peer", data: { book_form_target: "sourceCheckbox", action: "change->book-form#toggleInlineRows" } } %>
+                      <% end %>
+                    <% end %>
+                    <span><%= tag_name %></span>
+                  </label>
+                <% end %>
+              </div>
+              <% opt_tag_names_with_inline = opt_tag_names.select { |tn| Book::TagRules.option_popup_prompt(gi, tn).present? || Book::TagRules.option_source(gi, tn).present? } %>
+              <% opt_tag_names_with_inline.each do |tag_name| %>
+                <% label_text = Book::TagRules.option_popup_prompt(gi, tag_name).presence || tag_name %>
+                <% src = Book::TagRules.option_source(gi, tag_name) %>
+                <% is_selected = (gi == 0 && (current_in_group == tag_name || (tag_name == Book::TAG_TEACHER_PREFIX && book.teacher_tag?))) || (gi != 0 && current_in_group.to_s == tag_name) %>
+                <% inline_value_gi = if gi == 0 && tag_name == Book::TAG_TEACHER_PREFIX then selected_teacher elsif gi == 0 && src == "batch_years" && is_selected then book.batch_year_id.to_s else "" end %>
+                <div class="pt-2 border-t border-gray-200 <%= 'hidden' unless is_selected %>" data-book-form-target="inlineRow" data-book-form-inline-row-value="<%= tag_name %>">
+                  <%= label_tag inline_param, label_text, class: "block text-sm text-gray-600 mb-1" %>
+                  <% if src == "admins" %>
+                    <% admin_users = @admin_users || User.where(admin: true).order(:name) %>
+                    <%= select_tag inline_param, options_for_select([ [ "請選擇", "" ] ] + admin_users.map { |u| [ u.name, u.name ] }, gi == 0 && tag_name == Book::TAG_TEACHER_PREFIX ? selected_teacher : inline_value_gi.to_s), { class: "block shadow-sm rounded-md border border-gray-400 px-3 py-2 w-full max-w-xs", data: { book_form_target: "inlineInput" } } %>
+                  <% elsif src == "users" %>
+                    <% all_users = @users_for_borrower || User.order(:name) %>
+                    <%= select_tag inline_param, options_for_select([ [ "請選擇", "" ] ] + all_users.map { |u| [ u.name, u.name ] }, gi == 0 && tag_name == Book::TAG_TEACHER_PREFIX ? selected_teacher : inline_value_gi.to_s), { class: "block shadow-sm rounded-md border border-gray-400 px-3 py-2 w-full max-w-xs", data: { book_form_target: "inlineInput" } } %>
+                  <% elsif src == "batch_years" %>
+                    <% batch_years_for_select = @batch_years || BatchYear.class_batches_by_number_desc %>
+                    <%= select_tag inline_param, options_for_select([ [ "請選擇", "" ] ] + batch_years_for_select.map { |b| [ b.display_label_with_grade, b.id ] }, is_selected && gi == 0 ? book.batch_year_id : inline_value_gi.to_s), { class: "block shadow-sm rounded-md border border-gray-400 px-3 py-2 w-full max-w-xs", data: { book_form_target: "inlineInput" } } %>
+                  <% else %>
+                    <%= text_field_tag inline_param, (gi == 0 && tag_name == Book::TAG_TEACHER_PREFIX ? selected_teacher : inline_value_gi.to_s), { placeholder: "手動輸入", class: "block shadow-sm rounded-md border border-gray-400 px-3 py-2 w-full max-w-xs", data: { book_form_target: "inlineInput" } } %>
+                  <% end %>
+                </div>
+              <% end %>
+            </div>
+          <% else %>
+            <div class="flex flex-wrap gap-2">
+              <% if optional %>
+                <label class="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-sm font-medium bg-gray-100 text-gray-700 cursor-pointer border border-transparent has-[:checked]:bg-blue-100 has-[:checked]:text-blue-800 has-[:checked]:ring-1 has-[:checked]:ring-blue-600 has-[:checked]:border-blue-600">
+                  <% if gi == 0 %>
+                    <%= form.radio_button :source_tag, "", { checked: current_in_group.blank?, class: "sr-only peer" } %>
+                  <% else %>
+                    <%= radio_button_tag "book[group_#{gi}]", "", current_in_group.blank?, { class: "sr-only peer" } %>
+                  <% end %>
+                  <span>— 不選 —</span>
+                </label>
+              <% end %>
+              <% opt_tag_names.each do |tag_name| %>
+                <% is_teacher_tag = tag_name == Book::TAG_TEACHER_PREFIX || tag_name.to_s.end_with?("老師的書") %>
+                <label class="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-sm font-medium bg-gray-100 text-gray-700 cursor-pointer border border-transparent has-[:checked]:bg-blue-100 has-[:checked]:text-blue-800 has-[:checked]:ring-1 has-[:checked]:ring-blue-600 has-[:checked]:border-blue-600">
+                  <% if gi == 0 %>
+                    <%= form.radio_button :source_tag, tag_name, { checked: (current_in_group == tag_name || (is_teacher_tag && book.teacher_tag?)), class: "sr-only peer" } %>
+                  <% else %>
+                    <% if single %>
+                      <%= form.radio_button "group_#{gi}", tag_name, { checked: current_in_group.to_s == tag_name, class: "sr-only peer", name: "book[group_#{gi}]" } %>
+                    <% else %>
+                      <%= check_box_tag "book[group_#{gi}][]", tag_name, (book.tag_list || []).include?(tag_name), { class: "sr-only peer" } %>
+                    <% end %>
+                  <% end %>
+                  <span><%= tag_name %></span>
+                </label>
+              <% end %>
+            </div>
+          <% end %>
+        </div>
       </div>
-      <div class="pt-2 border-t border-gray-200 <%= 'hidden' unless has_teacher_tag %>" data-book-form-target="teacherNameRow">
-        <%= label_tag :tag_teacher_name, "老師（選管理員）", class: "block text-sm text-gray-600 mb-1" %>
-        <% admin_users = @admin_users || User.where(admin: true).order(:name) %>
-        <% selected_name = selected_teacher_name_for_book(book, admin_users) %>
-        <%= select_tag :tag_teacher_name, options_for_select([ [ "請選擇", "" ] ] + admin_users.map { |u| [ u.name, u.name ] }, selected_name), { disabled: !has_teacher_tag, class: "block shadow-sm rounded-md border border-gray-400 px-3 py-2 w-full max-w-xs", data: { book_form_target: "teacherNameInput" } } %>
+    <% end %>
+
+    <% if other_tag_names.any? %>
+      <div class="mt-4">
+        <%= form.label :tag_list, "其他標籤（可多選）", class: "block font-medium text-gray-700 mb-2" %>
+        <div class="flex flex-wrap gap-2 mt-2">
+          <% other_tag_names.each do |tag_name| %>
+            <label class="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-sm font-medium bg-gray-100 text-gray-700 cursor-pointer border border-transparent has-[:checked]:bg-blue-100 has-[:checked]:text-blue-800 has-[:checked]:ring-1 has-[:checked]:ring-blue-600 has-[:checked]:border-blue-600">
+              <%= form.check_box :tag_list, { multiple: true, checked: current_other.include?(tag_name), class: "sr-only peer" }, tag_name, nil %>
+              <span><%= tag_name %></span>
+            </label>
+          <% end %>
+        </div>
       </div>
-    </div>
+    <% end %>
+    <p class="text-sm text-gray-500 mt-2">標籤與組別可在「設定」頁面新增或刪除。</p>
+    <% else %>
+    <p class="text-sm text-gray-500">請先至「設定」頁面新增標籤，即可建立書本。</p>
+    <% end %>
   </div>
 
   <div class="my-5">
@@ -67,8 +169,13 @@
     <%= form.textarea :note, rows: 4, class: ["block shadow-sm rounded-md border px-3 py-2 mt-2 w-full", {"border-gray-400 focus:outline-blue-600": book.errors[:note].none?, "border-red-400 focus:outline-red-600": book.errors[:note].any?}] %>
   </div>
 
-  <% if book.tag.to_s == Book::TAG_LIBRARY %>
-    <div class="my-5" data-controller="book-form">
+  <% if book.library_book? %>
+    <div class="my-5">
+      <%= form.label :status, "狀態", class: "block font-medium text-gray-700 mb-2" %>
+      <p class="text-sm text-gray-500 mb-1">可設為「歸還圖書館」表示此書已歸還並將自書架移除（借閱紀錄保留）。</p>
+      <%= form.select :status, options_for_select(Book::STATUS_OPTIONS, book.status), {}, class: "block shadow-sm rounded-md border border-gray-400 px-3 py-2 w-full max-w-xs" %>
+    </div>
+    <div class="my-5">
       <%= form.label :user_id, "借閱人（選填，歸還後可於該人員頁面查看借閱歷史）", class: "block font-medium text-gray-700 mb-2" %>
       <% users_for_borrower = (@users_for_borrower || User.order(:name)).map { |u| [ u.name, u.id ] } %>
       <%= form.select :user_id, options_for_select([ [ "— 無 —", "" ] ] + users_for_borrower, book.user_id), {}, class: "block shadow-sm rounded-md border border-gray-400 px-3 py-2 w-full max-w-xs" %>
@@ -78,4 +185,5 @@
   <div class="inline">
     <%= form.submit "儲存", class: "w-full sm:w-auto rounded-md px-3.5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white inline-block font-medium cursor-pointer" %>
   </div>
+
 <% end %>

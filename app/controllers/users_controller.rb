@@ -3,7 +3,7 @@ class UsersController < ApplicationController
 
   # GET /users or /users.json
   def index
-    scope = User.includes(:batch_year)
+    scope = User.includes(:batch_year, taggings: :tag)
     scope = scope.active unless params[:include_resigned] == "1"
     @users = scope.order(:name)
     @include_resigned = params[:include_resigned] == "1"
@@ -28,7 +28,8 @@ class UsersController < ApplicationController
 
   # POST /users or /users.json
   def create
-    @user = User.new(user_params)
+    @user = User.new(user_params.except(:tag_list, *user_tag_group_keys))
+    @user.tag_list = build_user_tag_list_from_params
 
     respond_to do |format|
       if @user.save
@@ -44,8 +45,12 @@ class UsersController < ApplicationController
 
   # PATCH/PUT /users/1 or /users/1.json
   def update
+    attrs = user_params.except(:tag_list, *user_tag_group_keys)
+    @user.assign_attributes(attrs)
+    @user.tag_list = build_user_tag_list_from_params
+
     respond_to do |format|
-      if @user.update(user_params)
+      if @user.save
         format.html { redirect_to @user, notice: "人員已更新。", status: :see_other }
         format.json { render :show, status: :ok, location: @user }
       else
@@ -209,16 +214,38 @@ class UsersController < ApplicationController
 
     # Only allow a list of trusted parameters through.
     def user_params
-      params.expect(
-        user: [
-          :name,
-          :id_number,
-          :seat_number,
-          :admin,
-          :batch_year_id,
-          { extra_batch_year_ids: [] }
-        ]
-      )
+      keys = [
+        :name,
+        :id_number,
+        :seat_number,
+        :admin,
+        :batch_year_id,
+        { extra_batch_year_ids: [] }
+      ]
+      keys += user_tag_group_keys if User::TagRules.groups.any?
+      params.expect(user: keys)
+    end
+
+    def user_tag_group_keys
+      n = User::TagRules.groups.size
+      (0...n).map { |i| "group_#{i}".to_sym }
+    end
+
+    def build_user_tag_list_from_params
+      return [] unless User::TagRules.groups.any?
+      list = []
+      User::TagRules.groups.each_with_index do |_g, gi|
+        key = "group_#{gi}"
+        val = params.dig(:user, key)
+        val = Array(val).reject { |v| v.to_s.strip.blank? }.uniq.map(&:to_s) if val.present?
+        next if val.blank?
+        list.concat(val)
+        if gi == 0 && val.any? && User::TagRules.option_popup_prompt(0, val.first).present?
+          inline = params[:user_tag_inline].to_s.strip.presence
+          list << inline if inline.present?
+        end
+      end
+      list.reject(&:blank?).uniq
     end
 
     def _parse_csv_users(content)

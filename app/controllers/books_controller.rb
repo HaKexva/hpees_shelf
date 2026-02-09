@@ -5,7 +5,7 @@ class BooksController < ApplicationController
   def index
     BatchYear.ensure_office_exists!
     # Filter out books with empty title and those "Returned to library" (hidden after return)
-    @books = Book.where.not(title: [ nil, "" ]).where.not(status: Book::STATUS_RETURNED_LIBRARY).includes(:batch_year)
+    @books = Book.where.not(title: [ nil, "" ]).where.not(status: Book::STATUS_RETURNED_LIBRARY).includes(:batch_year, :tags)
     @books = @books.where(batch_year_id: params[:batch_year_id]) if params[:batch_year_id].present?
     if params[:q].to_s.strip.present?
       pattern = "%#{Book.sanitize_sql_like(params[:q].strip)}%"
@@ -14,20 +14,23 @@ class BooksController < ApplicationController
     if params[:tag].present?
       if params[:tag] == Book::TAG_TEACHER_PREFIX
         @books = if params[:teacher_tag].present?
-          @books.where(tag: params[:teacher_tag])
+          @books.tagged_with(params[:teacher_tag])
         else
-          @books.where("tag LIKE ?", "%老師的書")
+          @books.tagged_with(ActsAsTaggableOn::Tag.where("name LIKE ?", "%老師的書").pluck(:name), any: true)
         end
       else
-        @books = @books.where(tag: params[:tag])
+        @books = @books.tagged_with(params[:tag])
       end
     end
     @batch_years = BatchYear.by_number_desc
+    @has_library_books = Book.tagged_with(Book::TAG_LIBRARY).exists?
     @filter_batch_year_id = params[:batch_year_id]
     @filter_q = params[:q].to_s.strip.presence
     @filter_tag = params[:tag]
     @filter_teacher_tag = params[:teacher_tag]
-    @teacher_tag_options = Book.where("tag LIKE ?", "%老師的書").distinct.pluck(:tag).sort
+    teacher_tag_names = ActsAsTaggableOn::Tag.where("name LIKE ?", "%老師的書").pluck(:name).sort
+    @teacher_tag_options = teacher_tag_names
+    @filter_tag_options = ActsAsTaggableOn::Tag.order(:name).map { |t| [ t.name, t.name ] }
     @invalid_books = @books.select { |b| b.missing_required_fields.any? }
   end
 
@@ -77,13 +80,14 @@ class BooksController < ApplicationController
         # Skip empty rows
         next if title.blank?
 
+        tag_value = _import_row_value(row, "tag", "Tag", "標籤")
         book_attrs = {
           title: title,
           isbn: isbn,
           total: _import_row_value(row, "total", "Total", "總數").to_s.to_i,
           volume: _import_row_value(row, "volume", "Volume", "冊數").to_s.to_i,
           note: _import_row_value(row, "note", "Note", "備註"),
-          tag: _import_row_value(row, "tag", "Tag", "標籤"),
+          tag_list: tag_value.present? ? [ tag_value ] : [],
           grade_id: batch_year&.grade_id,
           batch_year_id: selected_batch_year_id
         }
@@ -203,6 +207,7 @@ class BooksController < ApplicationController
     @book = Book.new
     @batch_years = BatchYear.class_batches_by_number_desc
     @admin_users = User.where(admin: true).order(:name)
+    @available_tags = ActsAsTaggableOn::Tag.order(:name)
   end
 
   # GET /books/1/edit
@@ -210,23 +215,28 @@ class BooksController < ApplicationController
     BatchYear.ensure_office_exists!
     @batch_years = BatchYear.class_batches_by_number_desc
     @admin_users = User.where(admin: true).order(:name)
+    @available_tags = ActsAsTaggableOn::Tag.order(:name)
   end
 
   # POST /books or /books.json
   def create
     @book = Book.new(book_params)
-    apply_tag_teacher_name!(@book)
+    @book.tag_list = build_tag_list_from_params
+    # 書來源選「屆數名單」時，以內聯選單選的屆數覆寫 batch_year_id
+    _apply_batch_year_from_inline_if_used(@book)
     # Grade is derived from the selected batch_year
     @book.grade_id = @book.batch_year&.grade_id if @book.batch_year_id.present? && @book.grade_id.blank?
+    _ensure_required_tag_groups_filled(@book)
 
     respond_to do |format|
-      if @book.save
+      if @book.errors.empty? && @book.save
         format.html { redirect_to @book, notice: "書籍已建立。" }
         format.json { render :show, status: :created, location: @book }
       else
         BatchYear.ensure_office_exists!
         @batch_years = BatchYear.class_batches_by_number_desc
         @admin_users = User.where(admin: true).order(:name)
+        @available_tags = ActsAsTaggableOn::Tag.order(:name)
         flash.now[:alert] = @book.errors.full_messages.join("；")
         format.html { render :new, status: :unprocessable_entity }
         format.json { render json: @book.errors, status: :unprocessable_entity }
@@ -236,10 +246,26 @@ class BooksController < ApplicationController
 
   # PATCH/PUT /books/1 or /books/1.json
   def update
-    attrs = book_params
-    apply_tag_teacher_name!(attrs)
+    attrs = book_params.except(:source_tag, :tag_list)
+    # 圖書館的書在表單選「歸還圖書館」：建立借閱紀錄後刪除書籍（與歸還按鈕同）
+    if @book.library_book? && attrs[:status].to_s == Book::STATUS_RETURNED_LIBRARY
+      LibraryLoanHistory.create!(
+        user_id: @book.user_id,
+        book_title: @book.title.to_s.presence || "（無書名）",
+        book_isbn: @book.isbn,
+        borrowed_at: @book.borrowed_at,
+        returned_at: Time.current,
+        batch_year_id: @book.batch_year_id
+      )
+      @book.destroy!
+      return redirect_to books_path, notice: "已歸還圖書館並刪除書籍資料，借閱紀錄已保留。", status: :see_other
+    end
+    @book.assign_attributes(attrs)
+    @book.tag_list = build_tag_list_from_params
+    _apply_batch_year_from_inline_if_used(@book)
+    _ensure_required_tag_groups_filled(@book)
     respond_to do |format|
-      if @book.update(attrs)
+      if @book.errors.empty? && @book.save
         # When batch_year changes, optionally sync grade (if grade was not changed in the form, derive from batch_year)
         @book.update_column(:grade_id, @book.batch_year&.grade_id) if @book.batch_year_id.present?
         format.html { redirect_to @book, notice: "書籍已更新。", status: :see_other }
@@ -248,6 +274,7 @@ class BooksController < ApplicationController
         BatchYear.ensure_office_exists!
         @batch_years = BatchYear.class_batches_by_number_desc
         @admin_users = User.where(admin: true).order(:name)
+        @available_tags = ActsAsTaggableOn::Tag.order(:name)
         flash.now[:alert] = @book.errors.full_messages.join("；")
         format.html { render :edit, status: :unprocessable_entity }
         format.json { render json: @book.errors, status: :unprocessable_entity }
@@ -293,7 +320,7 @@ class BooksController < ApplicationController
   def apply_return_to_library_batch
     return redirect_to books_path, alert: "目前非開放歸還圖書館書籍期間。" unless Book.show_return_to_library_button?
     raw = params[:batch_year_id].to_s
-    scope = Book.where(tag: Book::TAG_LIBRARY)
+    scope = Book.tagged_with(Book::TAG_LIBRARY)
     scope = scope.where(batch_year_id: raw.to_i) if raw.present? && raw != "all"
 
     if raw.blank?
@@ -335,23 +362,153 @@ class BooksController < ApplicationController
   end
 
   private
+    # 任一组選了「選單來源＝屆數名單」時，用該組內聯選單的屆數覆寫 batch_year_id（多組時最後一組有效）
+    def _apply_batch_year_from_inline_if_used(book)
+      bp = params[:book] || {}
+      # 第一組
+      source_tag = bp[:source_tag].to_s.strip
+      if source_tag.present? && Book::TagRules.option_source(0, source_tag) == "batch_years"
+        by_id = params[:tag_teacher_name].to_s.strip
+        book.batch_year_id = by_id if by_id.present? && BatchYear.exists?(by_id)
+      end
+      # 其餘組 group_1, group_2, ...
+      groups = Book::TagRules.groups
+      groups.each_with_index do |_g, i|
+        next if i == 0
+        key = "group_#{i}"
+        selected = bp[key].is_a?(Array) ? bp[key].reject(&:blank?).first : bp[key].to_s.strip.presence
+        next if selected.blank?
+        next unless Book::TagRules.option_source(i, selected) == "batch_years"
+        by_id = params["tag_inline_#{i}".to_sym].to_s.strip
+        book.batch_year_id = by_id if by_id.present? && BatchYear.exists?(by_id)
+      end
+    end
+
     def set_book
       @book = Book.find(params.expect(:id))
     end
 
     def book_params
-      params.expect(book: [ :title, :isbn, :total, :volume, :note, :tag, :borrowed_at, :edition_part, :batch_year_id, :grade_id, :user_id ])
+      group_keys = (1..9).map { |i| { "group_#{i}" => [] } }
+      params.expect(book: [ :title, :isbn, :total, :volume, :note, :source_tag, { tag_list: [] }, :borrowed_at, :edition_part, :batch_year_id, :grade_id, :user_id, :status ] + group_keys)
     end
 
-    def apply_tag_teacher_name!(book_or_attrs)
-      current = book_or_attrs.is_a?(Book) ? book_or_attrs.tag : book_or_attrs[:tag]
-      return unless current.to_s == Book::TAG_TEACHER_PREFIX
-      name = params[:tag_teacher_name].to_s.strip
-      value = Book.tag_from_teacher_name(name)
-      if book_or_attrs.is_a?(Book)
-        book_or_attrs.tag = value
+    def build_tag_list_from_params
+      groups = Book::TagRules.groups
+      in_group_tags = Book::TagRules.all_tag_names_in_groups
+      book_params = params[:book] || {}
+      other = Array(book_params[:tag_list]).reject(&:blank?).uniq.reject { |t| in_group_tags.include?(t) }
+      list = []
+      # 第一組用 source_tag；有內聯輸入時用其值（老師→王老師的書、手動輸入→鍵入內容、屆數名單→由 _apply_batch_year_from_inline_if_used 處理）
+      source = book_params[:source_tag].to_s.strip
+      inline_val = params[:tag_teacher_name].to_s.strip.presence
+      resolved = if source == Book::TAG_TEACHER_PREFIX
+        Book.tag_from_teacher_name(inline_val)
+      elsif Book::TagRules.option_source(0, source) == "manual" && inline_val.present?
+        inline_val
       else
-        book_or_attrs[:tag] = value
+        source
+      end
+      list << resolved if resolved.present?
+      # 其餘組別 group_1, group_2, ...；有內聯時用該組的 tag_inline_i 解析
+      groups.each_with_index do |_g, i|
+        next if i == 0
+        key = "group_#{i}"
+        val = book_params[key]
+        val = if val.is_a?(Array)
+          val.reject(&:blank?).uniq
+        elsif val.present?
+          [ val.to_s.strip ]
+        else
+          []
+        end
+        next if val.empty?
+        inline_key = "tag_inline_#{i}".to_sym
+        raw_inline = params[inline_key]
+        inline_val_i = (raw_inline.is_a?(Array) ? raw_inline.first : raw_inline).to_s.strip.presence
+        with_inline = val.select { |t| Book::TagRules.option_popup_prompt(i, t).present? || Book::TagRules.option_source(i, t).present? }
+        if with_inline.any?
+          resolved_i = _resolve_inline_tag_for_group(i, with_inline.first, inline_val_i)
+          list << resolved_i if resolved_i.present?
+          list.concat(val - with_inline)
+        else
+          list.concat(val)
+        end
+      end
+      list.concat(other)
+      list.uniq
+    end
+
+    # 驗證：所有「必填」的標籤組別都必須有選項；若選到有內聯欄位的選項，內聯欄位也不得為空
+    def _ensure_required_tag_groups_filled(book)
+      groups = Book::TagRules.groups
+      bp = params[:book] || {}
+
+      # 1. 檢查每一組是否有選到任何值（針對 required? 的組別）
+      groups.each_with_index do |group, gi|
+        next if Book::TagRules.optional?(gi)
+        opts = group["options"] || []
+        next if opts.empty?
+
+        selected_values =
+          if gi == 0
+            [ bp[:source_tag].to_s.strip ]
+          else
+            raw = bp["group_#{gi}"]
+            Array(raw).map(&:to_s).map(&:strip)
+          end
+        selected_values.reject!(&:blank?)
+        next if selected_values.any?
+
+        label = group["label"].presence || "組別#{gi + 1}"
+        book.errors.add(:base, "「#{label}」為必填，請選擇至少一個標籤。")
+      end
+
+      # 2. 若有選到帶內聯欄位的選項，內聯值不得為空
+      groups.each_with_index do |group, gi|
+        opts = group["options"] || []
+        next if opts.empty?
+
+        selected_values =
+          if gi == 0
+            [ bp[:source_tag].to_s.strip ]
+          else
+            raw = bp["group_#{gi}"]
+            Array(raw).map(&:to_s).map(&:strip)
+          end
+        selected_values.reject!(&:blank?)
+        next if selected_values.empty?
+
+        selected_values.each do |tag_name|
+          has_inline = Book::TagRules.option_popup_prompt(gi, tag_name).present? || Book::TagRules.option_source(gi, tag_name).present?
+          next unless has_inline
+
+          inline_key = gi == 0 ? :tag_teacher_name : "tag_inline_#{gi}".to_sym
+          raw_inline = params[inline_key]
+          inline_val = (raw_inline.is_a?(Array) ? raw_inline.first : raw_inline).to_s.strip
+          next if inline_val.present?
+
+          label = group["label"].presence || "組別#{gi + 1}"
+          inline_label = Book::TagRules.option_popup_prompt(gi, tag_name).presence || tag_name
+          book.errors.add(:base, "「#{label}」中的「#{inline_label}」為必填，請填寫後再儲存。")
+          break
+        end
+      end
+    end
+
+    def _resolve_inline_tag_for_group(group_index, selected_tag_name, inline_value)
+      return selected_tag_name if inline_value.blank?
+      src = Book::TagRules.option_source(group_index, selected_tag_name)
+      case src
+      when "manual"
+        inline_value
+      when "admins", "users"
+        inline_value
+      when "batch_years"
+        by = BatchYear.find_by(id: inline_value)
+        by ? by.display_label_with_grade : inline_value
+      else
+        inline_value.presence || selected_tag_name
       end
     end
 
