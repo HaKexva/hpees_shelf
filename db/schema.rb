@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_02_10_000000) do
+ActiveRecord::Schema[8.1].define(version: 2026_02_06_100000) do
   create_table "app_settings", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.string "key", null: false
@@ -39,6 +39,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_02_10_000000) do
     t.string "isbn"
     t.text "note"
     t.string "status", default: "架上", null: false
+    t.string "tag"
     t.string "title"
     t.integer "total"
     t.datetime "updated_at", null: false
@@ -59,30 +60,6 @@ ActiveRecord::Schema[8.1].define(version: 2026_02_10_000000) do
     t.index ["batch_year_id"], name: "index_library_loan_histories_on_batch_year_id"
     t.index ["user_id", "returned_at"], name: "index_library_loan_histories_on_user_returned"
     t.index ["user_id"], name: "index_library_loan_histories_on_user_id"
-  end
-
-  create_table "tag_rule_groups", force: :cascade do |t|
-    t.datetime "created_at", null: false
-    t.string "label", default: "未命名", null: false
-    t.integer "position", default: 0, null: false
-    t.boolean "required", default: false, null: false
-    t.boolean "single_select", default: true, null: false
-    t.string "target", default: "book"
-    t.datetime "updated_at", null: false
-    t.index ["position"], name: "index_tag_rule_groups_on_position"
-  end
-
-  create_table "tag_rule_options", force: :cascade do |t|
-    t.datetime "created_at", null: false
-    t.string "option_source"
-    t.string "popup_prompt", default: "", null: false
-    t.integer "position", default: 0, null: false
-    t.string "relocation_behavior"
-    t.string "tag_name", default: "", null: false
-    t.integer "tag_rule_group_id", null: false
-    t.datetime "updated_at", null: false
-    t.index ["tag_rule_group_id", "position"], name: "index_tag_rule_options_on_tag_rule_group_id_and_position"
-    t.index ["tag_rule_group_id"], name: "index_tag_rule_options_on_tag_rule_group_id"
   end
 
   create_table "taggings", force: :cascade do |t|
@@ -139,7 +116,6 @@ ActiveRecord::Schema[8.1].define(version: 2026_02_10_000000) do
   add_foreign_key "books", "users"
   add_foreign_key "library_loan_histories", "batch_years"
   add_foreign_key "library_loan_histories", "users"
-  add_foreign_key "tag_rule_options", "tag_rule_groups"
   add_foreign_key "taggings", "tags"
   add_foreign_key "users", "batch_years"
 end
