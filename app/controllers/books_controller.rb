@@ -29,7 +29,7 @@ class BooksController < ApplicationController
       "isbn" => "ISBN",
       "total" => "總數",
       "volume" => "冊數",
-      "note" => "備註",
+      "note" => "備註"
     }
 
     return unless request.post?

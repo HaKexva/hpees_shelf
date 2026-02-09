@@ -24,7 +24,7 @@ class BooksControllerTest < ActionDispatch::IntegrationTest
           note: @book.note,
           title: @book.title,
           total: @book.total,
-          volume: @book.volume,
+          volume: @book.volume
         }
       }
     end
@@ -51,7 +51,7 @@ class BooksControllerTest < ActionDispatch::IntegrationTest
         note: @book.note,
         title: @book.title,
         total: @book.total,
-        volume: @book.volume,
+        volume: @book.volume
       }
     }
     assert_redirected_to book_url(@book)

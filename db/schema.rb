@@ -59,6 +59,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_02_06_100000) do
     t.index ["batch_year_id"], name: "index_library_loan_histories_on_batch_year_id"
     t.index ["user_id", "returned_at"], name: "index_library_loan_histories_on_user_returned"
     t.index ["user_id"], name: "index_library_loan_histories_on_user_id"
+  end
 
   create_table "users", force: :cascade do |t|
     t.boolean "admin", default: false, null: false
