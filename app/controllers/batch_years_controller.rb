@@ -58,31 +58,10 @@ class BatchYearsController < ApplicationController
     pending_book_ids = []
     pending_user_ids = []
 
-    # Books: 依標籤規則「屆數切換時」決定：keep=維持原班級只更新年級, ask=詢問指定屆數, none=不處理；未設定時沿用舊邏輯
-    first_group_tag_names = (Book::TagRules.groups[0]["options"] || []).map { |o| o["tag_name"].to_s }
+    # Books: class books → keep batch_year, only update grade_id; if the batch is currently grade 6, a new destination must be specified
     Book.includes(:batch_year).find_each do |book|
       next if book.batch_year.blank?
-      source_tag = book.tag_list.find { |t| first_group_tag_names.include?(t) || (t.to_s.end_with?("老師的書") && first_group_tag_names.include?(Book::TAG_TEACHER_PREFIX)) }
-      source_tag = Book::TAG_TEACHER_PREFIX if source_tag.to_s.end_with?("老師的書")
-      behavior = source_tag.present? ? Book::TagRules.option_relocation_behavior(0, source_tag) : nil
-      if behavior == "keep"
-        book.update_column(:grade_id, book.batch_year.grade_id)
-      elsif behavior == "ask"
-        pending_book_ids << book.id
-      elsif behavior == "none"
-        # 不處理
-      else
-        # 未設定時沿用舊邏輯
-        if book.tag_list.include?(Book::TAG_CLASS)
-          if book.batch_year.grade_id == 6
-            pending_book_ids << book.id
-          else
-            book.update_column(:grade_id, book.batch_year.grade_id)
-          end
-        elsif book.teacher_tag? || book.tag_list.include?(Book::TAG_DONATED)
-          pending_book_ids << book.id
-        end
-      end
+      book.update_column(:grade_id, book.batch_year.grade_id)
     end
 
     # Users: all admins (teachers) must be assigned a new batch or marked resigned; students only update grade_id
@@ -108,9 +87,6 @@ class BatchYearsController < ApplicationController
     pending_book_ids = session[:pending_relocation_book_ids].to_a
     @pending_books = Book.where(id: pending_book_ids).includes(:batch_year).to_a
     # Books from the same teacher are grouped together; assign one batch for the whole group
-    teacher_books = @pending_books.select(&:teacher_tag?)
-    @pending_books_by_teacher_tag = teacher_books.group_by(&:primary_teacher_tag)
-    @pending_books_other = @pending_books.reject(&:teacher_tag?)
     @pending_users = User.where(id: session[:pending_relocation_user_ids].to_a).includes(:batch_year).to_a
     @batch_years = BatchYear.class_batches_by_number_desc
     if @pending_books.empty? && @pending_users.empty?
@@ -124,18 +100,9 @@ class BatchYearsController < ApplicationController
 
   def apply_relocation
     pending_book_ids = session[:pending_relocation_book_ids].to_a
-
-    # Books from the same teacher: assign batch by tag in one operation
-    by_teacher = params[:book_assignments_by_teacher].to_unsafe_h
-    by_teacher.each do |tag, batch_year_id|
-      next if batch_year_id.blank?
-      batch_year = BatchYear.find_by(id: batch_year_id)
-      next if batch_year.blank?
-      Book.where(id: pending_book_ids).tagged_with(tag).find_each do |book|
-        book.update(batch_year_id: batch_year.id, grade_id: batch_year.grade_id)
-      end
+    Book.where(id: pending_book_ids).find_each do |book|
+      book.update(batch_year_id: book.batch_year.id, grade_id: book.batch_year.grade_id)
     end
-
     # Other books (donated, grade-6 class books, etc.): assign batch one by one
     book_assignments = params[:book_assignments].to_unsafe_h
     book_assignments.each do |book_id, batch_year_id|

@@ -9,10 +9,6 @@ module ApplicationHelper
       if book.present? && %w[show edit].include?(controller.action_name)
         msgs << "書名為必填" if book.title.blank?
         msgs << "屆數為必填" if book.batch_year_id.blank?
-        msgs << "標籤為必填" if book.tag.blank?
-        if book.teacher_tag? && book.tag == Book::TAG_TEACHER_PREFIX
-          msgs << "老師名字建議填寫（目前僅為「老師的書」）"
-        end
       end
     when "users"
       user = controller.instance_variable_get(:@user)

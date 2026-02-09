@@ -15,27 +15,15 @@
           <table class="min-w-full divide-y divide-gray-200">
             <thead class="bg-gray-50">
               <tr>
-                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">書名／標籤</th>
+                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">書名</th>
                 <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">目前屆數</th>
                 <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">新屆數</th>
               </tr>
             </thead>
             <tbody class="bg-white divide-y divide-gray-200">
-              <% @pending_books_by_teacher_tag.each do |tag, books| %>
-                <tr>
-                  <td class="px-4 py-2 text-sm font-medium text-gray-900">
-                    <span class="text-gray-700"><%= tag %></span>
-                    <span class="text-gray-500 font-normal">（<%= books.size %> 本）</span>
-                  </td>
-                  <td class="px-4 py-2 text-sm text-gray-600"><%= books.first.batch_year&.display_label_with_grade %></td>
-                  <td class="px-4 py-2">
-                    <%= select_tag "book_assignments_by_teacher[#{tag}]", options_from_collection_for_select(@batch_years, :id, :display_label_with_grade, books.first.batch_year_id), { include_blank: "請選擇", class: "block shadow-sm rounded-md border border-gray-300 px-3 py-2 text-sm w-48" } %>
-                  </td>
-                </tr>
-              <% end %>
               <% @pending_books_other.each do |book| %>
                 <tr>
-                  <td class="px-4 py-2 text-sm font-medium text-gray-900"><%= book.title %> <span class="text-gray-500 font-normal">（<%= book.tag %>）</span></td>
+                  <td class="px-4 py-2 text-sm font-medium text-gray-900"><%= book.title %></td>
                   <td class="px-4 py-2 text-sm text-gray-600"><%= book.batch_year&.display_label_with_grade %></td>
                   <td class="px-4 py-2">
                     <%= select_tag "book_assignments[#{book.id}]", options_from_collection_for_select(@batch_years, :id, :display_label_with_grade, book.batch_year_id), { include_blank: "請選擇", class: "block shadow-sm rounded-md border border-gray-300 px-3 py-2 text-sm w-48" } %>

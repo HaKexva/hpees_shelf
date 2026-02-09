@@ -33,14 +33,4 @@
       <%= book.user.name %>
     </div>
   <% end %>
-  <% if book.tag_list.present? %>
-    <div>
-      <strong class="block font-medium mb-1">標籤：</strong>
-      <span class="inline-flex flex-wrap items-center gap-1.5">
-        <% book.tag_list.each do |tag_name| %>
-          <%= book_tag_badge(tag_name) %>
-        <% end %>
-      </span>
-    </div>
-  <% end %>
 </div>
