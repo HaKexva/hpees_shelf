@@ -83,6 +83,9 @@ jobs:
         with:
           bundler-cache: true
 
+      - name: Compile assets
+        run: bin/rails assets:precompile
+
       - name: Run tests
         env:
           RAILS_ENV: test
