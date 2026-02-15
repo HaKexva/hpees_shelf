@@ -57,12 +57,14 @@ class BatchYearsController < ApplicationController
   def reassign_grades
     BatchYear.advance_to_next_school_year!
     next_roc = BatchYear.advance_stored_school_year!
-    pending_book_ids = []
+    # Books in graduated class batches need a new batch assignment
+    pending_book_ids = Book.joins(:batch_year).where(batch_years: { grade_id: BatchYear::GRADE_GRADUATED, is_office: false }).pluck(:id)
     pending_user_ids = []
 
-    # Books: class books → keep batch_year, only update grade_id; if the batch is currently grade 6, a new destination must be specified
+    # Books in non-graduated batches: just sync grade_id
     Book.includes(:batch_year).find_each do |book|
       next if book.batch_year.blank?
+      next if pending_book_ids.include?(book.id)
       book.update_column(:grade_id, book.batch_year.grade_id)
     end
 
@@ -88,9 +90,14 @@ class BatchYearsController < ApplicationController
   def relocation
     pending_book_ids = session[:pending_relocation_book_ids].to_a
     @pending_books = Book.where(id: pending_book_ids).includes(:batch_year).to_a
-    # Books from the same teacher are grouped together; assign one batch for the whole group
+    # Teacher's books (老師的書): one choice per teacher; donated / 班級的書: one dropdown per book
+    @pending_books_by_teacher = @pending_books.select { |b| b.owned_by_teacher? && b.user_id.present? }.group_by(&:user_id)
+    @pending_books_other = @pending_books.reject { |b| b.owned_by_teacher? && b.user_id.present? }
     @pending_users = User.where(id: session[:pending_relocation_user_ids].to_a).includes(:batch_year).to_a
     @batch_years = BatchYear.class_batches_by_number_desc
+    @batch_years_with_office = BatchYear.by_number_desc
+    @show_return_to_library_button = Book.show_return_to_library_button?
+    @any_library_books_to_return = Book.where(source: :owned_by_library).where.not(status: Book::STATUS_RETURNED_LIBRARY).exists?
     if @pending_books.empty? && @pending_users.empty?
       session.delete(:pending_relocation_book_ids)
       session.delete(:pending_relocation_user_ids)
@@ -102,10 +109,15 @@ class BatchYearsController < ApplicationController
 
   def apply_relocation
     pending_book_ids = session[:pending_relocation_book_ids].to_a
-    Book.where(id: pending_book_ids).find_each do |book|
-      book.update(batch_year_id: book.batch_year.id, grade_id: book.batch_year.grade_id)
+    # Teacher's books: one batch per teacher (from teacher_assignments[user_id])
+    teacher_assignments = params[:teacher_book_assignments].to_unsafe_h
+    teacher_assignments.each do |user_id, batch_year_id|
+      next if batch_year_id.blank?
+      batch_year = BatchYear.find_by(id: batch_year_id)
+      next if batch_year.blank?
+      Book.where(user_id: user_id, source: :owned_by_teacher).where(id: pending_book_ids).update_all(batch_year_id: batch_year.id, grade_id: batch_year.grade_id)
     end
-    # Other books (donated, grade-6 class books, etc.): assign batch one by one
+    # Other books (捐贈的書, 班級的書, etc.): assign batch one by one
     book_assignments = params[:book_assignments].to_unsafe_h
     book_assignments.each do |book_id, batch_year_id|
       next if batch_year_id.blank?

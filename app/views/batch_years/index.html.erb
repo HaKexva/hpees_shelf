@@ -7,13 +7,9 @@
       <p class="mt-1 text-sm text-gray-500">目前學年度：<%= BatchYear.display_current_school_year_roc %>學年度</p>
     </div>
     <div class="flex flex-wrap gap-2 items-center">
-      <%= button_to "一鍵建立所有目前屆數", auto_create_batch_years_path, method: :post, class: "rounded-md px-3.5 py-2.5 bg-green-600 hover:bg-green-500 text-white font-medium cursor-pointer", form: { data: { turbo_confirm: "將自動建立所有目前屆數。確定？" } } %>
-      <% if @show_return_to_library_button %>
-        <% if @any_library_books_to_return %>
-          <%= link_to "歸還圖書館書籍", return_to_library_batch_books_path, class: "rounded-md px-3.5 py-2.5 bg-amber-600 hover:bg-amber-500 text-white block font-medium" %>
-        <% else %>
-          <span class="rounded-md px-3.5 py-2.5 bg-gray-100 text-gray-600 text-sm font-medium">已歸還完成</span>
-        <% end %>
+      <%= button_to "建立目前所有屆數", auto_create_batch_years_path, method: :post, class: "rounded-md px-3.5 py-2.5 bg-green-600 hover:bg-green-500 text-white font-medium cursor-pointer", form: { data: { turbo_confirm: "將自動建立所有目前屆數。確定？" } } %>
+      <% if @show_return_to_library_button && @any_library_books_to_return %>
+        <%= link_to "歸還圖書館書籍", return_to_library_batch_books_path, class: "rounded-md px-3.5 py-2.5 bg-amber-600 hover:bg-amber-500 text-white block font-medium" %>
       <% end %>
       <% if BatchYear.show_advance_school_year_button? %>
         <% next_roc = BatchYear.display_current_school_year_roc + 1 %>

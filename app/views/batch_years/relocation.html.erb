@@ -4,13 +4,50 @@
   <div class="mb-6">
     <h1 class="font-bold text-4xl">指定屆數</h1>
     <p class="text-gray-600 mt-1">學年度已切換，請為下列書籍與人員指定新屆數（可選「老師」或班級屆數）。</p>
+    <% if @show_return_to_library_button %>
+      <% if @any_library_books_to_return %>
+        <%= link_to "歸還圖書館書籍", return_to_library_batch_books_path, class: "inline-block mt-3 rounded-md px-3.5 py-2.5 bg-amber-600 hover:bg-amber-500 text-white font-medium" %>
+      <% else %>
+        <span class="inline-block mt-3 rounded-md px-3.5 py-2.5 bg-gray-100 text-gray-600 text-sm font-medium">已歸還完成</span>
+      <% end %>
+    <% end %>
   </div>
 
   <%= form_with url: apply_relocation_batch_years_path, method: :post, class: "space-y-8", data: { turbo: false } do |f| %>
-    <% if @pending_books.present? %>
+    <% if @pending_books_by_teacher.present? %>
       <div class="bg-white rounded-lg shadow p-6">
-        <h2 class="font-semibold text-lg mb-4">書籍需指定屆數（<%= @pending_books.size %> 本）</h2>
-        <p class="text-sm text-gray-600 mb-4">同一老師的書請選一個屆數，該老師的書會一併歸到該屆。捐贈的書、六年級班級的書請逐本選擇屆數。</p>
+        <h2 class="font-semibold text-lg mb-4">老師的書需指定屆數（<%= @pending_books_by_teacher.sum { |_, books| books.size } %> 本，依老師選一屆數）</h2>
+        <p class="text-sm text-gray-600 mb-4">同一老師的書請選一個屆數，該老師的書會一併歸到該屆。</p>
+        <div class="overflow-x-auto">
+          <table class="min-w-full divide-y divide-gray-200">
+            <thead class="bg-gray-50">
+              <tr>
+                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">老師</th>
+                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">書本數</th>
+                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">新屆數</th>
+              </tr>
+            </thead>
+            <tbody class="bg-white divide-y divide-gray-200">
+              <% @pending_books_by_teacher.each do |user_id, books| %>
+                <% teacher = books.first&.user %>
+                <tr>
+                  <td class="px-4 py-2 text-sm font-medium text-gray-900"><%= teacher&.name || "—" %></td>
+                  <td class="px-4 py-2 text-sm text-gray-600"><%= books.size %></td>
+                  <td class="px-4 py-2">
+                    <%= select_tag "teacher_book_assignments[#{user_id}]", options_from_collection_for_select(@batch_years, :id, :display_label_with_grade, books.first&.batch_year_id), { include_blank: "請選擇", class: "block shadow-sm rounded-md border border-gray-300 px-3 py-2 text-sm w-48" } %>
+                  </td>
+                </tr>
+              <% end %>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    <% end %>
+
+    <% if @pending_books_other.present? %>
+      <div class="bg-white rounded-lg shadow p-6">
+        <h2 class="font-semibold text-lg mb-4">捐贈的書／班級的書需指定屆數（<%= @pending_books_other.size %> 本，逐本選擇屆數）</h2>
+        <p class="text-sm text-gray-600 mb-4">請逐本選擇新屆數。</p>
         <div class="overflow-x-auto">
           <table class="min-w-full divide-y divide-gray-200">
             <thead class="bg-gray-50">
