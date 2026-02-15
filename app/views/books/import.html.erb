@@ -9,7 +9,8 @@
   <div class="bg-white rounded-lg shadow p-6 mb-6">
     <h2 class="font-semibold text-lg mb-4">上傳 CSV 檔案</h2>
     <p class="text-gray-600 mb-4">
-      上傳包含以下欄位的 CSV 檔案：<code class="bg-gray-100 px-1 rounded">書名</code>、<code class="bg-gray-100 px-1 rounded">ISBN</code>、<code class="bg-gray-100 px-1 rounded">總數</code>、<code class="bg-gray-100 px-1 rounded">冊數</code>、<code class="bg-gray-100 px-1 rounded">備註</code>。<br>
+      上傳包含以下欄位的 CSV 檔案：<code class="bg-gray-100 px-1 rounded">書名</code>、<code class="bg-gray-100 px-1 rounded">ISBN</code>、<code class="bg-gray-100 px-1 rounded">總數</code>、<code class="bg-gray-100 px-1 rounded">冊數</code>、<code class="bg-gray-100 px-1 rounded">備註</code>、<code class="bg-gray-100 px-1 rounded">來源</code>。<br>
+      來源可填：圖書館館藏、捐贈的書、班級的書；老師的書請填「姓名＋老師的書」（例如：王小明老師的書）。<br>
       系統會在下方匯入步驟中<strong>要求選擇「屆數」</strong>並套用到本次匯入的所有書籍。
     </p>
 
@@ -30,7 +31,7 @@
         <h3 class="font-semibold text-red-800 mb-2">欄位不符，無法匯入</h3>
         <p class="text-red-700 text-sm mb-2">您的 CSV 欄位與預期格式不符，請修正您的 CSV 檔案後重新上傳：</p>
         <p class="text-red-700 text-sm"><strong>缺少的欄位：</strong> <%= @missing_columns.map { |c| @column_names_zh[c] || c }.join("、") %></p>
-        <p class="text-red-700 text-sm mt-2"><strong>預期欄位：</strong> 書名、ISBN、總數、冊數、備註。</p>
+        <p class="text-red-700 text-sm mt-2"><strong>預期欄位：</strong> 書名、ISBN、總數、冊數、備註、來源。</p>
       </div>
     <% end %>
 

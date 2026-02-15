@@ -15,6 +15,7 @@ class BooksController < ApplicationController
     @filter_batch_year_id = params[:batch_year_id]
     @filter_q = params[:q].to_s.strip.presence
     @invalid_books = @books.select { |b| b.missing_required_fields.any? }
+    @any_library_books_to_return = Book.where(source: :owned_by_library).where.not(status: Book::STATUS_RETURNED_LIBRARY).exists?
   end
 
   # GET /books/import
@@ -23,13 +24,14 @@ class BooksController < ApplicationController
     BatchYear.ensure_office_exists!
     @imported_data = []
     @headers = []
-    @expected_columns = %w[title isbn total volume note]
+    @expected_columns = %w[title isbn total volume note source]
     @column_names_zh = {
       "title" => "書名",
       "isbn" => "ISBN",
       "total" => "總數",
       "volume" => "冊數",
-      "note" => "備註"
+      "note" => "備註",
+      "source" => "來源"
     }
 
     return unless request.post?
@@ -62,15 +64,29 @@ class BooksController < ApplicationController
         # Skip empty rows
         next if title.blank?
 
+        source_raw = _import_row_value(row, "source", "Source", "來源")
+        source_key = _normalize_import_source(source_raw)
         book_attrs = {
           title: title,
           isbn: isbn,
           total: _import_row_value(row, "total", "Total", "總數").to_s.to_i,
           volume: _import_row_value(row, "volume", "Volume", "冊數").to_s.to_i,
           note: _import_row_value(row, "note", "Note", "備註"),
+          source: source_key,
           grade_id: batch_year&.grade_id,
           batch_year_id: selected_batch_year_id
         }
+        if source_key == "owned_by_teacher" && source_raw.present?
+          teacher_name = _import_teacher_name_from_source(source_raw)
+          if teacher_name.present?
+            admin_scope = User.where(admin: true)
+            teacher =
+              admin_scope.find_by(name: teacher_name) ||
+              admin_scope.find_by(name: "#{teacher_name}老師") ||
+              admin_scope.where("name LIKE ?", "%#{teacher_name}%").first
+            book_attrs[:user_id] = teacher.id if teacher
+          end
+        end
 
         # Check for duplicate (same title and isbn)
         is_duplicate = Book.exists?(title: title, isbn: isbn)
@@ -121,6 +137,7 @@ class BooksController < ApplicationController
           when "冊數" then "volume"
           when "備註" then "note"
           when "國際標準書號" then "isbn"
+          when "來源" then "source"
           else h_d
           end
         end.compact
@@ -199,6 +216,7 @@ class BooksController < ApplicationController
     @book = Book.new(book_params)
     # Grade is derived from the selected batch_year
     @book.grade_id = @book.batch_year&.grade_id if @book.batch_year_id.present? && @book.grade_id.blank?
+    @book.user_id = nil unless @book.owned_by_teacher? || @book.owned_by_library?
 
     respond_to do |format|
       if @book.save
@@ -218,6 +236,7 @@ class BooksController < ApplicationController
   # PATCH/PUT /books/1 or /books/1.json
   def update
     attrs = book_params
+    attrs[:user_id] = nil unless attrs[:source].to_s == "owned_by_teacher" || attrs[:source].to_s == "owned_by_library"
     respond_to do |format|
       if @book.update(attrs)
         # When batch_year changes, optionally sync grade (if grade was not changed in the form, derive from batch_year)
@@ -247,7 +266,7 @@ class BooksController < ApplicationController
 
   # POST /books/1/return_to_library — Library books: save borrow history then delete the book
   def return_to_library
-    if @book.library_book?
+    if @book.owned_by_library?
       LibraryLoanHistory.create!(
         user_id: @book.user_id,
         book_title: @book.title.to_s.presence || "（無書名）",
@@ -273,7 +292,7 @@ class BooksController < ApplicationController
   def apply_return_to_library_batch
     return redirect_to books_path, alert: "目前非開放歸還圖書館書籍期間。" unless Book.show_return_to_library_button?
     raw = params[:batch_year_id].to_s
-    scope = Book.where(library_book: true)
+    scope = Book.where(source: :owned_by_library)
     scope = scope.where(batch_year_id: raw.to_i) if raw.present? && raw != "all"
 
     if raw.blank?
@@ -318,7 +337,7 @@ class BooksController < ApplicationController
     end
 
     def book_params
-      params.expect(book: [ :title, :isbn, :total, :volume, :note, :library_book, :borrowed_at, :edition_part, :batch_year_id, :grade_id, :user_id ])
+      params.expect(book: [ :title, :isbn, :total, :volume, :note, :source, :borrowed_at, :edition_part, :batch_year_id, :grade_id, :user_id ])
     end
 
     # Lightweight CSV parser (without the csv gem), returns [headers, rows], where rows is an Array of Hashes
@@ -374,6 +393,28 @@ class BooksController < ApplicationController
       nil
     end
 
+    # Map CSV source value (Chinese or English) to Book source enum key; default owned_by_library if blank/unknown
+    # For 老師的書: accepts "老師的書" or "XX老師的書" (e.g. 文榛老師的書, Momo老師的書)
+    def _normalize_import_source(raw)
+      return "owned_by_library" if raw.blank?
+      s = raw.to_s.strip
+      return "owned_by_library" if s.blank?
+      return "owned_by_teacher" if s.end_with?("老師的書")
+      # Chinese labels (from zh-TW)
+      return "owned_by_library" if s == "圖書館館藏"
+      return "donated" if s == "捐贈的書"
+      return "owned_by_class" if s == "班級的書"
+      # Enum keys (English)
+      return s if Book.sources.key?(s)
+      "owned_by_library"
+    end
+
+    # Extract teacher name from source value like "文榛老師的書" or "Momo老師的書" => "文榛" / "Momo"
+    def _import_teacher_name_from_source(raw)
+      return nil if raw.blank?
+      raw.to_s.strip.sub(/老師的書\z/, "").strip.presence
+    end
+
     def _restore_import_preview(import_data)
       @imported_data = import_data
       @headers = import_data.first&.keys || []
@@ -386,6 +427,7 @@ class BooksController < ApplicationController
         when "冊數" then "volume"
         when "備註" then "note"
         when "國際標準書號" then "isbn"
+        when "來源" then "source"
         else h_d
         end
       end.compact

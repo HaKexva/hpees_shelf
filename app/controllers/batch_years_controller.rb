@@ -4,6 +4,8 @@ class BatchYearsController < ApplicationController
   def index
     BatchYear.ensure_office_exists!
     @batch_years = BatchYear.by_number_desc
+    @show_return_to_library_button = Book.show_return_to_library_button?
+    @any_library_books_to_return = Book.where(source: :owned_by_library).where.not(status: Book::STATUS_RETURNED_LIBRARY).exists?
   end
 
   def show
