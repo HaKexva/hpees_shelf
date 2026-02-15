@@ -1,5 +1,5 @@
 class BooksController < ApplicationController
-  before_action :set_book, only: %i[ show edit update destroy return_to_library ]
+  before_action :set_book, only: %i[ show edit update destroy return_to_library borrow return_shelf ]
 
   # GET /books or /books.json
   def index
@@ -262,6 +262,36 @@ class BooksController < ApplicationController
       format.html { redirect_to books_path, notice: "書籍已刪除。", status: :see_other }
       format.json { head :no_content }
     end
+  end
+
+  # POST /books/1/borrow — Library book: set borrower (借書)
+  def borrow
+    unless @book.owned_by_library?
+      redirect_to root_path, alert: "僅圖書館館藏可借閱。", status: :see_other
+      return
+    end
+    if @book.status == Book::STATUS_BORROWED
+      redirect_to root_path, alert: "此書已借閱中。", status: :see_other
+      return
+    end
+    user_id = params[:user_id].presence&.to_i
+    user = User.find_by(id: user_id)
+    unless user
+      redirect_to root_path, alert: "請選擇借閱人。", status: :see_other
+      return
+    end
+    @book.update!(user_id: user.id, status: Book::STATUS_BORROWED, borrowed_at: Time.current)
+    redirect_to root_path, notice: "已登記借閱：#{@book.title} → #{user.name}。", status: :see_other
+  end
+
+  # POST /books/1/return_shelf — Library book: clear borrower (還書)
+  def return_shelf
+    unless @book.owned_by_library?
+      redirect_to root_path, alert: "僅圖書館館藏可還書。", status: :see_other
+      return
+    end
+    @book.update!(user_id: nil, status: Book::STATUS_ON_SHELF, borrowed_at: nil)
+    redirect_to root_path, notice: "已還書：#{@book.title}。", status: :see_other
   end
 
   # POST /books/1/return_to_library — Library books: save borrow history then delete the book

@@ -1,0 +1,63 @@
+<% content_for :title, "借還書" %>
+
+<div class="w-full px-4 sm:px-0 max-w-3xl mx-auto">
+  <h1 class="font-bold text-2xl sm:text-4xl text-gray-900 mb-6">借還書</h1>
+
+  <div class="space-y-8">
+    <!-- 借書 -->
+    <div class="bg-white rounded-xl shadow-md border border-gray-100 p-6">
+      <h2 class="font-semibold text-lg text-gray-900 mb-4">借書</h2>
+      <% first_on_shelf = @library_books_on_shelf.first %>
+      <%= form_with url: first_on_shelf ? borrow_book_path(first_on_shelf) : "#", method: :post, local: true, class: "space-y-4", data: { turbo: false }, id: "borrow-form" do |f| %>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">選擇書籍（架上圖書館館藏）</label>
+          <select name="book_id" id="borrow_book_select" required class="block w-full shadow-sm rounded-lg border border-gray-300 px-3 py-2.5 text-base">
+            <option value="">請選擇書籍</option>
+            <% @library_books_on_shelf.each do |book| %>
+              <option value="<%= book.id %>" data-borrow-url="<%= borrow_book_path(book) %>"><%= book.title %> — <%= book.batch_year&.display_label_with_grade || "—" %></option>
+            <% end %>
+          </select>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">借閱人</label>
+          <%= f.collection_select :user_id, @users, :id, :name, { include_blank: "請選擇借閱人" }, { name: "user_id", required: true, class: "block w-full shadow-sm rounded-lg border border-gray-300 px-3 py-2.5 text-base" } %>
+        </div>
+        <button type="submit" class="w-full sm:w-auto rounded-lg px-4 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-medium cursor-pointer">確認借書</button>
+      <% end %>
+      <% if @library_books_on_shelf.empty? %>
+        <p class="text-sm text-gray-500 mt-2">目前無架上圖書館館藏可借。</p>
+      <% end %>
+    </div>
+
+    <!-- 還書 -->
+    <div class="bg-white rounded-xl shadow-md border border-gray-100 p-6">
+      <h2 class="font-semibold text-lg text-gray-900 mb-4">還書</h2>
+      <% if @library_books_borrowed.any? %>
+        <ul class="space-y-2">
+          <% @library_books_borrowed.each do |book| %>
+            <li class="flex flex-wrap items-center justify-between gap-2 py-2 border-b border-gray-100 last:border-0">
+              <span class="text-sm text-gray-900"><%= book.title %></span>
+              <span class="text-xs text-gray-500"><%= book.user&.name %> 借閱</span>
+              <%= button_to "還書", return_shelf_book_path(book), method: :post, class: "rounded-lg px-3 py-1.5 bg-amber-600 hover:bg-amber-500 text-white text-sm font-medium cursor-pointer", form: { data: { turbo_confirm: "確定還書？" } } %>
+            </li>
+          <% end %>
+        </ul>
+      <% else %>
+        <p class="text-sm text-gray-500">目前無借閱中的圖書館館藏。</p>
+      <% end %>
+    </div>
+  </div>
+</div>
+
+<script>
+  (function() {
+    var form = document.getElementById('borrow-form');
+    var select = document.getElementById('borrow_book_select');
+    if (!form || !select) return;
+    form.addEventListener('submit', function(e) {
+      var opt = select.options[select.selectedIndex];
+      var url = opt && opt.getAttribute('data-borrow-url');
+      if (url) form.setAttribute('action', url);
+    });
+  })();
+</script>

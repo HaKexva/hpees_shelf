@@ -19,6 +19,8 @@ Rails.application.routes.draw do
   resources :books do
     member do
       post :return_to_library
+      post :borrow
+      post :return_shelf
     end
     collection do
       get :import
