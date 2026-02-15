@@ -28,7 +28,9 @@ class UsersController < ApplicationController
 
   # POST /users or /users.json
   def create
-    @user = User.new(user_params)
+    attrs = user_params
+    _ensure_admin_batch_year(attrs)
+    @user = User.new(attrs)
 
     respond_to do |format|
       if @user.save
@@ -44,8 +46,10 @@ class UsersController < ApplicationController
 
   # PATCH/PUT /users/1 or /users/1.json
   def update
+    attrs = user_params
+    _ensure_admin_batch_year(attrs)
     respond_to do |format|
-      if @user.update(user_params)
+      if @user.update(attrs)
         format.html { redirect_to @user, notice: "人員已更新。", status: :see_other }
         format.json { render :show, status: :ok, location: @user }
       else
@@ -88,7 +92,21 @@ class UsersController < ApplicationController
   end
 
   private
-    # Use callbacks to share common setup or constraints between actions.
+    def _ensure_admin_batch_year(attrs)
+      return unless attrs[:admin].to_s == "1" || attrs["admin"].to_s == "1"
+      return if attrs[:batch_year_id].present? || attrs["batch_year_id"].present?
+      ids = attrs[:extra_batch_year_ids].presence || attrs["extra_batch_year_ids"].presence
+      first_id = ids.is_a?(Array) ? ids.reject(&:blank?).first : nil
+      if first_id.present?
+        attrs[:batch_year_id] = first_id
+        attrs["batch_year_id"] = first_id
+      else
+        office = BatchYear.find_by(is_office: true)
+        attrs[:batch_year_id] = office&.id
+        attrs["batch_year_id"] = office&.id
+      end
+    end
+
     def set_user
       @user = User.find(params.expect(:id))
     end

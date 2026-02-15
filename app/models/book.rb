@@ -39,9 +39,9 @@ class Book < ApplicationRecord
     end
   end
 
-  # The "Return to library" button is only shown during December–February and July–September each year; hidden in other months
+  # The "Return to library" button is only shown during January–March and July–September each year; hidden in other months
   def self.show_return_to_library_button?
-    [ 12, 1, 2, 7, 8, 9 ].include?(Date.current.month)
+    [ 1, 2, 3, 7, 8, 9 ].include?(Date.current.month)
   end
 
   private

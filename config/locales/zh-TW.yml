@@ -34,4 +34,12 @@ zh-TW:
       book:
         title: "書名"
         batch_year_id: "屆數"
+        source: "來源"
+    enums:
+      book:
+        source:
+          owned_by_library: "圖書館館藏"
+          donated: "捐贈的書"
+          owned_by_class: "班級的書"
+          owned_by_teacher: "老師的書"
 

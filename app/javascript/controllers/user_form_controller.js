@@ -13,6 +13,14 @@ export default class extends Controller {
     const checked = this.adminCheckboxTarget.checked
     if (this.hasPrimaryBatchRowTarget) {
       this.primaryBatchRowTarget.classList.toggle("hidden", checked)
+      const select = this.primaryBatchRowTarget.querySelector("select[name='user[batch_year_id]']")
+      if (select) {
+        if (checked) {
+          select.removeAttribute("required")
+        } else {
+          select.setAttribute("required", "required")
+        }
+      }
     }
     if (this.hasExtraBatchRowTarget) {
       this.extraBatchRowTarget.classList.toggle("hidden", !checked)

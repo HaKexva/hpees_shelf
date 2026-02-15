@@ -1,13 +1,20 @@
 <% content_for :title, "屆數列表" %>
 
-<div class="w-full">
-  <div class="flex justify-between items-center mb-6 flex-wrap gap-2">
+<div class="w-full px-4 sm:px-0 max-w-7xl mx-auto">
+  <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6">
     <div>
-      <h1 class="font-bold text-4xl">屆數列表</h1>
+      <h1 class="font-bold text-2xl sm:text-4xl text-gray-900">屆數列表</h1>
       <p class="mt-1 text-sm text-gray-500">目前學年度：<%= BatchYear.display_current_school_year_roc %>學年度</p>
     </div>
-    <div class="flex gap-2 flex-wrap">
-      <%= button_to "一鍵建立屆數（第1屆～第 #{BatchYear.max_batch_number_for_auto_create} 屆）", auto_create_batch_years_path, method: :post, class: "rounded-md px-3.5 py-2.5 bg-green-600 hover:bg-green-500 text-white font-medium cursor-pointer", form: { data: { turbo_confirm: "將自動建立第1屆～第 #{BatchYear.max_batch_number_for_auto_create} 屆。確定？" } } %>
+    <div class="flex flex-wrap gap-2 items-center">
+      <%= button_to "一鍵建立所有目前屆數", auto_create_batch_years_path, method: :post, class: "rounded-md px-3.5 py-2.5 bg-green-600 hover:bg-green-500 text-white font-medium cursor-pointer", form: { data: { turbo_confirm: "將自動建立所有目前屆數。確定？" } } %>
+      <% if @show_return_to_library_button %>
+        <% if @any_library_books_to_return %>
+          <%= link_to "歸還圖書館書籍", return_to_library_batch_books_path, class: "rounded-md px-3.5 py-2.5 bg-amber-600 hover:bg-amber-500 text-white block font-medium" %>
+        <% else %>
+          <span class="rounded-md px-3.5 py-2.5 bg-gray-100 text-gray-600 text-sm font-medium">已歸還完成</span>
+        <% end %>
+      <% end %>
       <% if BatchYear.show_advance_school_year_button? %>
         <% next_roc = BatchYear.display_current_school_year_roc + 1 %>
         <%= button_to "切換至#{next_roc}學年度", reassign_grades_batch_years_path, method: :post, class: "rounded-md px-3.5 py-2.5 bg-amber-600 hover:bg-amber-500 text-white font-medium cursor-pointer", form: { data: { turbo_confirm: "切換後即不可切回，確定？？" } } %>

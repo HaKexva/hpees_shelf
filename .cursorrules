@@ -1,0 +1,24 @@
+# Project rules for Hpees Shelf
+
+## Development workflow (follow every time you do work)
+
+### When doing things (start of work)
+1. **Linear issue**
+   - Check if a Linear issue exists for this work.
+   - If there is no issue, create one in the HAK team with:
+     - **As a** (who wants to accomplish something)
+     - **I want to** (what they want to accomplish)
+     - **So that** (why they want to accomplish that thing)
+2. **Branch**
+   - Create or switch to a branch for the work (e.g. use issue id or `hak-XX-description`).
+3. **PR**
+   - When ready, create a PR whose title starts with **`[HAK-XX]`** (Linear issue key).
+   - **Do only one thing per PR** — one change, one Linear issue.
+
+### When finish
+1. Merge the PR into `main`.
+2. Mark the Linear issue as Done in Linear.
+
+### Summary
+- One PR = one Linear issue = one change.
+- Always use branch, PR title `[HAK-XX] ...`, then merge to main and mark issue Done.
