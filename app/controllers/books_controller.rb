@@ -5,7 +5,7 @@ class BooksController < ApplicationController
   def index
     BatchYear.ensure_office_exists!
     # Filter out books with empty title and those "Returned to library" (hidden after return)
-    @books = Book.where.not(title: [ nil, "" ]).where.not(status: Book::STATUS_RETURNED_LIBRARY).includes(:batch_year)
+    @books = Book.where.not(title: [ nil, "" ]).where.not(status: Book::STATUS_RETURNED_LIBRARY).includes(:batch_year, :user)
     @books = @books.where(batch_year_id: params[:batch_year_id]) if params[:batch_year_id].present?
     if params[:q].to_s.strip.present?
       pattern = "%#{Book.sanitize_sql_like(params[:q].strip)}%"
@@ -15,6 +15,7 @@ class BooksController < ApplicationController
     @filter_batch_year_id = params[:batch_year_id]
     @filter_q = params[:q].to_s.strip.presence
     @invalid_books = @books.select { |b| b.missing_required_fields.any? }
+    @books_with_invalid_isbn = @books.select(&:invalid_isbn?)
     @any_library_books_to_return = Book.where(source: :owned_by_library).where.not(status: Book::STATUS_RETURNED_LIBRARY).exists?
   end
 
@@ -262,6 +263,28 @@ class BooksController < ApplicationController
       format.html { redirect_to books_path, notice: "書籍已刪除。", status: :see_other }
       format.json { head :no_content }
     end
+  end
+
+  # POST /books/borrow_by_isbn — Borrow by scanned/entered ISBN (借書掃 ISBN)
+  def borrow_by_isbn
+    isbn = params[:isbn].to_s.strip
+    user_id = params[:user_id].presence&.to_i
+    user = User.find_by(id: user_id)
+    unless user
+      redirect_to root_path, alert: "請選擇借閱人。", status: :see_other
+      return
+    end
+    if isbn.blank?
+      redirect_to root_path, alert: "請掃描或輸入 ISBN。", status: :see_other
+      return
+    end
+    book = Book.where(source: :owned_by_library, status: Book::STATUS_ON_SHELF).where("TRIM(COALESCE(isbn, '')) = ?", isbn).first
+    unless book
+      redirect_to root_path, alert: "找不到架上且符合此 ISBN 的圖書館館藏（ISBN：#{isbn}）。", status: :see_other
+      return
+    end
+    book.update!(user_id: user.id, status: Book::STATUS_BORROWED, borrowed_at: Time.current)
+    redirect_to root_path, notice: "已登記借閱：#{book.title} → #{user.name}。", status: :see_other
   end
 
   # POST /books/1/borrow — Library book: set borrower (借書)

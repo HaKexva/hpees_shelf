@@ -52,6 +52,24 @@
     <% end %>
   </div>
 
+  <% if @books_with_invalid_isbn.present? %>
+    <div class="mb-4 py-3 px-4 sm:py-2 sm:px-3 bg-amber-50 text-amber-800 text-sm rounded-xl border border-amber-200">
+      <p class="font-medium mb-1">下列書籍的 ISBN 格式錯誤（應為 13 碼且校驗碼正確）：</p>
+      <ul class="list-disc ml-5 space-y-0.5">
+        <% @books_with_invalid_isbn.each do |book| %>
+          <li class="flex items-center justify-between gap-2">
+            <span><span class="font-semibold"><%= book.title %></span> — ISBN <%= book.isbn %></span>
+            <%= link_to edit_book_path(book), class: "inline-flex text-indigo-600 hover:text-indigo-900 shrink-0", title: "編輯", aria: { label: "編輯" } do %>
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+              </svg>
+            <% end %>
+          </li>
+        <% end %>
+      </ul>
+    </div>
+  <% end %>
+
   <!-- 桌機版：表格 + 批次刪除 -->
   <div class="hidden md:block">
     <%= form_with url: bulk_destroy_books_path, method: :delete, id: "bulk-destroy-books-form" do |f| %>
@@ -93,7 +111,10 @@
                   <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900"><%= book.title %></td>
                   <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500"><%= book.batch_year&.display_label || "—" %></td>
                   <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500"><%= book.source.present? ? t("activerecord.enums.book.source.#{book.source}") : "—" %></td>
-                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500"><%= book.isbn %></td>
+                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    <%= book.isbn %>
+                    <% if book.invalid_isbn? %><span class="ml-1 text-amber-600" title="ISBN 格式錯誤">⚠</span><% end %>
+                  </td>
                   <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500"><%= book.volume %></td>
                   <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500"><%= book.total %></td>
                   <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500"><%= book.display_status %></td>
@@ -136,7 +157,7 @@
                   <div class="flex gap-1.5"><span class="text-gray-400 shrink-0">來源</span><span class="text-gray-700 truncate"><%= t("activerecord.enums.book.source.#{book.source}") %></span></div>
                 <% end %>
                 <% if book.isbn.present? %>
-                  <div class="flex gap-1.5 min-w-0"><span class="text-gray-400 shrink-0">ISBN</span><span class="text-gray-700 truncate"><%= book.isbn %></span></div>
+                  <div class="flex gap-1.5 min-w-0"><span class="text-gray-400 shrink-0">ISBN</span><span class="text-gray-700 truncate"><%= book.isbn %><% if book.invalid_isbn? %><span class="text-amber-600 ml-0.5" title="ISBN 格式錯誤">⚠</span><% end %></span></div>
                 <% end %>
                 <div class="flex gap-1.5"><span class="text-gray-400 shrink-0">冊數</span><span class="text-gray-700"><%= book.volume %></span></div>
                 <div class="flex gap-1.5"><span class="text-gray-400 shrink-0">總數</span><span class="text-gray-700"><%= book.total %></span></div>

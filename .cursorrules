@@ -19,6 +19,12 @@
 1. Merge the PR into `main`.
 2. Mark the Linear issue as Done in Linear.
 
+### Language
+- Use **English** for:
+  - PR title and description
+  - Commit messages
+  - Comments inside source files
+
 ### Summary
 - One PR = one Linear issue = one change.
 - Always use branch, PR title `[HAK-XX] ...`, then merge to main and mark issue Done.

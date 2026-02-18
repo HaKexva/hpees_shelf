@@ -20,6 +20,9 @@
      Example: `[HAK-21] Add book tag filter in book page`
    - **One thing per PR:** Each PR should do exactly one thing and link to one Linear issue (use the subissue/child if applicable).
 
+### Language
+- Use **English** for PR description, commit messages, and comments inside source files.
+
 ### When finishing work
 
 1. **Merge**

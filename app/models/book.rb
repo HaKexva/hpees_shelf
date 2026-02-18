@@ -3,6 +3,7 @@ class Book < ApplicationRecord
   belongs_to :user, optional: true # borrower (for library books)
   validates :batch_year_id, presence: true
   validates :title, presence: true
+  validate :isbn_must_be_valid_13_if_present
   enum :source, { owned_by_library: 0, donated: 1, owned_by_class: 2, owned_by_teacher: 3 }
   before_validation :set_total_to_one_if_blank
 
@@ -27,16 +28,24 @@ class Book < ApplicationRecord
   EDITION_PART_BOTTOM = "下冊"
   EDITION_PART_OPTIONS = [ [ "—", "" ], [ EDITION_PART_TOP, EDITION_PART_TOP ], [ EDITION_PART_BOTTOM, EDITION_PART_BOTTOM ] ].freeze
 
-  # Display status: borrowed items with borrowed_at more than one day ago are treated as missing (status is stored in Chinese)
+  # Display status: borrowed items with borrowed_at more than one day ago are treated as missing (status is stored in Chinese).
+  # When borrowed, appends borrower name e.g. "借閱中（王小明）".
   def display_status
     return status if status == STATUS_RETURNED_LIBRARY
     return STATUS_ON_SHELF if status == STATUS_ON_SHELF
     return STATUS_MISSING if status == STATUS_MISSING
     if status == STATUS_BORROWED && borrowed_at.present? && borrowed_at < 1.day.ago
       STATUS_MISSING
+    elsif status == STATUS_BORROWED && user.present?
+      "#{STATUS_BORROWED}（#{user.name}）"
     else
       STATUS_BORROWED
     end
+  end
+
+  # True when book has an ISBN that fails ISBN-13 validation (for showing warnings on list/show)
+  def invalid_isbn?
+    isbn.present? && !self.class.valid_isbn13?(isbn)
   end
 
   # The "Return to library" button is only shown during January–March and July–September each year; hidden in other months
@@ -44,7 +53,38 @@ class Book < ApplicationRecord
     [ 1, 2, 3, 7, 8, 9 ].include?(Date.current.month)
   end
 
+  # Normalize ISBN to 13 digits only (strip hyphens/spaces) for comparison. Returns nil if not 13 digits.
+  def self.normalize_isbn13(raw)
+    s = raw.to_s.gsub(/\D/, "")
+    s.length == 13 ? s : nil
+  end
+
+  # ISBN-13: 13 digits; check digit = (10 - (weighted sum of first 12 mod 10)) mod 10, weights alternating 1, 3, 1, 3...
+  def self.valid_isbn13?(raw)
+    digits = raw.to_s.gsub(/\D/, "").chars
+    return false unless digits.length == 13
+
+    weights = [ 1, 3, 1, 3, 1, 3, 1, 3, 1, 3, 1, 3 ]
+    sum = 0
+    12.times { |i| sum += digits[i].to_i * weights[i] }
+    check = (10 - (sum % 10)) % 10
+    check == digits[12].to_i
+  end
+
+  # Compare two ISBNs by normalized 13 digits (so 978-986-181-728-6 matches 9789861817286)
+  def self.isbn_match?(stored, input)
+    return false if stored.blank?
+    n = normalize_isbn13(input)
+    n.present? && n == normalize_isbn13(stored)
+  end
+
   private
+
+  def isbn_must_be_valid_13_if_present
+    return if isbn.blank?
+    return if self.class.valid_isbn13?(isbn)
+    errors.add(:isbn, "應為 13 碼且校驗碼正確")
+  end
 
   def set_total_to_one_if_blank
     self.total = 1 if total.blank?
