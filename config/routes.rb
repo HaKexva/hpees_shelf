@@ -19,10 +19,13 @@ Rails.application.routes.draw do
   resources :books do
     member do
       post :return_to_library
+      post :borrow
+      post :return_shelf
     end
     collection do
       get :import
       post :import
+      post :borrow_by_isbn
       get :return_to_library_batch
       post :apply_return_to_library_batch
       delete :bulk_destroy
@@ -50,4 +53,6 @@ Rails.application.routes.draw do
 
   # Defines the root path route ("/")
   root "dashboard#index"
+  post "process_isbn", to: "dashboard#process_isbn", as: :process_isbn
+  post "confirm_borrow_return", to: "dashboard#confirm_borrow_return", as: :confirm_borrow_return
 end

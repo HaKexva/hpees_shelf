@@ -6,6 +6,7 @@
   <div>
     <strong class="block font-medium mb-1">ISBN：</strong>
     <%= book.isbn %>
+    <% if book.invalid_isbn? %><span class="text-amber-600 ml-1" title="ISBN 格式錯誤">⚠ 格式錯誤</span><% end %>
   </div>
   <div>
     <strong class="block font-medium mb-1">總數：</strong>

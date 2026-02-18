@@ -1,0 +1,112 @@
+<% content_for :title, "借還書" %>
+
+<div class="w-full px-4 sm:px-0 max-w-3xl mx-auto">
+  <h1 class="font-bold text-2xl sm:text-4xl text-gray-900 mb-6">借還書</h1>
+
+  <div class="space-y-8">
+    <!-- 借還書表單：管理員可選借/還、ISBN、學生（學號選填）、多本時選冊別 -->
+    <div class="bg-white rounded-xl shadow-md border border-gray-100 p-6">
+      <% if current_user_admin? || current_user.nil? %>
+        <h2 class="font-semibold text-lg text-gray-900 mb-4">借書 / 還書</h2>
+        <%= form_with url: process_isbn_path, method: :post, local: true, class: "space-y-4", data: { turbo: false }, id: "scan-form" do |f| %>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">借書 或 還書</label>
+            <div class="flex gap-4">
+              <label class="inline-flex items-center gap-2">
+                <input type="radio" name="action_type" value="checkout" checked class="rounded border-gray-300 text-blue-600 focus:ring-blue-600">
+                <span class="text-sm font-medium text-gray-700">借書</span>
+              </label>
+              <label class="inline-flex items-center gap-2">
+                <input type="radio" name="action_type" value="return" class="rounded border-gray-300 text-blue-600 focus:ring-blue-600">
+                <span class="text-sm font-medium text-gray-700">還書</span>
+              </label>
+            </div>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">ISBN（掃描或輸入）</label>
+            <input type="text" name="isbn" id="scan_isbn" placeholder="請掃描或輸入 ISBN" required autofocus autocomplete="off" class="block w-full shadow-sm rounded-lg border border-gray-300 px-3 py-2.5 text-base" />
+          </div>
+          <div class="relative" data-controller="student-search" data-student-search-placeholder-value="搜尋姓名或學號…">
+            <label class="block text-sm font-medium text-gray-700 mb-2">借閱人</label>
+            <input type="hidden" name="user_id" data-student-search-target="hidden" value="">
+            <input type="text" data-student-search-target="input" placeholder="搜尋姓名或學號…" autocomplete="off" class="block w-full max-w-md shadow-sm rounded-lg border border-gray-300 px-3 py-2.5 text-base" data-action="focus->student-search#open input->student-search#filter">
+            <div data-student-search-target="list" class="hidden absolute z-10 mt-1 w-full max-w-md rounded-lg border border-gray-200 bg-white shadow-lg max-h-60 overflow-auto" role="listbox">
+              <% if @users.present? %>
+                <% @users.each do |u| %>
+                  <% if u.admin? %>
+                    <% label = "#{u.name}（老師）" %>
+                    <% search_text = "#{u.name} 老師" %>
+                  <% else %>
+                    <% label = "#{u.name}（#{u.id_number.presence || '—'}）" %>
+                    <% search_text = "#{u.name} #{u.id_number}" %>
+                  <% end %>
+                  <div data-student-search-target="item" data-user-id="<%= u.id %>" data-label="<%= label %>" data-search-text="<%= search_text %>" class="cursor-pointer px-3 py-2.5 text-sm text-gray-900 hover:bg-gray-100 border-b border-gray-50 last:border-0" role="option" data-action="click->student-search#select">
+                    <%= label %>
+                  </div>
+                <% end %>
+                <p data-student-search-target="emptyHint" class="hidden px-3 py-2.5 text-sm text-gray-500">無符合的學生</p>
+              <% else %>
+                <p class="px-3 py-2.5 text-sm text-gray-500">尚無學生資料</p>
+              <% end %>
+            </div>
+          </div>
+          <button type="submit" class="w-full sm:w-auto rounded-lg px-4 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-medium cursor-pointer">送出</button>
+        <% end %>
+      <% else %>
+        <!-- 學生：只掃 ISBN -->
+        <h2 class="font-semibold text-lg text-gray-900 mb-4">掃描借/還書</h2>
+        <%= form_with url: process_isbn_path, method: :post, local: true, class: "space-y-4", data: { turbo: false }, id: "scan-form" do |f| %>
+          <input type="hidden" name="mode" value="self">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">ISBN（掃描或輸入）</label>
+            <input type="text" name="isbn" id="scan_isbn" placeholder="請掃描或輸入 ISBN" required autofocus autocomplete="off" class="block w-full shadow-sm rounded-lg border border-gray-300 px-3 py-2.5 text-base" />
+          </div>
+          <button type="submit" class="w-full sm:w-auto rounded-lg px-4 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-medium cursor-pointer">送出</button>
+        <% end %>
+      <% end %>
+    </div>
+
+    <!-- 多本同 ISBN：請選擇冊別（volume 選填） -->
+    <% if @pending_books.present? %>
+      <div class="bg-amber-50 rounded-xl border border-amber-200 p-6">
+        <h2 class="font-semibold text-lg text-gray-900 mb-2">有多本相同 ISBN，請選擇冊別</h2>
+        <p class="text-sm text-gray-600 mb-4">ISBN：<%= @pending_isbn_display %></p>
+        <%= form_with url: confirm_borrow_return_path, method: :post, local: true, data: { turbo: false } do |f| %>
+          <div class="mb-4">
+            <label class="block text-sm font-medium text-gray-700 mb-2">選擇書籍（冊別）</label>
+            <select name="book_id" required class="block w-full shadow-sm rounded-lg border border-gray-300 px-3 py-2.5 text-base">
+              <option value="">請選擇</option>
+              <% @pending_books.each do |book| %>
+                <option value="<%= book.id %>">
+                  <%= book.title %><%= " #{book.edition_part}" if book.edition_part.present? %><%= " 冊#{book.volume}" if book.volume.present? %> — <%= book.status == Book::STATUS_ON_SHELF ? "架上" : "借閱中" %><%= "（#{book.user&.name}）" if book.status == Book::STATUS_BORROWED && book.user %>
+                </option>
+              <% end %>
+            </select>
+          </div>
+          <button type="submit" class="rounded-lg px-4 py-2.5 bg-amber-600 hover:bg-amber-500 text-white font-medium cursor-pointer">確認</button>
+          <%= link_to "取消", root_path(clear_pending: "1"), class: "ml-2 text-gray-600 hover:text-gray-900 text-sm font-medium" %>
+        <% end %>
+        <p class="text-xs text-gray-500 mt-2">取消後需重新掃描 ISBN。</p>
+      </div>
+    <% end %>
+
+    <!-- 目前借閱中（參考用） -->
+    <div class="bg-white rounded-xl shadow-md border border-gray-100 p-6">
+      <h2 class="font-semibold text-lg text-gray-900 mb-4">目前借閱中</h2>
+      <% if @library_books_borrowed.any? %>
+        <ul class="space-y-2">
+          <% @library_books_borrowed.each do |book| %>
+            <li class="flex flex-wrap items-center justify-between gap-2 py-2 border-b border-gray-100 last:border-0">
+              <span class="text-sm text-gray-900"><%= book.title %><%= " #{book.edition_part}" if book.edition_part.present? %></span>
+              <span class="text-xs text-gray-500"><%= book.user&.name %> 借閱 · ISBN <%= book.isbn %></span>
+            </li>
+          <% end %>
+        </ul>
+        <p class="text-xs text-gray-500 mt-2">還書請在上方選擇「還書」並掃描或輸入該書 ISBN。</p>
+      <% else %>
+        <p class="text-sm text-gray-500">目前無借閱中的圖書館館藏。</p>
+      <% end %>
+    </div>
+  </div>
+</div>
+

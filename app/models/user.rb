@@ -9,6 +9,13 @@ class User < ApplicationRecord
   has_many :library_loan_histories, dependent: :nullify
   before_save :sync_grade_id_from_batch_year
 
+  validates :id_number,
+            format: {
+              with: /\A\d{6}\z/,
+              allow_blank: true,
+              message: "需為 6 位數字"
+            }
+
   scope :active, -> { where(resigned_at: nil) }
 
   def resigned?
