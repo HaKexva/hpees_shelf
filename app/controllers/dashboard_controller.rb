@@ -78,6 +78,11 @@ class DashboardController < ApplicationController
     end
 
     doing_checkout = action == "checkout" || (action.blank? && book.status == Book::STATUS_ON_SHELF)
+    if doing_checkout && book.status != Book::STATUS_ON_SHELF
+      _clear_pending_session
+      redirect_to root_path, alert: "此書已借閱中，請勿重複借閱。", status: :see_other
+      return
+    end
     if doing_checkout && !borrower.admin? && book.batch_year_id != borrower.batch_year_id
       _clear_pending_session
       redirect_to root_path, alert: "此書與借閱人的屆數不同，無法借閱。", status: :see_other
