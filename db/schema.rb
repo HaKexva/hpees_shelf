@@ -43,9 +43,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_02_10_000000) do
     t.string "title"
     t.integer "total"
     t.datetime "updated_at", null: false
-    t.integer "user_id"
     t.integer "volume"
-    t.index ["user_id"], name: "index_books_on_user_id"
   end
 
   create_table "library_loan_histories", force: :cascade do |t|
@@ -137,7 +135,6 @@ ActiveRecord::Schema[8.1].define(version: 2026_02_10_000000) do
   end
 
   add_foreign_key "books", "batch_years"
-  add_foreign_key "books", "users"
   add_foreign_key "library_loan_histories", "batch_years"
   add_foreign_key "library_loan_histories", "users"
   add_foreign_key "tag_rule_options", "tag_rule_groups"
