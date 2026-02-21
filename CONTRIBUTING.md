@@ -10,6 +10,9 @@
      - **As a** (who wants to accomplish something)
      - **I want to** (what they want to accomplish)
      - **So that** (why they want to accomplish that thing)
+   - When creating a new Linear issue, remember to:
+     - **Assign** to ray120424@gmail.com
+     - **Add to** the **hpees_shelf** project
 
 2. **Branch**
    - Create or switch to a branch for the work (e.g. `hak-XX-short-description` or use the issue identifier).
