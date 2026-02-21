@@ -22,6 +22,11 @@ class User < ApplicationRecord
     resigned_at.present?
   end
 
+  # Can only restore (cancel resignation) if resigned within the last month (HAK-41)
+  def restore_allowed?
+    resigned_at.present? && resigned_at >= 1.month.ago
+  end
+
   private
 
   # Class batches copy batch_year.grade_id; admins/teachers are identified only by `admin` flag now.
