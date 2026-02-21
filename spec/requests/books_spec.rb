@@ -24,8 +24,9 @@ RSpec.describe "Books", type: :request do
         post books_url, params: {
           book: {
             batch_year_id: batch_year.id,
-            isbn: "9780123456789",
+            isbn: "9780123456786",
             note: "Test note",
+            source: "owned_by_library",
             title: "New Book",
             total: 1,
             volume: 1
