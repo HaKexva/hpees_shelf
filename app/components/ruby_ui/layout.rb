@@ -14,10 +14,12 @@ module RubyUI
           # 3. Mobile Header (Hidden on desktop)
           render_mobile_header
 
-          # 4. Page Content
+          # 4. Page Content (unified width + padding for all pages and flash)
           main(class: "flex-1 overflow-y-auto p-4") do
-            render_flash_messages
-            block.call
+            div(class: "w-full max-w-6xl mx-auto px-4 sm:px-6 space-y-4") do
+              render_flash_messages
+              block.call
+            end
           end
         end
       end

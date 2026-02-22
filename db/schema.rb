@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_02_10_000000) do
+ActiveRecord::Schema[8.1].define(version: 2026_02_21_075238) do
   create_table "app_settings", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.string "key", null: false
@@ -43,7 +43,20 @@ ActiveRecord::Schema[8.1].define(version: 2026_02_10_000000) do
     t.string "title"
     t.integer "total"
     t.datetime "updated_at", null: false
+    t.integer "user_id"
     t.integer "volume"
+    t.index ["user_id"], name: "index_books_on_user_id"
+  end
+
+  create_table "circulation_records", force: :cascade do |t|
+    t.integer "book_id", null: false
+    t.datetime "borrowed_at", null: false
+    t.datetime "created_at", null: false
+    t.datetime "returned_at"
+    t.datetime "updated_at", null: false
+    t.integer "user_id", null: false
+    t.index ["book_id"], name: "index_circulation_records_on_book_id"
+    t.index ["user_id"], name: "index_circulation_records_on_user_id"
   end
 
   create_table "library_loan_histories", force: :cascade do |t|
@@ -135,6 +148,9 @@ ActiveRecord::Schema[8.1].define(version: 2026_02_10_000000) do
   end
 
   add_foreign_key "books", "batch_years"
+  add_foreign_key "books", "users"
+  add_foreign_key "circulation_records", "books"
+  add_foreign_key "circulation_records", "users"
   add_foreign_key "library_loan_histories", "batch_years"
   add_foreign_key "library_loan_histories", "users"
   add_foreign_key "tag_rule_options", "tag_rule_groups"
