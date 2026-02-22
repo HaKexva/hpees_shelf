@@ -24,6 +24,23 @@ class DashboardController < ApplicationController
     end
   end
 
+  def loan_history
+    if current_user_admin? || current_user.nil?
+      @users = User.active.order(:admin, :name)
+      filter_user_id = params[:user_id].presence&.to_i
+      filter_user_id = current_user&.id if filter_user_id.blank? && current_user.present?
+      if filter_user_id.present?
+        @records = CirculationRecord.where(user_id: filter_user_id).includes(:book, :user).order(borrowed_at: :desc).limit(500)
+        @filter_user_id = filter_user_id
+      else
+        @records = []
+        @filter_user_id = nil
+      end
+    else
+      @records = current_user.circulation_records.includes(:book).order(borrowed_at: :desc).limit(500)
+    end
+  end
+
   def process_isbn
     isbn = params[:isbn].to_s.strip
     if isbn.blank?
@@ -247,8 +264,10 @@ class DashboardController < ApplicationController
   def _do_action(book, action, borrower)
     if action == "checkout"
       book.update!(user_id: borrower.id, status: Book::STATUS_BORROWED, borrowed_at: Time.current)
+      book.circulation_records.create!(user_id: borrower.id, borrowed_at: Time.current)
       @process_notice = "已登記借閱：#{book.title} → #{borrower.name}。"
     else
+      book.circulation_records.where(returned_at: nil).update_all(returned_at: Time.current)
       book.update!(user_id: nil, status: Book::STATUS_ON_SHELF, borrowed_at: nil)
       @process_notice = "已還書：#{book.title}。"
     end
@@ -257,8 +276,10 @@ class DashboardController < ApplicationController
   def _do_borrow_or_return_by_status(book, borrower)
     if book.status == Book::STATUS_ON_SHELF
       book.update!(user_id: borrower.id, status: Book::STATUS_BORROWED, borrowed_at: Time.current)
+      book.circulation_records.create!(user_id: borrower.id, borrowed_at: Time.current)
       @process_notice = "已登記借閱：#{book.title} → #{borrower.name}。"
     else
+      book.circulation_records.where(returned_at: nil).update_all(returned_at: Time.current)
       book.update!(user_id: nil, status: Book::STATUS_ON_SHELF, borrowed_at: nil)
       @process_notice = "已還書：#{book.title}。"
     end

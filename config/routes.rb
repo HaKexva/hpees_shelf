@@ -54,6 +54,7 @@ Rails.application.routes.draw do
 
   # Defines the root path route ("/")
   root "dashboard#index"
+  get "loan_history", to: "dashboard#loan_history", as: :loan_history
   post "process_isbn", to: "dashboard#process_isbn", as: :process_isbn
   post "confirm_borrow_return", to: "dashboard#confirm_borrow_return", as: :confirm_borrow_return
 end
