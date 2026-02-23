@@ -41,6 +41,22 @@ class DashboardController < ApplicationController
     end
   end
 
+  def validate_isbn
+    isbn = params[:isbn].to_s.strip
+    if isbn.blank?
+      render json: { has_13_digits: false, check_digit_valid: false, book_exists: false }, status: :bad_request
+      return
+    end
+    digits_only = isbn.gsub(/\D/, "")
+    has_13_digits = digits_only.length == 13
+    check_digit_valid = has_13_digits && Book.valid_isbn13?(isbn)
+    book_exists = Book.where(source: :owned_by_library)
+                      .where.not(status: Book::STATUS_RETURNED_LIBRARY)
+                      .where.not(title: [ nil, "" ])
+                      .to_a.any? { |b| Book.isbn_match?(b.isbn, isbn) }
+    render json: { has_13_digits: has_13_digits, check_digit_valid: check_digit_valid, book_exists: book_exists }
+  end
+
   def process_isbn
     isbn = params[:isbn].to_s.strip
     if isbn.blank?
