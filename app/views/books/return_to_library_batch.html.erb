@@ -1,18 +1,20 @@
 <% content_for :title, "歸還圖書館書籍" %>
 
-<div class="w-full max-w-md">
-  <h1 class="font-bold text-4xl mb-2">歸還圖書館書籍</h1>
-  <p class="text-gray-600 mb-6">請選擇要將哪一屆（或全部屆數）的圖書館的書標記為「歸還圖書館」。</p>
+<div class="w-full max-w-5xl mx-auto px-4 sm:px-0 pb-8">
+  <div class="w-full max-w-md">
+    <h1 class="font-bold text-4xl mb-2">歸還圖書館書籍</h1>
+    <p class="text-gray-600 mb-6">請選擇要將哪一屆（或全部屆數）的圖書館的書標記為「歸還圖書館」。</p>
 
-  <%= form_with url: apply_return_to_library_batch_books_path, method: :post, local: true, class: "space-y-4" do |f| %>
-    <div>
-      <%= f.label :batch_year_id, "屆數", class: "block text-sm font-medium text-gray-700 mb-2" %>
-      <% options = [["全部", "all"]] + @batch_years.map { |b| [b.display_label_with_grade, b.id] } %>
-      <%= select_tag :batch_year_id, options_for_select(options, params[:batch_year_id]), class: "block w-full shadow-sm rounded-md border border-gray-300 px-3 py-2" %>
-    </div>
-    <div class="flex gap-2">
-      <%= f.submit "確定歸還", class: "rounded-md px-3.5 py-2.5 bg-amber-600 hover:bg-amber-500 text-white font-medium cursor-pointer" %>
-      <%= link_to "取消", books_path, class: "rounded-md px-3.5 py-2.5 bg-gray-100 hover:bg-gray-50 font-medium" %>
+    <%= form_with url: apply_return_to_library_batch_books_path, method: :post, local: true, class: "space-y-4" do |f| %>
+      <div>
+        <%= f.label :batch_year_id, "屆數", class: "block text-sm font-medium text-gray-700 mb-2" %>
+        <% options = [["全部", "all"]] + @batch_years.map { |b| [b.display_label_with_grade, b.id] } %>
+        <%= select_tag :batch_year_id, options_for_select(options, params[:batch_year_id]), class: "block w-full shadow-sm rounded-md border border-gray-300 px-3 py-2" %>
+      </div>
+      <div class="flex gap-2">
+        <%= f.submit "確定歸還", class: "rounded-md px-3.5 py-2.5 bg-amber-600 hover:bg-amber-500 text-white font-medium cursor-pointer" %>
+        <%= link_to "取消", books_path, class: "rounded-md px-3.5 py-2.5 bg-gray-100 hover:bg-gray-50 font-medium" %>
+      </div>
     </div>
   <% end %>
 </div>

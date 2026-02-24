@@ -1,9 +1,11 @@
 <% content_for :title, "新增人員" %>
 
-<div class="mx-auto md:w-2/3 w-full">
-  <h1 class="font-bold text-4xl">新增人員</h1>
+<div class="w-full max-w-5xl mx-auto px-4 sm:px-0 pb-8">
+  <div class="mx-auto md:w-2/3 w-full">
+    <h1 class="font-bold text-4xl mb-6">新增人員</h1>
 
-  <%= render "form", user: @user %>
+    <%= render "form", user: @user %>
 
-  <%= link_to "返回人員列表", users_path, class: "ml-2 rounded-md px-3.5 py-2.5 bg-gray-100 hover:bg-gray-50 inline-block font-medium" %>
+    <%= link_to "返回人員列表", users_path, class: "ml-2 rounded-md px-3.5 py-2.5 bg-gray-100 hover:bg-gray-50 inline-block font-medium" %>
+  </div>
 </div>

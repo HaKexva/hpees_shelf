@@ -1,16 +1,18 @@
 <% content_for :title, "書籍詳情" %>
 
-<div class="md:w-2/3 w-full">
-  <h1 class="font-bold text-4xl">書籍詳情</h1>
+<div class="w-full max-w-5xl mx-auto px-4 sm:px-0 pb-8">
+  <div class="md:w-2/3 w-full">
+    <h1 class="font-bold text-4xl mb-6">書籍詳情</h1>
 
-  <%= render @book %>
+    <%= render @book %>
 
-  <div class="flex flex-wrap gap-2 items-center mt-4">
-    <%= link_to "編輯此書籍", edit_book_path(@book), class: "rounded-md px-3.5 py-2.5 bg-gray-100 hover:bg-gray-50 font-medium" %>
-    <%= link_to "返回書籍列表", books_path, class: "rounded-md px-3.5 py-2.5 bg-gray-100 hover:bg-gray-50 font-medium" %>
-    <% if @book.owned_by_library? && @book.status != Book::STATUS_RETURNED_LIBRARY && Book.show_return_to_library_button? %>
-      <%= button_to "歸還圖書館", return_to_library_book_path(@book), method: :post, class: "rounded-md px-3.5 py-2.5 bg-amber-600 hover:bg-amber-500 text-white font-medium cursor-pointer", data: { turbo_confirm: "確定要將此書標記為「歸還圖書館」？" } %>
-    <% end %>
-    <%= button_to "刪除此書籍", @book, method: :delete, class: "rounded-md px-3.5 py-2.5 text-white bg-red-600 hover:bg-red-500 font-medium cursor-pointer", data: { turbo_confirm: "確定要刪除嗎？" } %>
+    <div class="flex flex-wrap gap-2 items-center mt-4">
+      <%= link_to "編輯此書籍", edit_book_path(@book), class: "rounded-md px-3.5 py-2.5 bg-gray-100 hover:bg-gray-50 font-medium" %>
+      <%= link_to "返回書籍列表", books_path, class: "rounded-md px-3.5 py-2.5 bg-gray-100 hover:bg-gray-50 font-medium" %>
+      <% if @book.owned_by_library? && @book.status != Book::STATUS_RETURNED_LIBRARY && Book.show_return_to_library_button? %>
+        <%= button_to "歸還圖書館", return_to_library_book_path(@book), method: :post, class: "rounded-md px-3.5 py-2.5 bg-amber-600 hover:bg-amber-500 text-white font-medium cursor-pointer", data: { turbo_confirm: "確定要將此書標記為「歸還圖書館」？" } %>
+      <% end %>
+      <%= button_to "刪除此書籍", @book, method: :delete, class: "rounded-md px-3.5 py-2.5 text-white bg-red-600 hover:bg-red-500 font-medium cursor-pointer", data: { turbo_confirm: "確定要刪除嗎？" } %>
+    </div>
   </div>
 </div>

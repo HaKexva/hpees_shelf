@@ -46,8 +46,8 @@ module RubyUI
     end
 
     def render_desktop_sidebar
-      # "hidden md:flex" ensures this is only visible on desktop
-      div(class: "hidden md:flex w-64 flex-col border-r bg-card h-full") do
+      # "hidden lg:flex" so iPad (portrait/split) uses sheet; desktop sidebar from 1024px up
+      div(class: "hidden lg:flex w-64 shrink-0 flex-col border-r bg-card h-full") do
         div(class: "p-6") do
           h1(class: "text-lg font-semibold") { APP_NAME }
         end
@@ -58,8 +58,8 @@ module RubyUI
     end
 
     def render_mobile_header
-      # "md:hidden" ensures this is only visible on mobile
-      header(class: "md:hidden flex items-center justify-between border-b px-4 py-3 bg-card") do
+      # "lg:hidden" so iPad and phones get hamburger + sheet; hidden from 1024px up
+      header(class: "lg:hidden flex items-center justify-between border-b px-4 py-3 bg-card shrink-0") do
         span(class: "font-semibold") { APP_NAME }
 
         # Mobile "Hamburger" Menu -> Aggregates to top right
@@ -70,8 +70,8 @@ module RubyUI
             end
           end
 
-          # The Sheet slides in. You can use side: :top, :left, or :right
-          SheetContent(side: :right) do
+          # Fixed width so sidebar is same on every page; matches MobileSidebar (18rem)
+          SheetContent(side: :right, class: "w-[18rem] max-w-[85vw] flex flex-col") do
             SheetHeader do
               SheetTitle { "導覽選單" }
             end
