@@ -19,4 +19,3 @@ pin "motion", to: "https://cdn.jsdelivr.net/npm/motion@11.11.17/+esm"
 pin "chart.js/auto", to: "https://cdn.jsdelivr.net/npm/chart.js@4.5.1/auto/+esm"
 pin "embla-carousel" # @8.6.0
 pin "fuse.js" # @7.1.0
-pin "@zxing/browser", to: "https://cdn.jsdelivr.net/npm/@zxing/browser@latest/+esm"
