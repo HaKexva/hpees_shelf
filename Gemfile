@@ -80,3 +80,9 @@ gem "phlex-rails", "~> 2.4"
 gem "tailwind_merge", "~> 1.3"
 
 gem "rouge", "~> 4.7"
+
+# Security: explicit constraints for vulnerable transitive dependencies
+# See GHSA-wx95-c6cv-8532
+gem "nokogiri", ">= 1.19.1"
+# See GHSA-mxw3-3hh2-x2mh and GHSA-whrj-4476-wvmp
+gem "rack", ">= 3.2.5"

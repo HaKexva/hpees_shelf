@@ -7,4 +7,3 @@ class ChangeBooksVolumeToString < ActiveRecord::Migration[8.1]
     change_column :books, :volume, :integer
   end
 end
-
