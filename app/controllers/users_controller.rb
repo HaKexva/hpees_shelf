@@ -7,6 +7,7 @@ class UsersController < ApplicationController
     scope = scope.active unless params[:include_resigned] == "1"
     @users = scope.order(:name)
     @include_resigned = params[:include_resigned] == "1"
+    @has_resigned = User.where.not(resigned_at: nil).exists?
   end
 
   # GET /users/1 or /users/1.json
@@ -60,14 +61,18 @@ class UsersController < ApplicationController
     end
   end
 
-  # POST /users/:id/cancel_resignation
+  # POST /users/:id/cancel_resignation (HAK-41: only if resigned < 1 month)
   def cancel_resignation
-    if @user.resigned?
-      @user.update!(resigned_at: nil)
-      redirect_to @user, notice: "已取消離職。", status: :see_other
-    else
+    unless @user.resigned?
       redirect_to @user, alert: "此人員未標記為離職。", status: :see_other
+      return
     end
+    unless @user.restore_allowed?
+      redirect_to @user, alert: "離職超過 1 個月無法復原。", status: :see_other
+      return
+    end
+    @user.update!(resigned_at: nil)
+    redirect_to @user, notice: "已取消離職。", status: :see_other
   end
 
   # DELETE /users/1 or /users/1.json

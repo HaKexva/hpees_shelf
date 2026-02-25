@@ -1,6 +1,10 @@
 class Book < ApplicationRecord
   belongs_to :batch_year
-  belongs_to :user, optional: true # borrower (for library books)
+  belongs_to :user, optional: true # current borrower (library) or teacher (owned_by_teacher)
+  has_many :circulation_records
+  has_many :loan_records, -> { where(returned_at: nil) }, class_name: "CirculationRecord"
+  has_one :borrower, class_name: "User", through: :loan_records, source: :user
+
   validates :batch_year_id, presence: true
   validates :title, presence: true
   validate :isbn_must_be_valid_13_if_present

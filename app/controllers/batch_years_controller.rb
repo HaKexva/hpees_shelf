@@ -88,7 +88,6 @@ class BatchYearsController < ApplicationController
   def relocation
     pending_book_ids = session[:pending_relocation_book_ids].to_a
     @pending_books = Book.where(id: pending_book_ids).includes(:batch_year).to_a
-    # Teacher's books (老師的書): one choice per teacher; donated / 班級的書: one dropdown per book
     @pending_books_by_teacher = @pending_books.select { |b| b.owned_by_teacher? && b.user_id.present? }.group_by(&:user_id)
     @pending_books_other = @pending_books.reject { |b| b.owned_by_teacher? && b.user_id.present? }
     @pending_users = User.where(id: session[:pending_relocation_user_ids].to_a).includes(:batch_year).to_a
@@ -96,13 +95,32 @@ class BatchYearsController < ApplicationController
     @batch_years_with_office = BatchYear.by_number_desc
     @show_return_to_library_button = Book.show_return_to_library_button?
     @any_library_books_to_return = Book.where(source: :owned_by_library).where.not(status: Book::STATUS_RETURNED_LIBRARY).exists?
-    if @pending_books.empty? && @pending_users.empty?
+    @relocation_draft = session[:relocation_draft] || {}
+    @resigned_restorable = User.where.not(resigned_at: nil).where("resigned_at >= ?", 1.month.ago).includes(:batch_year).order(:name)
+    if @pending_books.empty? && @pending_users.empty? && @resigned_restorable.empty?
       session.delete(:pending_relocation_book_ids)
       session.delete(:pending_relocation_user_ids)
+      session.delete(:relocation_draft)
       redirect_to batch_years_path, notice: "無待指定屆數的項目。"
     else
       render :relocation
     end
+  end
+
+  def save_relocation_draft
+    new_personnel = Array(params[:new_personnel]).map do |p|
+      p = p.to_unsafe_h if p.respond_to?(:to_unsafe_h)
+      p.is_a?(Hash) ? p.slice("name", "id_number", "batch_year_id") : {}
+    end
+    draft = {
+      "teacher_book_assignments" => (params[:teacher_book_assignments] || {}).to_unsafe_h,
+      "book_assignments" => (params[:book_assignments] || {}).to_unsafe_h,
+      "user_assignments" => (params[:user_assignments] || {}).to_unsafe_h,
+      "resigned_assignments" => (params[:resigned_assignments] || {}).to_unsafe_h,
+      "new_personnel" => new_personnel
+    }
+    session[:relocation_draft] = draft
+    redirect_to relocation_batch_years_path, notice: "草稿已儲存。", status: :see_other
   end
 
   def apply_relocation
@@ -140,8 +158,33 @@ class BatchYearsController < ApplicationController
       end
     end
 
+    # Resigned users (restorable within 1 month): assign batch to restore (HAK-41)
+    resigned_assignments = params[:resigned_assignments].to_unsafe_h
+    resigned_assignments.each do |user_id, batch_year_id|
+      next if batch_year_id.blank?
+      user = User.find_by(id: user_id)
+      next if user.blank? || !user.restore_allowed?
+      batch_year = BatchYear.find_by(id: batch_year_id)
+      next if batch_year.blank?
+      user.update!(batch_year_id: batch_year.id, grade_id: batch_year.grade_id, resigned_at: nil)
+    end
+
+    # New personnel (HAK-41); id_number must be 6 digits if present
+    Array(params[:new_personnel]).each do |p|
+      name = p[:name].to_s.strip
+      next if name.blank?
+      raw_id = p[:id_number].to_s.strip
+      id_number = raw_id.match?(/\A\d{6}\z/) ? raw_id : nil
+      batch_year_id = p[:batch_year_id].to_s.strip.presence
+      next if batch_year_id.blank?
+      by = BatchYear.find_by(id: batch_year_id)
+      next if by.blank?
+      User.create!(name: name, id_number: id_number, batch_year_id: by.id, grade_id: by.grade_id, admin: false)
+    end
+
     session.delete(:pending_relocation_book_ids)
     session.delete(:pending_relocation_user_ids)
+    session.delete(:relocation_draft)
     redirect_to batch_years_path, notice: "已儲存屆數指定。", status: :see_other
   end
 

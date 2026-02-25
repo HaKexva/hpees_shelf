@@ -24,6 +24,39 @@ class DashboardController < ApplicationController
     end
   end
 
+  def loan_history
+    if current_user_admin? || current_user.nil?
+      @users = User.active.order(:admin, :name)
+      filter_user_id = params[:user_id].presence&.to_i
+      filter_user_id = current_user&.id if filter_user_id.blank? && current_user.present?
+      if filter_user_id.present?
+        @records = CirculationRecord.where(user_id: filter_user_id).includes(:book, :user).order(borrowed_at: :desc).limit(500)
+        @filter_user_id = filter_user_id
+      else
+        @records = []
+        @filter_user_id = nil
+      end
+    else
+      @records = current_user.circulation_records.includes(:book).order(borrowed_at: :desc).limit(500)
+    end
+  end
+
+  def validate_isbn
+    isbn = params[:isbn].to_s.strip
+    if isbn.blank?
+      render json: { has_13_digits: false, check_digit_valid: false, book_exists: false }, status: :bad_request
+      return
+    end
+    digits_only = isbn.gsub(/\D/, "")
+    has_13_digits = digits_only.length == 13
+    check_digit_valid = has_13_digits && Book.valid_isbn13?(isbn)
+    book_exists = Book.where(source: :owned_by_library)
+                      .where.not(status: Book::STATUS_RETURNED_LIBRARY)
+                      .where.not(title: [ nil, "" ])
+                      .to_a.any? { |b| Book.isbn_match?(b.isbn, isbn) }
+    render json: { has_13_digits: has_13_digits, check_digit_valid: check_digit_valid, book_exists: book_exists }
+  end
+
   def process_isbn
     isbn = params[:isbn].to_s.strip
     if isbn.blank?
@@ -78,6 +111,11 @@ class DashboardController < ApplicationController
     end
 
     doing_checkout = action == "checkout" || (action.blank? && book.status == Book::STATUS_ON_SHELF)
+    if doing_checkout && book.status != Book::STATUS_ON_SHELF
+      _clear_pending_session
+      redirect_to root_path, alert: "此書已借閱中，請勿重複借閱。", status: :see_other
+      return
+    end
     if doing_checkout && !borrower.admin? && book.batch_year_id != borrower.batch_year_id
       _clear_pending_session
       redirect_to root_path, alert: "此書與借閱人的屆數不同，無法借閱。", status: :see_other
@@ -242,8 +280,10 @@ class DashboardController < ApplicationController
   def _do_action(book, action, borrower)
     if action == "checkout"
       book.update!(user_id: borrower.id, status: Book::STATUS_BORROWED, borrowed_at: Time.current)
+      book.circulation_records.create!(user_id: borrower.id, borrowed_at: Time.current)
       @process_notice = "已登記借閱：#{book.title} → #{borrower.name}。"
     else
+      book.circulation_records.where(returned_at: nil).update_all(returned_at: Time.current)
       book.update!(user_id: nil, status: Book::STATUS_ON_SHELF, borrowed_at: nil)
       @process_notice = "已還書：#{book.title}。"
     end
@@ -252,8 +292,10 @@ class DashboardController < ApplicationController
   def _do_borrow_or_return_by_status(book, borrower)
     if book.status == Book::STATUS_ON_SHELF
       book.update!(user_id: borrower.id, status: Book::STATUS_BORROWED, borrowed_at: Time.current)
+      book.circulation_records.create!(user_id: borrower.id, borrowed_at: Time.current)
       @process_notice = "已登記借閱：#{book.title} → #{borrower.name}。"
     else
+      book.circulation_records.where(returned_at: nil).update_all(returned_at: Time.current)
       book.update!(user_id: nil, status: Book::STATUS_ON_SHELF, borrowed_at: nil)
       @process_notice = "已還書：#{book.title}。"
     end

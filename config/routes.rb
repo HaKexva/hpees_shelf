@@ -12,6 +12,7 @@ Rails.application.routes.draw do
       post :reassign_grades
       get :relocation
       post :apply_relocation
+      post :save_relocation_draft
       post :rollback_school_year
       delete :bulk_destroy
     end
@@ -53,6 +54,8 @@ Rails.application.routes.draw do
 
   # Defines the root path route ("/")
   root "dashboard#index"
+  get "loan_history", to: "dashboard#loan_history", as: :loan_history
+  get "validate_isbn", to: "dashboard#validate_isbn", as: :validate_isbn
   post "process_isbn", to: "dashboard#process_isbn", as: :process_isbn
   post "confirm_borrow_return", to: "dashboard#confirm_borrow_return", as: :confirm_borrow_return
 end

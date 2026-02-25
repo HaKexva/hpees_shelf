@@ -6,7 +6,11 @@ class User < ApplicationRecord
   has_and_belongs_to_many :extra_batch_years,
                           class_name: "BatchYear",
                           join_table: "users_batch_years"
-  has_many :library_loan_histories, dependent: :nullify
+  has_many :library_loan_histories
+  has_many :circulation_records
+  has_many :loan_records, -> { where(returned_at: nil) }, class_name: "CirculationRecord"
+  has_many :borrowed_books, class_name: "Book", through: :loan_records, source: :book
+
   before_save :sync_grade_id_from_batch_year
 
   validates :id_number,
@@ -20,6 +24,11 @@ class User < ApplicationRecord
 
   def resigned?
     resigned_at.present?
+  end
+
+  # Can only restore (cancel resignation) if resigned within the last month (HAK-41)
+  def restore_allowed?
+    resigned_at.present? && resigned_at >= 1.month.ago
   end
 
   private

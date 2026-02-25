@@ -284,6 +284,7 @@ class BooksController < ApplicationController
       return
     end
     book.update!(user_id: user.id, status: Book::STATUS_BORROWED, borrowed_at: Time.current)
+    book.circulation_records.create!(user_id: user.id, borrowed_at: Time.current)
     redirect_to root_path, notice: "已登記借閱：#{book.title} → #{user.name}。", status: :see_other
   end
 
@@ -304,6 +305,7 @@ class BooksController < ApplicationController
       return
     end
     @book.update!(user_id: user.id, status: Book::STATUS_BORROWED, borrowed_at: Time.current)
+    @book.circulation_records.create!(user_id: user.id, borrowed_at: Time.current)
     redirect_to root_path, notice: "已登記借閱：#{@book.title} → #{user.name}。", status: :see_other
   end
 
@@ -313,6 +315,7 @@ class BooksController < ApplicationController
       redirect_to root_path, alert: "僅圖書館館藏可還書。", status: :see_other
       return
     end
+    @book.circulation_records.where(returned_at: nil).update_all(returned_at: Time.current)
     @book.update!(user_id: nil, status: Book::STATUS_ON_SHELF, borrowed_at: nil)
     redirect_to root_path, notice: "已還書：#{@book.title}。", status: :see_other
   end
