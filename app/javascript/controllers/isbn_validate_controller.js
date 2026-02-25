@@ -1,6 +1,8 @@
 import { Controller } from "@hotwired/stimulus"
 
-// Validates ISBN-13 on blur: 13 digits and check digit (weights 1,3,1,3...)
+// Validates ISBN-13 on blur (13 digits and check digit).
+// Does NOT force any particular dash pattern, because different countries/publishers
+// use different groupings. We only validate digits and leave formatting to the user.
 export default class extends Controller {
   static targets = ["input", "message"]
 
@@ -10,12 +12,18 @@ export default class extends Controller {
 
   validate() {
     const raw = this.inputTarget.value.trim()
-    if (raw === "") {
+    const digits = raw.replace(/\D/g, "")
+
+    if (digits === "") {
       this.clearMessage()
       this.setInputState(null)
       return
     }
-    const valid = this.validIsbn13(raw)
+
+    // Always normalize input value to pure digits (auto-delete all dashes/spaces/symbols)
+    this.inputTarget.value = digits
+
+    const valid = this.validIsbn13(digits)
     this.showMessage(valid ? "格式正確" : "應為 13 碼且校驗碼正確", valid)
     this.setInputState(valid)
   }

@@ -44,7 +44,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_02_21_075238) do
     t.integer "total"
     t.datetime "updated_at", null: false
     t.integer "user_id"
-    t.integer "volume"
+    t.string "volume"
     t.index ["user_id"], name: "index_books_on_user_id"
   end
 

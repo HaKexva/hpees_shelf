@@ -1,15 +1,13 @@
 <% content_for :title, "人員列表" %>
 
-<div class="w-full">
+<div class="w-full max-w-5xl mx-auto px-4 sm:px-0 pb-8">
   <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6">
     <h1 class="font-bold text-2xl sm:text-4xl text-gray-900">人員列表</h1>
     <div class="flex flex-wrap gap-2 items-center">
-      <% if @has_resigned %>
-        <% if @include_resigned %>
-          <%= link_to "隱藏離職人員", users_path, class: "rounded-md px-3 py-2 text-sm bg-gray-200 hover:bg-gray-300 font-medium" %>
-        <% else %>
-          <%= link_to "顯示離職人員", users_path(include_resigned: "1"), class: "rounded-md px-3 py-2 text-sm bg-gray-100 hover:bg-gray-200 font-medium" %>
-        <% end %>
+      <% if @include_resigned %>
+        <%= link_to "隱藏離職人員", users_path, class: "rounded-md px-3 py-2 text-sm bg-gray-200 hover:bg-gray-300 font-medium" %>
+      <% else %>
+        <%= link_to "顯示離職人員", users_path(include_resigned: "1"), class: "rounded-md px-3 py-2 text-sm bg-gray-100 hover:bg-gray-200 font-medium" %>
       <% end %>
       <%= link_to "新增人員", new_user_path, class: "rounded-md px-3.5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white block font-medium" %>
     </div>
@@ -59,7 +57,7 @@
                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500"><%= user.admin ? "—" : (user.seat_number || "—") %></td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500"><%= user.admin ? "是" : "否" %></td>
                 <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2" data-no-row-click>
-                  <% if user.resigned? && user.restore_allowed? %>
+                  <% if user.resigned? %>
                     <%= link_to "取消離職", cancel_resignation_user_path(user), method: :post, class: "inline-flex text-amber-700 hover:text-amber-900 text-xs font-medium", data: { turbo_confirm: "確定要取消離職嗎？" } %>
                   <% end %>
                   <%= link_to edit_user_path(user), class: "inline-flex text-indigo-600 hover:text-indigo-900", title: "編輯", aria: { label: "編輯" } do %>

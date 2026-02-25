@@ -1,10 +1,7 @@
 <% content_for :title, "借還書" %>
 
-<div class="w-full">
-  <div class="flex flex-wrap items-center justify-between gap-4 mb-6">
-    <h1 class="font-bold text-2xl sm:text-4xl text-gray-900">借還書</h1>
-    <%= link_to "借閱紀錄", loan_history_path, class: "rounded-lg px-4 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-800 font-medium text-sm sm:text-base" %>
-  </div>
+<div class="w-full max-w-5xl mx-auto px-4 sm:px-0 pb-8">
+  <h1 class="font-bold text-2xl sm:text-4xl text-gray-900 mb-6">借還書</h1>
 
   <div class="space-y-8">
     <!-- 借還書表單：管理員可選借/還、ISBN、學生（學號選填）、多本時選冊別 -->
@@ -25,17 +22,40 @@
               </label>
             </div>
           </div>
-          <div data-controller="dashboard-isbn-validate" data-dashboard-isbn-validate-url-value="<%= validate_isbn_path %>">
+          <div data-controller="isbn-validate camera-icon">
             <label class="block text-sm font-medium text-gray-700 mb-2">ISBN（掃描或輸入）</label>
-            <input type="text" name="isbn" id="scan_isbn" placeholder="請掃描或輸入 ISBN" required autofocus autocomplete="off" class="block w-full shadow-sm rounded-lg border border-gray-300 px-3 py-2.5 text-base" data-dashboard-isbn-validate-target="input" data-action="blur->dashboard-isbn-validate#validate" />
-            <p data-dashboard-isbn-validate-target="message" class="mt-1 text-sm hidden" role="status"></p>
+            <div class="flex gap-2 items-center">
+              <input
+                type="text"
+                name="isbn"
+                id="scan_isbn"
+                placeholder="請掃描或輸入 ISBN"
+                required
+                autofocus
+                autocomplete="off"
+                class="block w-full shadow-sm rounded-lg border border-gray-300 px-3 py-2.5 text-base"
+                data-isbn-validate-target="input"
+                data-action="blur->isbn-validate#validate"
+              />
+              <button
+                type="button"
+                class="inline-flex items-center justify-center rounded-lg border border-gray-300 px-3 py-2.5 text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 hidden"
+                title="使用相機掃描 ISBN"
+                aria-label="使用相機掃描 ISBN"
+                data-camera-icon-target="button"
+                data-action="click->camera-icon#open"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M4 7h3l2-3h6l2 3h3v11H4z" />
+                  <circle cx="12" cy="13" r="4" />
+                </svg>
+              </button>
+            </div>
           </div>
           <div class="relative" data-controller="student-search" data-student-search-placeholder-value="搜尋姓名或學號…">
             <label class="block text-sm font-medium text-gray-700 mb-2">借閱人</label>
-            <% default_borrower_id = current_user&.id %>
-            <% default_borrower_label = current_user ? (current_user.admin? ? "#{current_user.name}（老師）" : "#{current_user.name}（#{current_user.id_number.presence || '—'}）") : "" %>
-            <input type="hidden" name="user_id" data-student-search-target="hidden" value="<%= default_borrower_id %>">
-            <input type="text" data-student-search-target="input" placeholder="搜尋姓名或學號…" autocomplete="off" value="<%= default_borrower_label %>" class="block w-full max-w-md shadow-sm rounded-lg border border-gray-300 px-3 py-2.5 text-base" data-action="focus->student-search#open input->student-search#filter">
+            <input type="hidden" name="user_id" data-student-search-target="hidden" value="">
+            <input type="text" data-student-search-target="input" placeholder="搜尋姓名或學號…" autocomplete="off" class="block w-full max-w-md shadow-sm rounded-lg border border-gray-300 px-3 py-2.5 text-base" data-action="focus->student-search#open input->student-search#filter">
             <div data-student-search-target="list" class="hidden absolute z-10 mt-1 w-full max-w-md rounded-lg border border-gray-200 bg-white shadow-lg max-h-60 overflow-auto" role="listbox">
               <% if @users.present? %>
                 <% @users.each do |u| %>
@@ -63,10 +83,35 @@
         <h2 class="font-semibold text-lg text-gray-900 mb-4">掃描借/還書</h2>
         <%= form_with url: process_isbn_path, method: :post, local: true, class: "space-y-4", data: { turbo: false }, id: "scan-form" do |f| %>
           <input type="hidden" name="mode" value="self">
-          <div data-controller="dashboard-isbn-validate" data-dashboard-isbn-validate-url-value="<%= validate_isbn_path %>">
+          <div data-controller="isbn-validate camera-icon">
             <label class="block text-sm font-medium text-gray-700 mb-2">ISBN（掃描或輸入）</label>
-            <input type="text" name="isbn" id="scan_isbn" placeholder="請掃描或輸入 ISBN" required autofocus autocomplete="off" class="block w-full shadow-sm rounded-lg border border-gray-300 px-3 py-2.5 text-base" data-dashboard-isbn-validate-target="input" data-action="blur->dashboard-isbn-validate#validate" />
-            <p data-dashboard-isbn-validate-target="message" class="mt-1 text-sm hidden" role="status"></p>
+            <div class="flex gap-2 items-center">
+              <input
+                type="text"
+                name="isbn"
+                id="scan_isbn"
+                placeholder="請掃描或輸入 ISBN"
+                required
+                autofocus
+                autocomplete="off"
+                class="block w-full shadow-sm rounded-lg border border-gray-300 px-3 py-2.5 text-base"
+                data-isbn-validate-target="input"
+                data-action="blur->isbn-validate#validate"
+              />
+              <button
+                type="button"
+                class="inline-flex items-center justify-center rounded-lg border border-gray-300 px-3 py-2.5 text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 hidden"
+                title="使用相機掃描 ISBN"
+                aria-label="使用相機掃描 ISBN"
+                data-camera-icon-target="button"
+                data-action="click->camera-icon#open"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M4 7h3l2-3h6l2 3h3v11H4z" />
+                  <circle cx="12" cy="13" r="4" />
+                </svg>
+              </button>
+            </div>
           </div>
           <button type="submit" class="w-full sm:w-auto rounded-lg px-4 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-medium cursor-pointer">送出</button>
         <% end %>
@@ -105,7 +150,7 @@
           <% @library_books_borrowed.each do |book| %>
             <li class="flex flex-wrap items-center justify-between gap-2 py-2 border-b border-gray-100 last:border-0">
               <span class="text-sm text-gray-900"><%= book.title %><%= " #{book.edition_part}" if book.edition_part.present? %></span>
-              <span class="text-xs text-gray-500"><%= book.user&.name %> 借閱 · ISBN <%= book.isbn %></span>
+              <span class="text-xs text-gray-500"><%= book.user&.name %> 借閱 · ISBN <%= format_isbn13(book.isbn) %></span>
             </li>
           <% end %>
         </ul>

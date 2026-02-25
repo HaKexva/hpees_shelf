@@ -24,9 +24,8 @@ RSpec.describe "Books", type: :request do
         post books_url, params: {
           book: {
             batch_year_id: batch_year.id,
-            isbn: "9780123456786",
+            isbn: "9789861817286",
             note: "Test note",
-            source: "owned_by_library",
             title: "New Book",
             total: 1,
             volume: 1
@@ -52,6 +51,22 @@ RSpec.describe "Books", type: :request do
     end
   end
 
+  describe "PATCH /books/:id" do
+    it "updates the book" do
+      patch book_url(book), params: {
+        book: {
+          grade_id: book.grade_id,
+          batch_year_id: book.batch_year_id,
+          isbn: book.isbn,
+          note: "Updated note",
+          title: "Updated Title",
+          total: book.total,
+          volume: book.volume
+        }
+      }
+      expect(response).to redirect_to(book_url(book))
+    end
+  end
 
   describe "DELETE /books/:id" do
     it "destroys the book" do

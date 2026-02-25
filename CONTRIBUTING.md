@@ -28,10 +28,16 @@
 
 ### When finishing work
 
-1. **Merge**
+1. **Confirm with the user**
+   - Before merging, confirm with the user that the implemented behavior and UI are correct.
+
+2. **Lint**
+   - Run `bundle exec rubocop` and ensure there are no new lint errors.
+
+3. **Merge**
    - Merge the PR into `main`.
 
-2. **Linear**
+4. **Linear**
    - Mark the linked Linear issue as **Done**.
 
 ---

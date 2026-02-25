@@ -1,7 +1,7 @@
 <% content_for :title, @user.name %>
 
-<div class="w-full">
-  <div class="w-full text-left">
+<div class="w-full max-w-5xl mx-auto px-4 sm:px-0 pb-8">
+  <div class="w-full md:max-w-2xl text-left">
     <%= render @user %>
 
     <% if @user.library_loan_histories.any? %>
@@ -20,7 +20,12 @@
             <tbody class="bg-white divide-y divide-gray-200">
               <% @user.library_loan_histories.order(returned_at: :desc).each do |h| %>
                 <tr>
-                  <td class="px-4 py-2 text-sm text-gray-900"><%= h.book_title %><%= "（#{h.book_isbn}）" if h.book_isbn.present? %></td>
+                  <td class="px-4 py-2 text-sm text-gray-900">
+                    <%= h.book_title %>
+                    <% if h.book_isbn.present? %>
+                      （<%= format_isbn13(h.book_isbn) %>）
+                    <% end %>
+                  </td>
                   <td class="px-4 py-2 text-sm text-gray-500"><%= h.borrowed_at ? l(h.borrowed_at, format: :short) : "—" %></td>
                   <td class="px-4 py-2 text-sm text-gray-500"><%= l(h.returned_at, format: :short) %></td>
                 </tr>
@@ -32,7 +37,7 @@
     <% end %>
 
     <%= link_to "編輯此人員", edit_user_path(@user), class: "mt-2 rounded-md px-3.5 py-2.5 bg-gray-100 hover:bg-gray-50 inline-block font-medium" %>
-    <% if @user.resigned? && @user.restore_allowed? %>
+    <% if @user.resigned? %>
       <div class="inline-block ml-2">
         <%= button_to "取消離職", cancel_resignation_user_path(@user), method: :post, class: "rounded-md px-3.5 py-2.5 bg-amber-100 hover:bg-amber-200 text-amber-800 font-medium cursor-pointer", data: { turbo_confirm: "確定要取消離職嗎？" } %>
       </div>
