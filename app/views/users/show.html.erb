@@ -20,7 +20,12 @@
             <tbody class="bg-white divide-y divide-gray-200">
               <% @user.library_loan_histories.order(returned_at: :desc).each do |h| %>
                 <tr>
-                  <td class="px-4 py-2 text-sm text-gray-900"><%= h.book_title %><%= "（#{h.book_isbn}）" if h.book_isbn.present? %></td>
+                  <td class="px-4 py-2 text-sm text-gray-900">
+                    <%= h.book_title %>
+                    <% if h.book_isbn.present? %>
+                      （<%= format_isbn13(h.book_isbn) %>）
+                    <% end %>
+                  </td>
                   <td class="px-4 py-2 text-sm text-gray-500"><%= h.borrowed_at ? l(h.borrowed_at, format: :short) : "—" %></td>
                   <td class="px-4 py-2 text-sm text-gray-500"><%= l(h.returned_at, format: :short) %></td>
                 </tr>

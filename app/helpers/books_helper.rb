@@ -16,4 +16,9 @@ module BooksHelper
     h = header.to_s.strip.delete("\uFEFF") # Remove BOM
     h.downcase == "status" || h == "狀態" || h.include?("狀態")
   end
+
+  # Simple ISBN display: normalize to digits only (auto-delete all dashes/spaces/symbols).
+  def format_isbn13(isbn)
+    isbn.to_s.gsub(/\D/, "")
+  end
 end

@@ -2,19 +2,18 @@
   <div>
     <strong class="block font-medium mb-1">書名：</strong>
     <%= book.title %>
+    <% if book.volume.present? %>
+      （<%= book.volume %>）
+    <% end %>
   </div>
   <div>
     <strong class="block font-medium mb-1">ISBN：</strong>
-    <%= book.isbn %>
+    <%= format_isbn13(book.isbn) %>
     <% if book.invalid_isbn? %><span class="text-amber-600 ml-1" title="ISBN 格式錯誤">⚠ 格式錯誤</span><% end %>
   </div>
   <div>
     <strong class="block font-medium mb-1">總數：</strong>
     <%= book.total %>
-  </div>
-  <div>
-    <strong class="block font-medium mb-1">冊數：</strong>
-    <%= book.volume %>
   </div>
   <div>
     <strong class="block font-medium mb-1">備註：</strong>

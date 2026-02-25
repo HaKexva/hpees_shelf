@@ -22,10 +22,21 @@
               </label>
             </div>
           </div>
-          <div data-controller="camera-icon">
+          <div data-controller="isbn-validate camera-icon">
             <label class="block text-sm font-medium text-gray-700 mb-2">ISBN（掃描或輸入）</label>
             <div class="flex gap-2 items-center">
-              <input type="text" name="isbn" id="scan_isbn" placeholder="請掃描或輸入 ISBN" required autofocus autocomplete="off" class="block w-full shadow-sm rounded-lg border border-gray-300 px-3 py-2.5 text-base" />
+              <input
+                type="text"
+                name="isbn"
+                id="scan_isbn"
+                placeholder="請掃描或輸入 ISBN"
+                required
+                autofocus
+                autocomplete="off"
+                class="block w-full shadow-sm rounded-lg border border-gray-300 px-3 py-2.5 text-base"
+                data-isbn-validate-target="input"
+                data-action="blur->isbn-validate#validate"
+              />
               <button
                 type="button"
                 class="inline-flex items-center justify-center rounded-lg border border-gray-300 px-3 py-2.5 text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 hidden"
@@ -72,10 +83,21 @@
         <h2 class="font-semibold text-lg text-gray-900 mb-4">掃描借/還書</h2>
         <%= form_with url: process_isbn_path, method: :post, local: true, class: "space-y-4", data: { turbo: false }, id: "scan-form" do |f| %>
           <input type="hidden" name="mode" value="self">
-          <div data-controller="camera-icon">
+          <div data-controller="isbn-validate camera-icon">
             <label class="block text-sm font-medium text-gray-700 mb-2">ISBN（掃描或輸入）</label>
             <div class="flex gap-2 items-center">
-              <input type="text" name="isbn" id="scan_isbn" placeholder="請掃描或輸入 ISBN" required autofocus autocomplete="off" class="block w-full shadow-sm rounded-lg border border-gray-300 px-3 py-2.5 text-base" />
+              <input
+                type="text"
+                name="isbn"
+                id="scan_isbn"
+                placeholder="請掃描或輸入 ISBN"
+                required
+                autofocus
+                autocomplete="off"
+                class="block w-full shadow-sm rounded-lg border border-gray-300 px-3 py-2.5 text-base"
+                data-isbn-validate-target="input"
+                data-action="blur->isbn-validate#validate"
+              />
               <button
                 type="button"
                 class="inline-flex items-center justify-center rounded-lg border border-gray-300 px-3 py-2.5 text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 hidden"
@@ -128,7 +150,7 @@
           <% @library_books_borrowed.each do |book| %>
             <li class="flex flex-wrap items-center justify-between gap-2 py-2 border-b border-gray-100 last:border-0">
               <span class="text-sm text-gray-900"><%= book.title %><%= " #{book.edition_part}" if book.edition_part.present? %></span>
-              <span class="text-xs text-gray-500"><%= book.user&.name %> 借閱 · ISBN <%= book.isbn %></span>
+              <span class="text-xs text-gray-500"><%= book.user&.name %> 借閱 · ISBN <%= format_isbn13(book.isbn) %></span>
             </li>
           <% end %>
         </ul>

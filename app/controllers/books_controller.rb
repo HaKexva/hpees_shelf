@@ -71,7 +71,7 @@ class BooksController < ApplicationController
           title: title,
           isbn: isbn,
           total: _import_row_value(row, "total", "Total", "總數").to_s.to_i,
-          volume: _import_row_value(row, "volume", "Volume", "冊數").to_s.to_i,
+          volume: _import_row_value(row, "volume", "Volume", "冊數"),
           note: _import_row_value(row, "note", "Note", "備註"),
           source: source_key,
           grade_id: batch_year&.grade_id,
