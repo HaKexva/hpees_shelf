@@ -1,33 +1,34 @@
 import { Controller } from "@hotwired/stimulus"
+import { BrowserMultiFormatReader, BarcodeFormat, DecodeHintType } from "@zxing/browser"
 
 // Controls visibility and click behavior of camera icon buttons.
-// Shows on touch/mobile devices with camera API, and opens camera to scan ISBN barcodes.
+// Shows on devices with a camera, and opens camera to scan ISBN barcodes via ZXing.
 export default class extends Controller {
   static targets = ["button"]
 
   connect() {
     // Start hidden; we’ll unhide only if we detect a real camera device.
     this.buttonTargets.forEach((el) => el.classList.add("hidden"))
-    this.#init()
+    this.init()
   }
 
   async open(event) {
     event.preventDefault()
-    const input = this.#findIsbnInput(event.currentTarget)
+    const input = this.findIsbnInput(event.currentTarget)
     if (!input) return
 
-    // Always open the camera overlay; it will use BarcodeDetector when available.
-    await this.#scanWithCameraOverlay(input)
+    // Always open the camera overlay; ZXing will handle barcode decoding.
+    await this.scanWithCameraOverlay(input)
   }
 
-  async #init() {
-    const show = await this.#hasVideoInput()
+  async init() {
+    const show = await this.hasVideoInput()
     this.buttonTargets.forEach((el) => {
       el.classList.toggle("hidden", !show)
     })
   }
 
-  async #hasVideoInput() {
+  async hasVideoInput() {
     if (
       typeof navigator === "undefined" ||
       !navigator.mediaDevices ||
@@ -46,27 +47,7 @@ export default class extends Controller {
     }
   }
 
-  async #scanWithBarcodeDetector(input) {
-    // ISBN-13 實際上是以 EAN-13 條碼格式編碼，這裡不用額外的 isbn_13 格式。
-    const detector = new window.BarcodeDetector({ formats: ["ean_13", "ean_8"] })
-    const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
-    const video = document.createElement("video")
-    video.srcObject = stream
-    await video.play()
-
-    const result = await this.#detectOnce(detector, video)
-
-    stream.getTracks().forEach((t) => t.stop())
-    video.remove()
-
-    if (result) {
-      input.value = result
-      input.dispatchEvent(new Event("input", { bubbles: true }))
-      input.dispatchEvent(new Event("change", { bubbles: true }))
-    }
-  }
-
-  async #scanWithCameraOverlay(input) {
+  async scanWithCameraOverlay(input) {
     const overlay = document.createElement("div")
     overlay.className =
       "fixed inset-0 z-[100] flex flex-col items-center justify-center bg-black/80 text-white"
@@ -92,13 +73,24 @@ export default class extends Controller {
     document.body.appendChild(overlay)
 
     let stopped = false
-    let stream = null
+    let controlsRef = null
 
     const stopAndClose = () => {
       if (stopped) return
       stopped = true
-      if (stream) {
-        stream.getTracks().forEach((t) => t.stop())
+      if (controlsRef) {
+        try {
+          controlsRef.stop()
+        } catch (e) {
+          console.warn("Failed to stop ZXing controls", e)
+        }
+      }
+      if (this.codeReader) {
+        try {
+          this.codeReader.reset()
+        } catch (e) {
+          console.warn("Failed to reset ZXing reader", e)
+        }
       }
       overlay.remove()
     }
@@ -117,65 +109,41 @@ export default class extends Controller {
       { once: true }
     )
 
+    const hints = new Map()
+    hints.set(DecodeHintType.POSSIBLE_FORMATS, [BarcodeFormat.EAN_13, BarcodeFormat.EAN_8])
+    const reader = new BrowserMultiFormatReader(hints)
+    this.codeReader = reader
+
     try {
-      stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
-    } catch (e) {
-      console.warn("getUserMedia failed", e)
-      alert("無法開啟相機，請確認瀏覽器權限或改用內建相機 App 掃描後貼上。")
-      stopAndClose()
-      return
-    }
-
-    video.srcObject = stream
-
-    let detector = null
-    if ("BarcodeDetector" in window) {
-      try {
-        detector = new window.BarcodeDetector({ formats: ["ean_13", "ean_8"] })
-      } catch (e) {
-        console.warn("BarcodeDetector construct failed", e)
-        detector = null
-      }
-    }
-
-    const loop = async () => {
-      if (stopped) return
-      if (detector) {
-        const code = await this.#detectOnce(detector, video)
-        if (code) {
-          input.value = code
-          input.dispatchEvent(new Event("input", { bubbles: true }))
-          input.dispatchEvent(new Event("change", { bubbles: true }))
-          stopAndClose()
-          return
+      await reader.decodeFromVideoDevice(
+        null,
+        video,
+        (result, err, controls) => {
+          if (stopped) {
+            controls.stop()
+            return
+          }
+          controlsRef = controls
+          if (result) {
+            const raw = result.getText ? result.getText() : result.text
+            const digits = (raw || "").replace(/\D/g, "")
+            if (digits) {
+              input.value = digits
+              input.dispatchEvent(new Event("input", { bubbles: true }))
+              input.dispatchEvent(new Event("change", { bubbles: true }))
+            }
+            stopAndClose()
+          }
         }
-      }
-      requestAnimationFrame(loop)
-    }
-
-    requestAnimationFrame(loop)
-  }
-
-  async #detectOnce(detector, video) {
-    if (video.readyState < 2) {
-      await new Promise((resolve) => {
-        video.onloadeddata = resolve
-      })
-    }
-    const bitmap = await createImageBitmap(video)
-    try {
-      const barcodes = await detector.detect(bitmap)
-      if (barcodes && barcodes.length > 0) {
-        const raw = barcodes[0].rawValue || ""
-        return raw.replace(/\D/g, "")
-      }
-      return null
-    } finally {
-      bitmap.close && bitmap.close()
+      )
+    } catch (e) {
+      console.warn("ZXing decodeFromVideoDevice failed", e)
+      alert("Unable to start barcode scanner on this browser. Please use the built-in camera app and paste the ISBN.")
+      stopAndClose()
     }
   }
 
-  #findIsbnInput(buttonEl) {
+  findIsbnInput(buttonEl) {
     // Look for a sibling text input in the same group
     const wrapper = buttonEl.closest("div")
     if (!wrapper) return null
