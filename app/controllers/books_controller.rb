@@ -153,7 +153,9 @@ class BooksController < ApplicationController
         @invalid_row_indices = []
         @imported_data.each_with_index do |row, index|
           title = _import_row_value(row, "title", "Title", "書名")
-          @invalid_row_indices << index if title.blank?
+          isbn = _import_row_value(row, "isbn", "ISBN", "國際標準書號")
+          source = _import_row_value(row, "source", "Source", "來源")
+          @invalid_row_indices << index if title.blank? || isbn.blank? || source.blank?
         end
 
         # Only check for duplicates if required columns exist

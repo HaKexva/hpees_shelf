@@ -7,6 +7,8 @@ class Book < ApplicationRecord
 
   validates :batch_year_id, presence: true
   validates :title, presence: true
+  validates :isbn, presence: true
+  validates :source, presence: true
   validate :isbn_must_be_valid_13_if_present
   enum :source, { owned_by_library: 0, donated: 1, owned_by_class: 2, owned_by_teacher: 3 }
   before_validation :set_total_to_one_if_blank
@@ -24,6 +26,8 @@ class Book < ApplicationRecord
     msgs = []
     msgs << "書名" if title.blank?
     msgs << "屆數" if batch_year_id.blank?
+    msgs << "ISBN" if isbn.blank?
+    msgs << "來源" if source.blank?
     msgs
   end
 

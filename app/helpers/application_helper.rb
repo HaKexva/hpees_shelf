@@ -9,6 +9,8 @@ module ApplicationHelper
       if book.present? && %w[show edit].include?(controller.action_name)
         msgs << "書名為必填" if book.title.blank?
         msgs << "屆數為必填" if book.batch_year_id.blank?
+        msgs << "ISBN 為必填" if book.isbn.blank?
+        msgs << "來源為必填" if book.source.blank?
       end
     when "users"
       user = controller.instance_variable_get(:@user)
