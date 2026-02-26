@@ -4,20 +4,6 @@ module ApplicationHelper
     return nil unless controller.is_a?(ActionController::Base)
     msgs = []
     case controller.controller_name
-    when "books"
-      book = controller.instance_variable_get(:@book)
-      if book.present? && %w[show edit].include?(controller.action_name)
-        msgs << "書名為必填" if book.title.blank?
-        msgs << "屆數為必填" if book.batch_year_id.blank?
-        msgs << "ISBN 為必填" if book.isbn.blank?
-        msgs << "來源為必填" if book.source.blank?
-      end
-    when "users"
-      user = controller.instance_variable_get(:@user)
-      if user.present? && %w[show edit].include?(controller.action_name)
-        msgs << "姓名為必填" if user.name.blank?
-        msgs << "屆數為必填" if user.batch_year_id.blank?
-      end
     when "batch_years"
       batch_year = controller.instance_variable_get(:@batch_year)
       if batch_year.present? && %w[show edit].include?(controller.action_name)
