@@ -1,8 +1,9 @@
 import { Controller } from "@hotwired/stimulus"
+import { BrowserMultiFormatReader, BarcodeFormat, DecodeHintType } from "@zxing/browser"
 
 // Controls visibility and click behavior of camera icon buttons.
 // Shows on devices with a camera, and opens camera to scan ISBN barcodes.
-// Uses BarcodeDetector when available (Chrome/Edge/Android); otherwise just shows camera preview.
+// Uses ZXing (BrowserMultiFormatReader) so it works on Safari & Chrome (only requires getUserMedia).
 export default class extends Controller {
   static targets = ["button"]
 
@@ -17,7 +18,7 @@ export default class extends Controller {
     const input = this.findIsbnInput(event.currentTarget)
     if (!input) return
 
-    // Always open the camera overlay; it will try to auto-detect barcodes when supported.
+    // Always open the camera overlay and let ZXing handle barcode decoding.
     await this.scanWithCameraOverlay(input)
   }
 
@@ -73,16 +74,24 @@ export default class extends Controller {
     document.body.appendChild(overlay)
 
     let stopped = false
-    let stream = null
+    let controlsRef = null
+    let readerRef = null
 
     const stopAndClose = () => {
       if (stopped) return
       stopped = true
-      if (stream) {
+      if (controlsRef) {
         try {
-          stream.getTracks().forEach((t) => t.stop())
+          controlsRef.stop()
         } catch (e) {
-          console.warn("Failed to stop camera stream", e)
+          console.warn("Failed to stop ZXing controls", e)
+        }
+      }
+      if (readerRef) {
+        try {
+          readerRef.reset()
+        } catch (e) {
+          console.warn("Failed to reset ZXing reader", e)
         }
       }
       overlay.remove()
@@ -102,67 +111,37 @@ export default class extends Controller {
       { once: true }
     )
 
+    const hints = new Map()
+    hints.set(DecodeHintType.POSSIBLE_FORMATS, [BarcodeFormat.EAN_13, BarcodeFormat.EAN_8])
+    const reader = new BrowserMultiFormatReader(hints)
+    readerRef = reader
+
     try {
-      stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
-    } catch (e) {
-      console.warn("getUserMedia failed", e)
-      alert("Unable to open the camera. Please check browser permissions or use the built-in camera app and paste the ISBN.")
-      stopAndClose()
-      return
-    }
-
-    video.srcObject = stream
-
-    // If BarcodeDetector is supported (Chrome, some Android browsers), try to auto-read barcodes.
-    if ("BarcodeDetector" in window) {
-      let detector = null
-      try {
-        detector = new window.BarcodeDetector({ formats: ["ean_13", "ean_8"] })
-      } catch (e) {
-        console.warn("BarcodeDetector construct failed", e)
-        detector = null
-      }
-
-      if (detector) {
-        const loop = async () => {
-          if (stopped) return
-          const code = await this.detectOnce(detector, video)
-          if (code) {
-            const digits = code.replace(/\D/g, "")
-            if (digits) {
-              input.value = digits
-              input.dispatchEvent(new Event("input", { bubbles: true }))
-              input.dispatchEvent(new Event("change", { bubbles: true }))
-            }
-            stopAndClose()
+      await reader.decodeFromVideoDevice(
+        null,
+        video,
+        (result, err, controls) => {
+          if (stopped) {
+            controls.stop()
             return
           }
-          requestAnimationFrame(loop)
+          controlsRef = controls
+          if (!result) return
+
+          const raw = result.getText ? result.getText() : result.text
+          const digits = (raw || "").replace(/\D/g, "")
+          if (digits) {
+            input.value = digits
+            input.dispatchEvent(new Event("input", { bubbles: true }))
+            input.dispatchEvent(new Event("change", { bubbles: true }))
+          }
+          stopAndClose()
         }
-
-        requestAnimationFrame(loop)
-      }
-    }
-    // On browsers without BarcodeDetector (e.g. Safari), we still show the live camera preview
-    // so users can align the barcode and then type or paste the ISBN manually.
-  }
-
-  async detectOnce(detector, video) {
-    if (video.readyState < 2) {
-      await new Promise((resolve) => {
-        video.onloadeddata = resolve
-      })
-    }
-    try {
-      const barcodes = await detector.detect(video)
-      if (barcodes && barcodes.length > 0) {
-        const raw = barcodes[0].rawValue || ""
-        return raw
-      }
-      return null
+      )
     } catch (e) {
-      console.warn("BarcodeDetector detect failed", e)
-      return null
+      console.warn("ZXing decodeFromVideoDevice failed", e)
+      alert("Unable to start barcode scanner on this browser. Please use the built-in camera app and paste the ISBN.")
+      stopAndClose()
     }
   }
 
