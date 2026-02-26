@@ -1,5 +1,5 @@
 import { Controller } from "@hotwired/stimulus"
-import { BrowserMultiFormatReader, BarcodeFormat, DecodeHintType } from "@zxing/browser"
+import { BrowserMultiFormatReader } from "@zxing/browser"
 
 // Controls visibility and click behavior of camera icon buttons.
 // Shows on devices with a camera, and opens camera to scan ISBN barcodes.
@@ -111,9 +111,7 @@ export default class extends Controller {
       { once: true }
     )
 
-    const hints = new Map()
-    hints.set(DecodeHintType.POSSIBLE_FORMATS, [BarcodeFormat.EAN_13, BarcodeFormat.EAN_8])
-    const reader = new BrowserMultiFormatReader(hints)
+    const reader = new BrowserMultiFormatReader()
     readerRef = reader
 
     try {
