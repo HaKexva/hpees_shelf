@@ -15,8 +15,8 @@ export default class extends Controller {
     const digits = raw.replace(/\D/g, "")
 
     if (digits === "") {
-      this.clearMessage()
-      this.setInputState(null)
+      this.showMessage("請填寫 ISBN", false)
+      this.setInputState(false)
       return
     }
 

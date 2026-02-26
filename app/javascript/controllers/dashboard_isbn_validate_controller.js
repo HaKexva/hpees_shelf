@@ -8,8 +8,8 @@ export default class extends Controller {
   validate() {
     const raw = this.inputTarget.value.trim()
     if (raw === "") {
-      this.clearMessage()
-      this.setInputState(null)
+      this.showMessage("請填寫 ISBN", false)
+      this.setInputState(false)
       return
     }
     const url = `${this.urlValue}?isbn=${encodeURIComponent(raw)}`
