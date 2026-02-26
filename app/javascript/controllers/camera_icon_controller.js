@@ -8,9 +8,15 @@ export default class extends Controller {
   static targets = ["button"]
 
   connect() {
-    // Start hidden; we’ll unhide only if we detect a real camera device.
-    this.buttonTargets.forEach((el) => el.classList.add("hidden"))
-    this.init()
+    // Show camera icon on devices that report getUserMedia support (desktops, tablets, phones).
+    const canUseCamera =
+      typeof navigator !== "undefined" &&
+      navigator.mediaDevices &&
+      typeof navigator.mediaDevices.getUserMedia === "function"
+
+    this.buttonTargets.forEach((el) => {
+      el.classList.toggle("hidden", !canUseCamera)
+    })
   }
 
   async open(event) {
@@ -20,32 +26,6 @@ export default class extends Controller {
 
     // Always open the camera overlay and let ZXing handle barcode decoding.
     await this.scanWithCameraOverlay(input)
-  }
-
-  async init() {
-    const show = await this.hasVideoInput()
-    this.buttonTargets.forEach((el) => {
-      el.classList.toggle("hidden", !show)
-    })
-  }
-
-  async hasVideoInput() {
-    if (
-      typeof navigator === "undefined" ||
-      !navigator.mediaDevices ||
-      typeof navigator.mediaDevices.enumerateDevices !== "function"
-    ) {
-      return false
-    }
-
-    try {
-      const devices = await navigator.mediaDevices.enumerateDevices()
-      // Show icon on any device that reports at least one video input (front or back camera / webcam).
-      return devices.some((d) => d.kind === "videoinput")
-    } catch (e) {
-      console.warn("Unable to enumerate media devices", e)
-      return false
-    }
   }
 
   async scanWithCameraOverlay(input) {
