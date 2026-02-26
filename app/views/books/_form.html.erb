@@ -11,19 +11,19 @@
     </div>
   <% end %>
 
-  <div class="my-5">
+  <div class="my-5" data-controller="required-field">
     <%= form.label :title, "書名" %>
-    <%= form.text_field :title, required: true, class: ["block shadow-sm rounded-md border px-3 py-2 mt-2 w-full", {"border-gray-400 focus:outline-blue-600": book.errors[:title].none?, "border-red-400 focus:outline-red-600": book.errors[:title].any?}] %>
+    <%= form.text_field :title, required: true, class: ["block shadow-sm rounded-md border px-3 py-2 mt-2 w-full", {"border-gray-400 focus:outline-blue-600": book.errors[:title].none?, "border-red-400 focus:outline-red-600": book.errors[:title].any?}], data: { required_field_target: "input", action: "blur->required-field#blur" } %>
   </div>
 
-  <div class="my-5">
+  <div class="my-5" data-controller="required-field">
     <%= form.label :batch_year_id, "屆數（必填）" %>
-    <%= form.collection_select :batch_year_id, @batch_years || BatchYear.class_batches_by_number_desc, :id, :display_label_with_grade, { include_blank: "請選擇屆數" }, { required: true, class: [ "block shadow-sm rounded-md border px-3 py-2 mt-2 w-full", (book.errors[:batch_year_id].none? ? "border-gray-400 focus:outline-blue-600" : "border-red-400 focus:outline-red-600") ] } %>
+    <%= form.collection_select :batch_year_id, @batch_years || BatchYear.class_batches_by_number_desc, :id, :display_label_with_grade, { include_blank: "請選擇屆數" }, { required: true, class: [ "block shadow-sm rounded-md border px-3 py-2 mt-2 w-full", (book.errors[:batch_year_id].none? ? "border-gray-400 focus:outline-blue-600" : "border-red-400 focus:outline-red-600") ], data: { required_field_target: "input", action: "blur->required-field#blur" } } %>
   </div>
 
-  <div class="my-5">
+  <div class="my-5" data-controller="required-field">
     <%= form.label :source, "來源" %>
-    <%= form.select :source, Book.sources.keys.map { |k| [t("activerecord.enums.book.source.#{k}"), k] }, {}, { required: true, class: ["block shadow-sm rounded-md border px-3 py-2 mt-2 w-full", {"border-gray-400 focus:outline-blue-600": book.errors[:source].none?, "border-red-400 focus:outline-red-600": book.errors[:source].any?}], data: { book_form_target: "sourceSelect", action: "change->book-form#toggleTeacherField" } } %>
+    <%= form.select :source, Book.sources.keys.map { |k| [t("activerecord.enums.book.source.#{k}"), k] }, {}, { required: true, class: ["block shadow-sm rounded-md border px-3 py-2 mt-2 w-full", {"border-gray-400 focus:outline-blue-600": book.errors[:source].none?, "border-red-400 focus:outline-red-600": book.errors[:source].any?}], data: { required_field_target: "input", book_form_target: "sourceSelect", action: "blur->required-field#blur change->book-form#toggleTeacherField" } } %>
   </div>
 
   <div class="my-5" data-book-form-target="teacherField" style="<%= 'display: none;' unless book.source == 'owned_by_teacher' %>">
@@ -31,10 +31,10 @@
     <%= form.collection_select :user_id, @admin_users || [], :id, :name, { include_blank: "請選擇老師" }, { class: ["block shadow-sm rounded-md border px-3 py-2 mt-2 w-full", {"border-gray-400 focus:outline-blue-600": book.errors[:user_id].none?, "border-red-400 focus:outline-red-600": book.errors[:user_id].any?}] } %>
   </div>
 
-  <div class="my-5" data-controller="isbn-validate camera-icon">
+  <div class="my-5" data-controller="isbn-validate camera-icon required-field">
     <%= form.label :isbn, "ISBN" %>
     <div class="flex gap-2 items-center mt-2">
-      <%= form.text_field :isbn, required: true, class: ["block shadow-sm rounded-md border px-3 py-2 w-full", {"border-gray-400 focus:outline-blue-600": book.errors[:isbn].none?, "border-red-400 focus:outline-red-600": book.errors[:isbn].any?}], data: { isbn_validate_target: "input", action: "blur->isbn-validate#validate" } %>
+      <%= form.text_field :isbn, required: true, class: ["block shadow-sm rounded-md border px-3 py-2 w-full", {"border-gray-400 focus:outline-blue-600": book.errors[:isbn].none?, "border-red-400 focus:outline-red-600": book.errors[:isbn].any?}], data: { required_field_target: "input", isbn_validate_target: "input", action: "blur->required-field#blur blur->isbn-validate#validate" } %>
       <button
         type="button"
         class="inline-flex items-center justify-center shrink-0 rounded-md border border-gray-400 px-3 py-2 text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 hidden"
