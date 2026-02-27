@@ -6,27 +6,6 @@
     <%= link_to "返回借還書", root_path, class: "rounded-lg px-4 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-800 font-medium text-sm" %>
   </div>
 
-  <% if current_user_admin? || current_user.nil? %>
-    <%# Admin: filter by person %>
-    <div class="bg-white rounded-xl shadow-md border border-gray-100 p-4 mb-6">
-      <%= form_with url: loan_history_path, method: :get, local: true, class: "flex flex-wrap items-end gap-3" do |f| %>
-        <div class="min-w-0 flex-1 sm:max-w-xs">
-          <label class="block text-sm font-medium text-gray-700 mb-1">篩選借閱人</label>
-          <select name="user_id" class="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" required>
-            <option value="">請選擇借閱人</option>
-            <% selected_id = @filter_user_id || params[:user_id].presence&.to_i %>
-            <% @users.each do |u| %>
-              <option value="<%= u.id %>" <%= "selected" if selected_id.to_i == u.id %>>
-                <%= u.name %><%= "（老師）" if u.admin? %><%= " #{u.id_number}" if u.id_number.present? && !u.admin? %>
-              </option>
-            <% end %>
-          </select>
-        </div>
-        <button type="submit" class="rounded-lg px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white font-medium text-sm">篩選</button>
-      <% end %>
-    </div>
-  <% end %>
-
   <div class="bg-white rounded-xl shadow-md border border-gray-100 overflow-hidden">
     <% if @records.any? %>
       <div class="overflow-x-auto">
@@ -63,13 +42,7 @@
       </div>
       <p class="px-4 py-2 text-xs text-gray-500 border-t border-gray-100">共 <%= @records.size %> 筆（最多顯示 500 筆）</p>
     <% else %>
-      <p class="px-6 py-8 text-center text-gray-500">
-        <% if (current_user_admin? || current_user.nil?) && params[:user_id].blank? %>
-          請先選擇借閱人並按「篩選」以查看紀錄。
-        <% else %>
-          尚無借閱紀錄。
-        <% end %>
-      </p>
+      <p class="px-6 py-8 text-center text-gray-500">尚無借閱紀錄。</p>
     <% end %>
   </div>
 </div>
