@@ -6,7 +6,6 @@ class User < ApplicationRecord
   has_and_belongs_to_many :extra_batch_years,
                           class_name: "BatchYear",
                           join_table: "users_batch_years"
-  has_many :library_loan_histories
   has_many :circulation_records
   has_many :loan_records, -> { where(returned_at: nil) }, class_name: "CirculationRecord"
   has_many :borrowed_books, class_name: "Book", through: :loan_records, source: :book

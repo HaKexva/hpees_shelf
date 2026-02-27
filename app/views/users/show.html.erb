@@ -4,10 +4,10 @@
   <div class="w-full md:max-w-2xl text-left">
     <%= render @user %>
 
-    <% if @user.library_loan_histories.any? %>
+    <% if @library_loan_records.any? %>
       <div class="mt-6">
         <h2 class="font-bold text-xl mb-2">圖書館借閱歷史</h2>
-        <p class="text-sm text-gray-500 mb-2">此人員曾借閱並已歸還的圖書館書籍（書本資料已刪除，僅保留紀錄）。</p>
+        <p class="text-sm text-gray-500 mb-2">此人員曾借閱並已歸還的圖書館書籍（以借閱紀錄為準）。</p>
         <div class="overflow-x-auto rounded-md border border-gray-200">
           <table class="min-w-full divide-y divide-gray-200">
             <thead class="bg-gray-50">
@@ -18,16 +18,16 @@
               </tr>
             </thead>
             <tbody class="bg-white divide-y divide-gray-200">
-              <% @user.library_loan_histories.order(returned_at: :desc).each do |h| %>
+              <% @library_loan_records.each do |r| %>
                 <tr>
                   <td class="px-4 py-2 text-sm text-gray-900">
-                    <%= h.book_title %>
-                    <% if h.book_isbn.present? %>
-                      （<%= format_isbn13(h.book_isbn) %>）
+                    <%= r.book&.title.presence || "（無書名）" %>
+                    <% if r.book&.isbn.present? %>
+                      （<%= format_isbn13(r.book.isbn) %>）
                     <% end %>
                   </td>
-                  <td class="px-4 py-2 text-sm text-gray-500"><%= h.borrowed_at ? l(h.borrowed_at, format: :short) : "—" %></td>
-                  <td class="px-4 py-2 text-sm text-gray-500"><%= l(h.returned_at, format: :short) %></td>
+                  <td class="px-4 py-2 text-sm text-gray-500"><%= r.borrowed_at ? l(r.borrowed_at, format: :short) : "—" %></td>
+                  <td class="px-4 py-2 text-sm text-gray-500"><%= r.returned_at ? l(r.returned_at, format: :short) : "—" %></td>
                 </tr>
               <% end %>
             </tbody>

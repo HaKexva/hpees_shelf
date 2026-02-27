@@ -12,6 +12,14 @@ class UsersController < ApplicationController
 
   # GET /users/1 or /users/1.json
   def show
+    # 此使用者的「圖書館借閱歷史」：透過 circulation_records + library 書籍
+    @library_loan_records =
+      @user.circulation_records
+           .joins(:book)
+           .where(books: { source: Book.sources[:owned_by_library] })
+           .where.not(returned_at: nil)
+           .includes(:book)
+           .order(returned_at: :desc)
   end
 
   # GET /users/new
