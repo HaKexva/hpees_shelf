@@ -5,7 +5,7 @@ class BooksController < ApplicationController
   def index
     BatchYear.ensure_office_exists!
     # Filter out books with empty title and those "Returned to library" (hidden after return)
-    @books = Book.where.not(title: [ nil, "" ]).where.not(status: Book::STATUS_RETURNED_LIBRARY).includes(:batch_year, :borrower)
+    @books = Book.where.not(title: [ nil, "" ]).where.not(status: Book::STATUS_RETURNED_LIBRARY).includes(:batch_year, :borrowers)
     @books = @books.where(batch_year_id: params[:batch_year_id]) if params[:batch_year_id].present?
     if params[:q].to_s.strip.present?
       pattern = "%#{Book.sanitize_sql_like(params[:q].strip)}%"

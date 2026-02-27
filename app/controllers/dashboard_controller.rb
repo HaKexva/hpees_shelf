@@ -5,14 +5,14 @@ class DashboardController < ApplicationController
       redirect_to root_path, status: :see_other
       return
     end
-    @library_books_borrowed = Book.where(source: :owned_by_library, status: Book::STATUS_BORROWED).where.not(title: [ nil, "" ]).includes(:batch_year, :borrower).order(:title)
+    @library_books_borrowed = Book.where(source: :owned_by_library, status: Book::STATUS_BORROWED).where.not(title: [ nil, "" ]).includes(:batch_year, :borrowers).order(:title)
     if current_user_admin? || current_user.nil?
       @users = User.active.order(:admin, :name)
     end
     # 多本同 ISBN 時請選擇冊別
     pending_ids = session[:pending_book_ids].to_a
     if pending_ids.any?
-      @pending_books = Book.where(id: pending_ids).includes(:batch_year, :borrower).order(:id)
+      @pending_books = Book.where(id: pending_ids).includes(:batch_year, :borrowers).order(:id)
       @pending_action = session[:pending_action]
       @pending_user_id = session[:pending_user_id]
       @pending_isbn_display = session[:pending_isbn]
@@ -139,7 +139,7 @@ class DashboardController < ApplicationController
     books = Book.where(source: :owned_by_library, status: status_filter)
                 .where.not(status: Book::STATUS_RETURNED_LIBRARY)
                 .where.not(title: [ nil, "" ])
-                .includes(:batch_year, :borrower)
+                .includes(:batch_year, :borrowers)
                 .to_a.select { |b| Book.isbn_match?(b.isbn, isbn) }
 
     if books.empty?
@@ -228,7 +228,7 @@ class DashboardController < ApplicationController
     books = Book.where(source: :owned_by_library)
                 .where.not(status: Book::STATUS_RETURNED_LIBRARY)
                 .where.not(title: [ nil, "" ])
-                .includes(:batch_year, :borrower)
+                .includes(:batch_year, :borrowers)
                 .to_a.select { |b| Book.isbn_match?(b.isbn, isbn) }
 
     if books.empty?
