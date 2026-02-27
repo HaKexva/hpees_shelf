@@ -327,13 +327,13 @@ class BooksController < ApplicationController
     if @book.owned_by_library?
       LibraryLoanHistory.create!(
         book_id: @book.id,
-        user_id: @book.user_id,
         book_title: @book.title.to_s.presence || "（無書名）",
         book_isbn: @book.isbn,
         borrowed_at: @book.borrowed_at,
         returned_at: Time.current,
         batch_year_id: @book.batch_year_id
       )
+      @book.circulation_records.delete_all
       @book.destroy!
       redirect_to books_path, notice: "已歸還圖書館並刪除書籍資料，借閱紀錄已保留。", status: :see_other
     else
@@ -361,16 +361,18 @@ class BooksController < ApplicationController
 
     count = 0
     scope.find_each do |book|
-      LibraryLoanHistory.create!(
-        book_id: book.id,
-        user_id: book.user_id,
-        book_title: book.title.to_s.presence || "（無書名）",
-        book_isbn: book.isbn,
-        borrowed_at: book.borrowed_at,
-        returned_at: Time.current,
-        batch_year_id: book.batch_year_id
-      )
-      book.destroy!
+      LibraryLoanHistory.transaction do
+        LibraryLoanHistory.create!(
+          book_id: book.id,
+          book_title: book.title.to_s.presence || "（無書名）",
+          book_isbn: book.isbn,
+          borrowed_at: book.borrowed_at,
+          returned_at: Time.current,
+          batch_year_id: book.batch_year_id
+        )
+        book.circulation_records.delete_all
+        book.destroy!
+      end
       count += 1
     end
 
