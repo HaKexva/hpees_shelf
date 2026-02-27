@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_02_21_075238) do
+ActiveRecord::Schema[8.1].define(version: 2026_02_27_013441) do
   create_table "app_settings", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.string "key", null: false
@@ -61,6 +61,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_02_21_075238) do
 
   create_table "library_loan_histories", force: :cascade do |t|
     t.integer "batch_year_id"
+    t.integer "book_id"
     t.string "book_isbn"
     t.string "book_title", null: false
     t.datetime "borrowed_at"
@@ -69,6 +70,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_02_21_075238) do
     t.datetime "updated_at", null: false
     t.integer "user_id"
     t.index ["batch_year_id"], name: "index_library_loan_histories_on_batch_year_id"
+    t.index ["book_id"], name: "index_library_loan_histories_on_book_id"
     t.index ["user_id", "returned_at"], name: "index_library_loan_histories_on_user_returned"
     t.index ["user_id"], name: "index_library_loan_histories_on_user_id"
   end

@@ -326,6 +326,7 @@ class BooksController < ApplicationController
   def return_to_library
     if @book.owned_by_library?
       LibraryLoanHistory.create!(
+        book_id: @book.id,
         user_id: @book.user_id,
         book_title: @book.title.to_s.presence || "（無書名）",
         book_isbn: @book.isbn,
@@ -361,6 +362,7 @@ class BooksController < ApplicationController
     count = 0
     scope.find_each do |book|
       LibraryLoanHistory.create!(
+        book_id: book.id,
         user_id: book.user_id,
         book_title: book.title.to_s.presence || "（無書名）",
         book_isbn: book.isbn,
