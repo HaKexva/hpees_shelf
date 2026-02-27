@@ -3,7 +3,7 @@ class Book < ApplicationRecord
   belongs_to :user, optional: true # current borrower (library) or teacher (owned_by_teacher)
   has_many :circulation_records
   has_many :loan_records, -> { where(returned_at: nil) }, class_name: "CirculationRecord"
-  has_one :borrower, class_name: "User", through: :loan_records, source: :user
+  has_many :borrowers, through: :loan_records, source: :user
 
   validates :batch_year_id, presence: true
   validates :title, presence: true
@@ -37,15 +37,16 @@ class Book < ApplicationRecord
   EDITION_PART_OPTIONS = [ [ "—", "" ], [ EDITION_PART_TOP, EDITION_PART_TOP ], [ EDITION_PART_BOTTOM, EDITION_PART_BOTTOM ] ].freeze
 
   # Display status: borrowed items with borrowed_at more than one day ago are treated as missing (status is stored in Chinese).
-  # When borrowed, appends borrower name e.g. "借閱中（王小明）".
+  # When borrowed, appends borrower name (from circulation_records) e.g. "借閱中（王小明）".
   def display_status
     return status if status == STATUS_RETURNED_LIBRARY
     return STATUS_ON_SHELF if status == STATUS_ON_SHELF
     return STATUS_MISSING if status == STATUS_MISSING
     if status == STATUS_BORROWED && borrowed_at.present? && borrowed_at < 1.day.ago
       STATUS_MISSING
-    elsif status == STATUS_BORROWED && user.present?
-      "#{STATUS_BORROWED}（#{user.name}）"
+    elsif status == STATUS_BORROWED
+      current_borrower = borrowers.first
+      current_borrower ? "#{STATUS_BORROWED}（#{current_borrower.name}）" : STATUS_BORROWED
     else
       STATUS_BORROWED
     end

@@ -27,10 +27,10 @@
     <strong class="block font-medium mb-1">目前狀態：</strong>
     <%= book.display_status %>
   </div>
-  <% if book.owned_by_library? && book.user.present? %>
+  <% if book.owned_by_library? && book.borrowers.first.present? %>
     <div>
       <strong class="block font-medium mb-1">借閱人：</strong>
-      <%= book.user.name %>
+      <%= book.borrowers.first.name %>
     </div>
   <% end %>
   <% if book.owned_by_teacher? && book.user.present? %>

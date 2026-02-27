@@ -5,14 +5,14 @@ class DashboardController < ApplicationController
       redirect_to root_path, status: :see_other
       return
     end
-    @library_books_borrowed = Book.where(source: :owned_by_library, status: Book::STATUS_BORROWED).where.not(title: [ nil, "" ]).includes(:batch_year, :user).order(:title)
+    @library_books_borrowed = Book.where(source: :owned_by_library, status: Book::STATUS_BORROWED).where.not(title: [ nil, "" ]).includes(:batch_year, :borrower).order(:title)
     if current_user_admin? || current_user.nil?
       @users = User.active.order(:admin, :name)
     end
     # 多本同 ISBN 時請選擇冊別
     pending_ids = session[:pending_book_ids].to_a
     if pending_ids.any?
-      @pending_books = Book.where(id: pending_ids).includes(:batch_year, :user).order(:id)
+      @pending_books = Book.where(id: pending_ids).includes(:batch_year, :borrower).order(:id)
       @pending_action = session[:pending_action]
       @pending_user_id = session[:pending_user_id]
       @pending_isbn_display = session[:pending_isbn]
@@ -104,7 +104,7 @@ class DashboardController < ApplicationController
     end
 
     doing_return = action == "return" || (action.blank? && book.status == Book::STATUS_BORROWED)
-    if doing_return && book.user_id != borrower.id
+    if doing_return && book.borrowers.first&.id != borrower.id
       _clear_pending_session
       redirect_to root_path, alert: "此書不是此人借閱的，無法歸還。", status: :see_other
       return
@@ -139,7 +139,7 @@ class DashboardController < ApplicationController
     books = Book.where(source: :owned_by_library, status: status_filter)
                 .where.not(status: Book::STATUS_RETURNED_LIBRARY)
                 .where.not(title: [ nil, "" ])
-                .includes(:batch_year, :user)
+                .includes(:batch_year, :borrower)
                 .to_a.select { |b| Book.isbn_match?(b.isbn, isbn) }
 
     if books.empty?
@@ -185,7 +185,7 @@ class DashboardController < ApplicationController
     end
 
     if action == "return"
-      books = books.select { |b| b.user_id == borrower.id }
+      books = books.select { |b| b.borrowers.first&.id == borrower.id }
       if books.empty?
         redirect_to root_path, alert: "此書不是此人借閱的，無法歸還。", status: :see_other
         return
@@ -228,7 +228,7 @@ class DashboardController < ApplicationController
     books = Book.where(source: :owned_by_library)
                 .where.not(status: Book::STATUS_RETURNED_LIBRARY)
                 .where.not(title: [ nil, "" ])
-                .includes(:batch_year, :user)
+                .includes(:batch_year, :borrower)
                 .to_a.select { |b| Book.isbn_match?(b.isbn, isbn) }
 
     if books.empty?
@@ -252,7 +252,7 @@ class DashboardController < ApplicationController
         redirect_to root_path, alert: "此書與您的屆數不同，無法借閱。", status: :see_other
         return
       end
-      if book.status == Book::STATUS_BORROWED && book.user_id != borrower.id
+      if book.status == Book::STATUS_BORROWED && book.borrowers.first&.id != borrower.id
         redirect_to root_path, alert: "此書不是您借閱的，無法歸還。", status: :see_other
         return
       end
@@ -263,7 +263,7 @@ class DashboardController < ApplicationController
 
     books = books.select do |b|
       (b.status == Book::STATUS_ON_SHELF && b.batch_year_id == borrower.batch_year_id) ||
-        (b.status == Book::STATUS_BORROWED && b.user_id == borrower.id)
+        (b.status == Book::STATUS_BORROWED && b.borrowers.first&.id == borrower.id)
     end
     if books.empty?
       redirect_to root_path, alert: "沒有您可借或可還的書（此書與您的屆數不同或非您借閱）。", status: :see_other
@@ -303,7 +303,10 @@ class DashboardController < ApplicationController
 
   def _student_at_borrow_limit?(borrower)
     return false if borrower.blank? || borrower.admin?
-    Book.where(source: :owned_by_library, status: Book::STATUS_BORROWED, user_id: borrower.id).exists?
+    CirculationRecord.where(user_id: borrower.id, returned_at: nil)
+                     .joins(:book)
+                     .where(books: { source: :owned_by_library, status: Book::STATUS_BORROWED })
+                     .exists?
   end
 
   def _clear_pending_session
