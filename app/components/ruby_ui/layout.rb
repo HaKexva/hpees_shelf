@@ -94,7 +94,10 @@ module RubyUI
     end
 
     def nav_link(href:, &block)
-      a(href: href, class: "block px-4 py-2 rounded-md hover:bg-accent hover:text-accent-foreground text-sm font-medium transition-colors") do
+      active = helpers.current_page?(href)
+      link_class = "block px-4 py-2 rounded-md text-sm font-medium transition-colors "
+      link_class += active ? "bg-accent text-accent-foreground" : "hover:bg-accent hover:text-accent-foreground"
+      a(href: href, class: link_class) do
         block.call
       end
     end
