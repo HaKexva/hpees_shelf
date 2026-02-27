@@ -333,9 +333,9 @@ class BooksController < ApplicationController
         returned_at: Time.current,
         batch_year_id: @book.batch_year_id
       )
-      @book.circulation_records.delete_all
-      @book.destroy!
-      redirect_to books_path, notice: "已歸還圖書館並刪除書籍資料，借閱紀錄已保留。", status: :see_other
+      @book.circulation_records.where(returned_at: nil).update_all(returned_at: Time.current)
+      @book.update!(user_id: nil, status: Book::STATUS_RETURNED_LIBRARY, borrowed_at: nil)
+      redirect_to books_path, notice: "已歸還圖書館，書籍狀態已標記為「歸還圖書館」，借閱紀錄已保留。", status: :see_other
     else
       redirect_to @book, alert: "僅圖書館的書可執行此操作。", status: :see_other
     end
@@ -370,8 +370,8 @@ class BooksController < ApplicationController
           returned_at: Time.current,
           batch_year_id: book.batch_year_id
         )
-        book.circulation_records.delete_all
-        book.destroy!
+        book.circulation_records.where(returned_at: nil).update_all(returned_at: Time.current)
+        book.update!(user_id: nil, status: Book::STATUS_RETURNED_LIBRARY, borrowed_at: nil)
       end
       count += 1
     end
