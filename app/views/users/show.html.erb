@@ -26,8 +26,8 @@
                       （<%= format_isbn13(r.book.isbn) %>）
                     <% end %>
                   </td>
-                  <td class="px-4 py-2 text-sm text-gray-500"><%= r.borrowed_at ? l(r.borrowed_at, format: :short) : "—" %></td>
-                  <td class="px-4 py-2 text-sm text-gray-500"><%= r.returned_at ? l(r.returned_at, format: :short) : "—" %></td>
+                  <td class="px-4 py-2 text-sm text-gray-500"><%= r.borrowed_at ? r.borrowed_at.strftime("%Y-%m-%d %H:%M") : "—" %></td>
+                  <td class="px-4 py-2 text-sm text-gray-500"><%= r.returned_at ? r.returned_at.strftime("%Y-%m-%d %H:%M") : "—" %></td>
                 </tr>
               <% end %>
             </tbody>
