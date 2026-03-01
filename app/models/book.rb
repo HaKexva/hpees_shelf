@@ -57,9 +57,9 @@ class Book < ApplicationRecord
     isbn.present? && !self.class.valid_isbn13?(isbn)
   end
 
-  # The "Return to library" button is only shown during January–March and July–September each year; hidden in other months
+  # The "Return to library" button is only shown during 7–9 (Jul–Sep) and 12–2 (Dec–Feb); hidden in other months
   def self.show_return_to_library_button?
-    [ 1, 2, 3, 7, 8, 9 ].include?(Date.current.month)
+    [ 1, 2, 7, 8, 9, 12 ].include?(Date.current.month)
   end
 
   # Normalize ISBN to 13 digits only (strip hyphens/spaces) for comparison. Returns nil if not 13 digits.

@@ -1,13 +1,9 @@
 class UsersController < ApplicationController
   before_action :set_user, only: %i[ show edit update destroy cancel_resignation ]
 
-  # GET /users or /users.json
+  # GET /users or /users.json — only active (non-resigned) users are shown; resigned users can still log in.
   def index
-    scope = User.includes(:batch_year)
-    scope = scope.active unless params[:include_resigned] == "1"
-    @users = scope.order(:name)
-    @include_resigned = params[:include_resigned] == "1"
-    @has_resigned = User.where.not(resigned_at: nil).exists?
+    @users = User.active.includes(:batch_year).order(:name)
   end
 
   # GET /users/1 or /users/1.json

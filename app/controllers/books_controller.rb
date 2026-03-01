@@ -16,6 +16,7 @@ class BooksController < ApplicationController
     @filter_q = params[:q].to_s.strip.presence
     @invalid_books = @books.select { |b| b.missing_required_fields.any? }
     @books_with_invalid_isbn = @books.select(&:invalid_isbn?)
+    # 這裡仍只看圖書館的書，用來決定是否顯示「歸還圖書館書籍」按鈕
     @any_library_books_to_return = Book.where(source: :owned_by_library).where.not(status: Book::STATUS_RETURNED_LIBRARY).exists?
   end
 
@@ -80,7 +81,7 @@ class BooksController < ApplicationController
         if source_key == "owned_by_teacher" && source_raw.present?
           teacher_name = _import_teacher_name_from_source(source_raw)
           if teacher_name.present?
-            admin_scope = User.where(admin: true)
+            admin_scope = User.active.where(admin: true)
             teacher =
               admin_scope.find_by(name: teacher_name) ||
               admin_scope.find_by(name: "#{teacher_name}老師") ||
@@ -204,14 +205,14 @@ class BooksController < ApplicationController
     BatchYear.ensure_office_exists!
     @book = Book.new
     @batch_years = BatchYear.class_batches_by_number_desc
-    @admin_users = User.where(admin: true).order(:name)
+    @admin_users = User.active.where(admin: true).order(:name)
   end
 
   # GET /books/1/edit
   def edit
     BatchYear.ensure_office_exists!
     @batch_years = BatchYear.class_batches_by_number_desc
-    @admin_users = User.where(admin: true).order(:name)
+    @admin_users = User.active.where(admin: true).order(:name)
   end
 
   # POST /books or /books.json
@@ -228,7 +229,7 @@ class BooksController < ApplicationController
       else
         BatchYear.ensure_office_exists!
         @batch_years = BatchYear.class_batches_by_number_desc
-        @admin_users = User.where(admin: true).order(:name)
+        @admin_users = User.active.where(admin: true).order(:name)
         flash.now[:alert] = @book.errors.full_messages.join("；")
         format.html { render :new, status: :unprocessable_entity }
         format.json { render json: @book.errors, status: :unprocessable_entity }
@@ -249,7 +250,7 @@ class BooksController < ApplicationController
       else
         BatchYear.ensure_office_exists!
         @batch_years = BatchYear.class_batches_by_number_desc
-        @admin_users = User.where(admin: true).order(:name)
+        @admin_users = User.active.where(admin: true).order(:name)
         flash.now[:alert] = @book.errors.full_messages.join("；")
         format.html { render :edit, status: :unprocessable_entity }
         format.json { render json: @book.errors, status: :unprocessable_entity }
@@ -280,7 +281,8 @@ class BooksController < ApplicationController
       redirect_to root_path, alert: "請掃描或輸入 ISBN。", status: :see_other
       return
     end
-    book = Book.where(source: :owned_by_library, status: Book::STATUS_ON_SHELF).where("TRIM(COALESCE(isbn, '')) = ?", isbn).first
+    # 這個舊的借書入口也改成看所有來源，只要是「架上」狀態即可
+    book = Book.where(status: Book::STATUS_ON_SHELF).where("TRIM(COALESCE(isbn, '')) = ?", isbn).first
     unless book
       redirect_to root_path, alert: "找不到架上且符合此 ISBN 的圖書館館藏（ISBN：#{isbn}）。", status: :see_other
       return

@@ -5,7 +5,11 @@ class DashboardController < ApplicationController
       redirect_to root_path, status: :see_other
       return
     end
-    @library_books_borrowed = Book.where(source: :owned_by_library, status: Book::STATUS_BORROWED).where.not(title: [ nil, "" ]).includes(:batch_year, :borrowers).order(:title)
+    # 目前借閱中：顯示所有來源的書，只要狀態是「借閱中」且有書名
+    @library_books_borrowed = Book.where(status: Book::STATUS_BORROWED)
+                                  .where.not(title: [ nil, "" ])
+                                  .includes(:batch_year, :borrowers)
+                                  .order(:title)
     if current_user_admin? || current_user.nil?
       @users = User.active.order(:admin, :name)
     end
@@ -26,7 +30,8 @@ class DashboardController < ApplicationController
 
   def loan_history
     if current_user_admin? || current_user.nil?
-      @users = User.active.order(:admin, :name)
+      # Include all users (active, resigned, graduated) so admins can view anyone's loan history
+      @users = User.includes(:batch_year).order(:admin, :name)
       filter_user_id = params[:user_id].presence&.to_i
       filter_user_id = current_user&.id if filter_user_id.blank? && current_user.present?
       if filter_user_id.present?
@@ -50,10 +55,11 @@ class DashboardController < ApplicationController
     digits_only = isbn.gsub(/\D/, "")
     has_13_digits = digits_only.length == 13
     check_digit_valid = has_13_digits && Book.valid_isbn13?(isbn)
-    book_exists = Book.where(source: :owned_by_library)
-                      .where.not(status: Book::STATUS_RETURNED_LIBRARY)
+    # 借還系統看所有來源的書，只要不是「歸還圖書館」且有書名
+    book_exists = Book.where.not(status: Book::STATUS_RETURNED_LIBRARY)
                       .where.not(title: [ nil, "" ])
-                      .to_a.any? { |b| Book.isbn_match?(b.isbn, isbn) }
+                      .to_a
+                      .any? { |b| Book.isbn_match?(b.isbn, isbn) }
     render json: { has_13_digits: has_13_digits, check_digit_valid: check_digit_valid, book_exists: book_exists }
   end
 
@@ -136,18 +142,20 @@ class DashboardController < ApplicationController
   def _process_isbn_admin(isbn)
     action = params[:action_type].to_s == "return" ? "return" : "checkout"
     status_filter = action == "checkout" ? Book::STATUS_ON_SHELF : Book::STATUS_BORROWED
-    books = Book.where(source: :owned_by_library, status: status_filter)
+    # 借還流程：不限來源，只限制狀態與書名
+    books = Book.where(status: status_filter)
                 .where.not(status: Book::STATUS_RETURNED_LIBRARY)
                 .where.not(title: [ nil, "" ])
                 .includes(:batch_year, :borrowers)
-                .to_a.select { |b| Book.isbn_match?(b.isbn, isbn) }
+                .to_a
+                .select { |b| Book.isbn_match?(b.isbn, isbn) }
 
     if books.empty?
       if action == "checkout"
-        all_with_isbn = Book.where(source: :owned_by_library)
-                            .where.not(status: Book::STATUS_RETURNED_LIBRARY)
+        all_with_isbn = Book.where.not(status: Book::STATUS_RETURNED_LIBRARY)
                             .where.not(title: [ nil, "" ])
-                            .to_a.select { |b| Book.isbn_match?(b.isbn, isbn) }
+                            .to_a
+                            .select { |b| Book.isbn_match?(b.isbn, isbn) }
         alert_msg = all_with_isbn.any? ? "此書仍在借閱，請勿重複借閱。" : "找不到此書。"
       else
         alert_msg = "找不到可還的書（借閱中且符合此 ISBN）。"
@@ -194,10 +202,10 @@ class DashboardController < ApplicationController
 
     # Checkout: if this ISBN has more than one volume (any status), always show volume picker
     all_volumes_with_isbn = if action == "checkout"
-      Book.where(source: :owned_by_library)
-          .where.not(status: Book::STATUS_RETURNED_LIBRARY)
+      Book.where.not(status: Book::STATUS_RETURNED_LIBRARY)
           .where.not(title: [ nil, "" ])
-          .to_a.select { |b| Book.isbn_match?(b.isbn, isbn) }
+          .to_a
+          .select { |b| Book.isbn_match?(b.isbn, isbn) }
     else
       []
     end
@@ -225,11 +233,12 @@ class DashboardController < ApplicationController
   end
 
   def _process_isbn_student(isbn)
-    books = Book.where(source: :owned_by_library)
-                .where.not(status: Book::STATUS_RETURNED_LIBRARY)
+    # 學生借還：同樣看所有來源，只過濾狀態與書名
+    books = Book.where.not(status: Book::STATUS_RETURNED_LIBRARY)
                 .where.not(title: [ nil, "" ])
                 .includes(:batch_year, :borrowers)
-                .to_a.select { |b| Book.isbn_match?(b.isbn, isbn) }
+                .to_a
+                .select { |b| Book.isbn_match?(b.isbn, isbn) }
 
     if books.empty?
       redirect_to root_path, alert: "找不到此 ISBN 的圖書館館藏（ISBN：#{isbn}）。", status: :see_other
@@ -303,9 +312,10 @@ class DashboardController < ApplicationController
 
   def _student_at_borrow_limit?(borrower)
     return false if borrower.blank? || borrower.admin?
+    # 借閱上限：學生一次只能借一本「任何來源」且尚未歸還的書
     CirculationRecord.where(user_id: borrower.id, returned_at: nil)
                      .joins(:book)
-                     .where(books: { source: :owned_by_library, status: Book::STATUS_BORROWED })
+                     .where(books: { status: Book::STATUS_BORROWED })
                      .exists?
   end
 
