@@ -4,8 +4,14 @@ class BooksController < ApplicationController
   # GET /books or /books.json
   def index
     BatchYear.ensure_office_exists!
-    # Filter out books with empty title and those "Returned to library" (hidden after return)
-    @books = Book.where.not(title: [ nil, "" ]).where.not(status: Book::STATUS_RETURNED_LIBRARY).includes(:batch_year, :borrowers)
+    @books = Book.where.not(title: [ nil, "" ]).includes(:batch_year, :borrowers)
+    # Default: hide "歸還圖書館" unless status filter is applied
+    if params[:status].present?
+      @books = @books.where(status: params[:status])
+    else
+      @books = @books.where.not(status: Book::STATUS_RETURNED_LIBRARY)
+    end
+    @books = @books.where(source: params[:source]) if params[:source].present?
     @books = @books.where(batch_year_id: params[:batch_year_id]) if params[:batch_year_id].present?
     if params[:q].to_s.strip.present?
       pattern = "%#{Book.sanitize_sql_like(params[:q].strip)}%"
@@ -14,9 +20,10 @@ class BooksController < ApplicationController
     @batch_years = BatchYear.by_number_desc
     @filter_batch_year_id = params[:batch_year_id]
     @filter_q = params[:q].to_s.strip.presence
+    @filter_sources = Array(params[:source]).reject(&:blank?)
+    @filter_statuses = Array(params[:status]).reject(&:blank?)
     @invalid_books = @books.select { |b| b.missing_required_fields.any? }
     @books_with_invalid_isbn = @books.select(&:invalid_isbn?)
-    # 這裡仍只看圖書館的書，用來決定是否顯示「歸還圖書館書籍」按鈕
     @any_library_books_to_return = Book.where(source: :owned_by_library).where.not(status: Book::STATUS_RETURNED_LIBRARY).exists?
   end
 
