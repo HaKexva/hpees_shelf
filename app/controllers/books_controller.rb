@@ -20,8 +20,8 @@ class BooksController < ApplicationController
     @batch_years = BatchYear.by_number_desc
     @filter_batch_year_id = params[:batch_year_id]
     @filter_q = params[:q].to_s.strip.presence
-    @filter_sources = Array(params[:source]).reject(&:blank?)
-    @filter_statuses = Array(params[:status]).reject(&:blank?)
+    @filter_source = params[:source].presence
+    @filter_status = params[:status].presence
     @invalid_books = @books.select { |b| b.missing_required_fields.any? }
     @books_with_invalid_isbn = @books.select(&:invalid_isbn?)
     @any_library_books_to_return = Book.where(source: :owned_by_library).where.not(status: Book::STATUS_RETURNED_LIBRARY).exists?
