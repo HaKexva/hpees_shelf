@@ -96,6 +96,6 @@ class Book < ApplicationRecord
   end
 
   def set_total_to_one_if_blank
-    self.total = 1 if total.blank?
+    self.total = 1 if total.blank? || total.to_i <= 0
   end
 end
