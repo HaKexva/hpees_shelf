@@ -8,7 +8,8 @@
       <div class="mt-6">
         <h2 class="font-bold text-xl mb-2">圖書館借閱歷史</h2>
         <p class="text-sm text-gray-500 mb-2">此人員曾借閱並已歸還的圖書館書籍（以借閱紀錄為準）。</p>
-        <div class="overflow-x-auto rounded-md border border-gray-200">
+        <!-- 桌機版表格 -->
+        <div class="overflow-x-auto rounded-md border border-gray-200 hidden md:block">
           <table class="min-w-full divide-y divide-gray-200">
             <thead class="bg-gray-50">
               <tr>
@@ -32,6 +33,28 @@
               <% end %>
             </tbody>
           </table>
+        </div>
+
+        <!-- 手機版卡片 -->
+        <div class="mt-3 space-y-3 block md:hidden">
+          <% @library_loan_records.each do |r| %>
+            <div class="bg-white rounded-xl border border-gray-200 p-3 shadow-sm">
+              <p class="text-sm font-medium text-gray-900">
+                <%= r.book&.title.presence || "（無書名）" %>
+                <% if r.book&.isbn.present? %>
+                  （<%= format_isbn13(r.book.isbn) %>）
+                <% end %>
+              </p>
+              <p class="mt-1 text-xs text-gray-600">
+                <span class="text-gray-400">借閱</span>
+                <%= r.borrowed_at ? r.borrowed_at.strftime("%Y-%m-%d %H:%M") : "—" %>
+              </p>
+              <p class="mt-0.5 text-xs text-gray-600">
+                <span class="text-gray-400">歸還</span>
+                <%= r.returned_at ? r.returned_at.strftime("%Y-%m-%d %H:%M") : "—" %>
+              </p>
+            </div>
+          <% end %>
         </div>
       </div>
     <% end %>

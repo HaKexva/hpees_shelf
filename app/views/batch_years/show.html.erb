@@ -17,7 +17,8 @@
   <h2 class="font-semibold text-lg mb-4">此屆數書籍（<%= @books.size %> 本）</h2>
 
   <% if @books.any? %>
-    <div class="bg-white rounded-lg shadow overflow-hidden">
+    <!-- 桌機版表格 -->
+    <div class="bg-white rounded-lg shadow overflow-hidden hidden md:block">
       <table class="min-w-full divide-y divide-gray-200">
         <thead class="bg-gray-50">
           <tr>
@@ -43,6 +44,26 @@
           <% end %>
         </tbody>
       </table>
+    </div>
+
+    <!-- 手機版卡片 -->
+    <div class="md:hidden space-y-3">
+      <% @books.each do |book| %>
+        <div class="bg-white rounded-xl shadow border border-gray-200 p-4">
+          <p class="text-sm font-medium text-gray-900">
+            <%= link_to book, class: "text-blue-600 hover:text-blue-900" do %>
+              <%= book.title %>
+              <% if book.volume.present? %>
+                （<%= book.volume %>）
+              <% end %>
+            <% end %>
+          </p>
+          <div class="mt-2 text-xs text-gray-600 space-y-0.5">
+            <p><span class="text-gray-400">ISBN</span> <%= format_isbn13(book.isbn) %></p>
+            <p><span class="text-gray-400">總數</span> <%= book.total %></p>
+          </div>
+        </div>
+      <% end %>
     </div>
   <% else %>
     <p class="text-gray-500">此屆數尚無書籍。請在新增書籍時選擇此屆數。</p>

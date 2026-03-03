@@ -26,7 +26,8 @@
 
   <div class="bg-white rounded-xl shadow-md border border-gray-100 overflow-hidden">
     <% if @records.any? %>
-      <div class="overflow-x-auto">
+      <!-- 桌機版表格 -->
+      <div class="overflow-x-auto hidden md:block">
         <table class="min-w-full divide-y divide-gray-200">
           <thead class="bg-gray-50">
             <tr>
@@ -58,7 +59,34 @@
           </tbody>
         </table>
       </div>
-      <p class="px-4 py-2 text-xs text-gray-500 border-t border-gray-100">共 <%= @records.size %> 筆（最多顯示 500 筆）</p>
+
+      <!-- 手機版卡片 -->
+      <div class="block md:hidden">
+        <div class="divide-y divide-gray-100">
+          <% @records.each do |r| %>
+            <div class="px-4 py-3">
+              <% if current_user_admin? || current_user.nil? %>
+                <p class="text-sm font-medium text-gray-900 mb-1">
+                  <%= r.user&.name || "—" %><%= "（老師）" if r.user&.admin? %>
+                </p>
+              <% end %>
+              <p class="text-sm text-gray-900"><%= r.book&.title.presence || "—" %></p>
+              <div class="mt-2 space-y-0.5 text-xs text-gray-600">
+                <p><span class="text-gray-400">借出</span> <%= r.borrowed_at&.strftime("%Y-%m-%d %H:%M") || "—" %></p>
+                <p>
+                  <span class="text-gray-400">歸還</span>
+                  <% if r.returned_at.present? %>
+                    <%= r.returned_at.strftime("%Y-%m-%d %H:%M") %>
+                  <% else %>
+                    <span class="text-amber-600 font-medium">借閱中</span>
+                  <% end %>
+                </p>
+              </div>
+            </div>
+          <% end %>
+        </div>
+        <p class="px-4 py-2 text-xs text-gray-500 border-t border-gray-100">共 <%= @records.size %> 筆（最多顯示 500 筆）</p>
+      </div>
     <% else %>
       <p class="px-6 py-8 text-center text-gray-500">
         <% if (current_user_admin? || current_user.nil?) && @filter_user_id.blank? %>
