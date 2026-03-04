@@ -86,7 +86,7 @@ class DashboardController < ApplicationController
     end
 
     book = Book.find_by(id: book_id)
-    unless book&.owned_by_library?
+    unless book
       _clear_pending_session
       redirect_to root_path, alert: "找不到該書籍。", status: :see_other
       return

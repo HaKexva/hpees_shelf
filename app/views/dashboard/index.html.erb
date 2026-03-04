@@ -146,8 +146,22 @@
             <select name="book_id" required class="block w-full shadow-sm rounded-lg border border-gray-300 px-3 py-2.5 text-base">
               <option value="">請選擇</option>
               <% @pending_books.each do |book| %>
+                <% parts = [] %>
+                <% if book.batch_year.present? %>
+                  <% parts << book.batch_year.display_label_with_grade %>
+                <% end %>
+                <% if book.source.present? %>
+                  <% source_label = t("activerecord.enums.book.source.#{book.source}") rescue book.source %>
+                  <% if book.owned_by_teacher? && book.user.present? %>
+                    <% source_label = "#{source_label}（#{book.user.name}）" %>
+                  <% end %>
+                  <% parts << source_label %>
+                <% end %>
+                <% if book.owned_by_library? %>
+                  <% parts << "登錄號 #{book.id}" %>
+                <% end %>
                 <option value="<%= book.id %>">
-                  <%= book.title %><%= " #{book.edition_part}" if book.edition_part.present? %><%= " 冊#{book.volume}" if book.volume.present? %> — <%= book.status == Book::STATUS_ON_SHELF ? "架上" : "借閱中" %><%= "（#{book.borrowers.first&.name}）" if book.status == Book::STATUS_BORROWED && book.borrowers.first %>
+                  <%= book.title %><%= " #{book.edition_part}" if book.edition_part.present? %><%= " 冊#{book.volume}" if book.volume.present? %><%= " — #{parts.join('・')}" if parts.any? %>
                 </option>
               <% end %>
             </select>
@@ -178,4 +192,22 @@
     </div>
   </div>
 </div>
+
+<% if current_user_admin? || current_user.nil? %>
+  <script>
+    (function() {
+      var form = document.getElementById("scan-form");
+      if (!form) return;
+      form.addEventListener("submit", function(e) {
+        var actionType = form.querySelector("input[name='action_type']:checked");
+        if (!actionType || actionType.value !== "checkout") return;
+        var hiddenBorrower = form.querySelector("input[name='user_id']");
+        if (hiddenBorrower && !hiddenBorrower.value) {
+          e.preventDefault();
+          alert("請先選擇借閱人。");
+        }
+      });
+    })();
+  </script>
+<% end %>
 
