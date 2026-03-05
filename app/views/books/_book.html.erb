@@ -15,6 +15,12 @@
     <strong class="block font-medium mb-1">總數：</strong>
     <%= book.total %>
   </div>
+  <% if book.call_number.present? %>
+    <div>
+      <strong class="block font-medium mb-1">登錄號：</strong>
+      <%= book.call_number %>
+    </div>
+  <% end %>
   <div>
     <strong class="block font-medium mb-1">備註：</strong>
     <%= book.note %>

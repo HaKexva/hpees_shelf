@@ -9,6 +9,7 @@ class Book < ApplicationRecord
   validates :title, presence: true
   validates :isbn, presence: true
   validates :source, presence: true
+  validates :call_number, presence: true, if: :owned_by_library?
   validate :isbn_must_be_valid_13_if_present
   enum :source, { owned_by_library: 0, donated: 1, owned_by_class: 2, owned_by_teacher: 3 }
   before_validation :set_total_to_one_if_blank

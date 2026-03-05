@@ -158,8 +158,8 @@
                   <% end %>
                   <% parts << source_label %>
                 <% end %>
-                <% if book.owned_by_library? %>
-                  <% parts << "登錄號 #{book.id}" %>
+                <% if book.call_number.present? %>
+                  <% parts << "登錄號 #{book.call_number}" %>
                 <% end %>
                 <option value="<%= book.id %>">
                   <%= book.title %><%= " #{book.edition_part}" if book.edition_part.present? %><%= " 冊#{book.volume}" if book.volume.present? %><%= " — #{parts.join('・')}" if parts.any? %>
