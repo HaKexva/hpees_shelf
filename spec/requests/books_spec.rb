@@ -28,19 +28,20 @@ RSpec.describe "Books", type: :request do
             note: "Test note",
             title: "New Book",
             total: 1,
-            volume: 1
+            volume: 1,
+            source: "donated"
           }
         }
       }.to change(Book, :count).by(1)
 
-      expect(response).to redirect_to(book_url(Book.last))
+      expect(response).to redirect_to(edit_book_url(Book.last))
     end
   end
 
   describe "GET /books/:id" do
-    it "returns success" do
+    it "redirects to edit" do
       get book_url(book)
-      expect(response).to have_http_status(:success)
+      expect(response).to redirect_to(edit_book_url(book))
     end
   end
 
@@ -61,10 +62,11 @@ RSpec.describe "Books", type: :request do
           note: "Updated note",
           title: "Updated Title",
           total: book.total,
-          volume: book.volume
+          volume: book.volume,
+          source: book.source
         }
       }
-      expect(response).to redirect_to(book_url(book))
+      expect(response).to redirect_to(edit_book_url(book))
     end
   end
 

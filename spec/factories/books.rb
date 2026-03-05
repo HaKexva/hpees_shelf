@@ -7,5 +7,7 @@ FactoryBot.define do
     volume { 1 }
     note { "Test note" }
     grade_id { 1 }
+    source { :donated }
+    call_number { nil }
   end
 end
