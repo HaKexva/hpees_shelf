@@ -56,6 +56,27 @@ class Book < ApplicationRecord
     end
   end
 
+  def active_circulation_records
+    circulation_records.where(returned_at: nil)
+  end
+
+  def active_loans_count
+    active_circulation_records.count
+  end
+
+  def effective_total
+    t = total.to_i
+    t.positive? ? t : 1
+  end
+
+  def available_copies
+    [ effective_total - active_loans_count, 0 ].max
+  end
+
+  def can_borrow_copy?
+    available_copies.positive?
+  end
+
   # True when book has an ISBN that fails ISBN-13 validation (for showing warnings on list/show)
   def invalid_isbn?
     isbn.present? && !self.class.valid_isbn13?(isbn)

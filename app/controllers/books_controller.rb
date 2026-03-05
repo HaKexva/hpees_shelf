@@ -289,14 +289,45 @@ class BooksController < ApplicationController
       redirect_to root_path, alert: "請掃描或輸入 ISBN。", status: :see_other
       return
     end
-    # 這個舊的借書入口也改成看所有來源，只要是「架上」狀態即可
-    book = Book.where(status: Book::STATUS_ON_SHELF).where("TRIM(COALESCE(isbn, '')) = ?", isbn).first
+    # 這個舊的借書入口也改成看所有來源；圖書館館藏若總數大於 1，可借到沒有可用冊數為止
+    candidates =
+      Book.where.not(status: Book::STATUS_RETURNED_LIBRARY)
+          .where("TRIM(COALESCE(isbn, '')) = ?", isbn)
+          .where.not(title: [ nil, "" ])
+          .includes(:batch_year, :borrowers)
+          .to_a
+
+    book = candidates.find do |b|
+      if b.owned_by_library? && b.effective_total > 1
+        b.can_borrow_copy?
+      else
+        b.status == Book::STATUS_ON_SHELF
+      end
+    end
+
     unless book
-      redirect_to root_path, alert: "找不到架上且符合此 ISBN 的圖書館館藏（ISBN：#{isbn}）。", status: :see_other
+      alert_msg =
+        if candidates.any?
+          "找不到架上且符合此 ISBN 的圖書館館藏（可能已無可借冊數）（ISBN：#{isbn}）。"
+        else
+          "找不到架上且符合此 ISBN 的圖書館館藏（ISBN：#{isbn}）。"
+        end
+      redirect_to root_path, alert: alert_msg, status: :see_other
       return
     end
-    book.update!(user_id: user.id, status: Book::STATUS_BORROWED, borrowed_at: Time.current)
-    book.circulation_records.create!(user_id: user.id, borrowed_at: Time.current)
+
+    if book.owned_by_library? && book.effective_total > 1
+      if book.can_borrow_copy?
+        book.circulation_records.create!(user_id: user.id, borrowed_at: Time.current)
+        book.update!(status: Book::STATUS_BORROWED, borrowed_at: Time.current)
+      else
+        redirect_to root_path, alert: "此書已無可借冊數。", status: :see_other
+        return
+      end
+    else
+      book.update!(user_id: user.id, status: Book::STATUS_BORROWED, borrowed_at: Time.current)
+      book.circulation_records.create!(user_id: user.id, borrowed_at: Time.current)
+    end
     redirect_to root_path, notice: "已登記借閱：#{book.title} → #{user.name}。", status: :see_other
   end
 
@@ -306,9 +337,16 @@ class BooksController < ApplicationController
       redirect_to root_path, alert: "僅圖書館館藏可借閱。", status: :see_other
       return
     end
-    if @book.status == Book::STATUS_BORROWED
-      redirect_to root_path, alert: "此書已借閱中。", status: :see_other
-      return
+    if @book.owned_by_library? && @book.effective_total > 1
+      unless @book.can_borrow_copy?
+        redirect_to root_path, alert: "此書已無可借冊數。", status: :see_other
+        return
+      end
+    else
+      if @book.status == Book::STATUS_BORROWED
+        redirect_to root_path, alert: "此書已借閱中。", status: :see_other
+        return
+      end
     end
     user_id = params[:user_id].presence&.to_i
     user = User.find_by(id: user_id)
@@ -316,8 +354,13 @@ class BooksController < ApplicationController
       redirect_to root_path, alert: "請選擇借閱人。", status: :see_other
       return
     end
-    @book.update!(user_id: user.id, status: Book::STATUS_BORROWED, borrowed_at: Time.current)
-    @book.circulation_records.create!(user_id: user.id, borrowed_at: Time.current)
+    if @book.owned_by_library? && @book.effective_total > 1
+      @book.circulation_records.create!(user_id: user.id, borrowed_at: Time.current)
+      @book.update!(status: Book::STATUS_BORROWED, borrowed_at: Time.current)
+    else
+      @book.update!(user_id: user.id, status: Book::STATUS_BORROWED, borrowed_at: Time.current)
+      @book.circulation_records.create!(user_id: user.id, borrowed_at: Time.current)
+    end
     redirect_to root_path, notice: "已登記借閱：#{@book.title} → #{user.name}。", status: :see_other
   end
 
@@ -327,8 +370,14 @@ class BooksController < ApplicationController
       redirect_to root_path, alert: "僅圖書館館藏可還書。", status: :see_other
       return
     end
-    @book.circulation_records.where(returned_at: nil).update_all(returned_at: Time.current)
-    @book.update!(user_id: nil, status: Book::STATUS_ON_SHELF, borrowed_at: nil)
+    if @book.owned_by_library? && @book.effective_total > 1
+      # 強制將所有未還的冊數一併標記為已還
+      @book.circulation_records.where(returned_at: nil).update_all(returned_at: Time.current)
+      @book.update!(user_id: nil, status: Book::STATUS_ON_SHELF, borrowed_at: nil)
+    else
+      @book.circulation_records.where(returned_at: nil).update_all(returned_at: Time.current)
+      @book.update!(user_id: nil, status: Book::STATUS_ON_SHELF, borrowed_at: nil)
+    end
     redirect_to root_path, notice: "已還書：#{@book.title}。", status: :see_other
   end
 

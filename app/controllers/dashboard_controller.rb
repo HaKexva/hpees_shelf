@@ -170,22 +170,34 @@ class DashboardController < ApplicationController
 
   def _process_isbn_admin(isbn)
     action = params[:action_type].to_s == "return" ? "return" : "checkout"
-    status_filter = action == "checkout" ? Book::STATUS_ON_SHELF : Book::STATUS_BORROWED
-    # 借還流程：不限來源，只限制狀態與書名
-    books = Book.where(status: status_filter)
-                .where.not(status: Book::STATUS_RETURNED_LIBRARY)
-                .where.not(title: [ nil, "" ])
-                .includes(:batch_year, :borrowers)
-                .to_a
-                .select { |b| Book.isbn_match?(b.isbn, isbn) }
+    base_books =
+      Book.where.not(status: Book::STATUS_RETURNED_LIBRARY)
+          .where.not(title: [ nil, "" ])
+          .includes(:batch_year, :borrowers)
+          .to_a
+          .select { |b| Book.isbn_match?(b.isbn, isbn) }
+
+    books =
+      if action == "checkout"
+        base_books.select do |b|
+          if b.owned_by_library? && b.effective_total > 1
+            b.can_borrow_copy?
+          else
+            b.status == Book::STATUS_ON_SHELF
+          end
+        end
+      else
+        base_books.select { |b| b.status == Book::STATUS_BORROWED }
+      end
 
     if books.empty?
       if action == "checkout"
-        all_with_isbn = Book.where.not(status: Book::STATUS_RETURNED_LIBRARY)
-                            .where.not(title: [ nil, "" ])
-                            .to_a
-                            .select { |b| Book.isbn_match?(b.isbn, isbn) }
-        alert_msg = all_with_isbn.any? ? "此書仍在借閱，請勿重複借閱。" : "找不到此書。"
+        alert_msg =
+          if base_books.any?
+            "此書仍在借閱，已無可借的冊數。"
+          else
+            "找不到此書。"
+          end
       else
         alert_msg = "找不到可還的書（借閱中且符合此 ISBN）。"
       end
@@ -318,24 +330,66 @@ class DashboardController < ApplicationController
 
   def _do_action(book, action, borrower)
     if action == "checkout"
-      book.update!(user_id: borrower.id, status: Book::STATUS_BORROWED, borrowed_at: Time.current)
-      book.circulation_records.create!(user_id: borrower.id, borrowed_at: Time.current)
+      if book.owned_by_library? && book.effective_total > 1
+        if book.can_borrow_copy?
+          book.circulation_records.create!(user_id: borrower.id, borrowed_at: Time.current)
+          book.update!(status: Book::STATUS_BORROWED, borrowed_at: Time.current)
+        else
+          raise ActiveRecord::RecordInvalid, "no copies available"
+        end
+      else
+        book.update!(user_id: borrower.id, status: Book::STATUS_BORROWED, borrowed_at: Time.current)
+        book.circulation_records.create!(user_id: borrower.id, borrowed_at: Time.current)
+      end
       @process_notice = "已登記借閱：#{book.title} → #{borrower.name}。"
     else
-      book.circulation_records.where(returned_at: nil).update_all(returned_at: Time.current)
-      book.update!(user_id: nil, status: Book::STATUS_ON_SHELF, borrowed_at: nil)
+      if book.owned_by_library? && book.effective_total > 1
+        rec = book.circulation_records.where(user_id: borrower.id, returned_at: nil).order(:borrowed_at).first
+        if rec
+          rec.update!(returned_at: Time.current)
+          if book.active_circulation_records.exists?
+            # 仍有其他人借閱，維持「借閱中」狀態
+          else
+            book.update!(user_id: nil, status: Book::STATUS_ON_SHELF, borrowed_at: nil)
+          end
+        end
+      else
+        book.circulation_records.where(returned_at: nil).update_all(returned_at: Time.current)
+        book.update!(user_id: nil, status: Book::STATUS_ON_SHELF, borrowed_at: nil)
+      end
       @process_notice = "已還書：#{book.title}。"
     end
   end
 
   def _do_borrow_or_return_by_status(book, borrower)
     if book.status == Book::STATUS_ON_SHELF
-      book.update!(user_id: borrower.id, status: Book::STATUS_BORROWED, borrowed_at: Time.current)
-      book.circulation_records.create!(user_id: borrower.id, borrowed_at: Time.current)
+      if book.owned_by_library? && book.effective_total > 1
+        if book.can_borrow_copy?
+          book.circulation_records.create!(user_id: borrower.id, borrowed_at: Time.current)
+          book.update!(status: Book::STATUS_BORROWED, borrowed_at: Time.current)
+        else
+          raise ActiveRecord::RecordInvalid, "no copies available"
+        end
+      else
+        book.update!(user_id: borrower.id, status: Book::STATUS_BORROWED, borrowed_at: Time.current)
+        book.circulation_records.create!(user_id: borrower.id, borrowed_at: Time.current)
+      end
       @process_notice = "已登記借閱：#{book.title} → #{borrower.name}。"
     else
-      book.circulation_records.where(returned_at: nil).update_all(returned_at: Time.current)
-      book.update!(user_id: nil, status: Book::STATUS_ON_SHELF, borrowed_at: nil)
+      if book.owned_by_library? && book.effective_total > 1
+        rec = book.circulation_records.where(user_id: borrower.id, returned_at: nil).order(:borrowed_at).first
+        if rec
+          rec.update!(returned_at: Time.current)
+          if book.active_circulation_records.exists?
+            # 仍有其他人借閱，維持「借閱中」狀態
+          else
+            book.update!(user_id: nil, status: Book::STATUS_ON_SHELF, borrowed_at: nil)
+          end
+        end
+      else
+        book.circulation_records.where(returned_at: nil).update_all(returned_at: Time.current)
+        book.update!(user_id: nil, status: Book::STATUS_ON_SHELF, borrowed_at: nil)
+      end
       @process_notice = "已還書：#{book.title}。"
     end
   end
