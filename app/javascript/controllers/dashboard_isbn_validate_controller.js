@@ -8,8 +8,9 @@ export default class extends Controller {
   validate() {
     const raw = this.inputTarget.value.trim()
     if (raw === "") {
-      this.showMessage("請填寫 ISBN", false)
-      this.setInputState(false)
+      this.clearMessage()
+      this.setInputState(null)
+      this.renderDuplicates([])
       return
     }
     const url = `${this.urlValue}?isbn=${encodeURIComponent(raw)}`
@@ -31,11 +32,11 @@ export default class extends Controller {
           this.setInputState(false)
           this.renderDuplicates([])
         } else if (data.book_exists) {
-          this.showMessage("格式正確，館內有書", true)
+          this.clearMessage()
           this.setInputState(true)
           this.renderDuplicates(data.duplicates || [])
         } else {
-          this.showMessage("格式正確，館內無此書", false)
+          this.clearMessage()
           this.setInputState(false)
           this.renderDuplicates([])
         }
