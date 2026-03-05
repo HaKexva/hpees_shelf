@@ -49,18 +49,47 @@ class DashboardController < ApplicationController
   def validate_isbn
     isbn = params[:isbn].to_s.strip
     if isbn.blank?
-      render json: { has_13_digits: false, check_digit_valid: false, book_exists: false }, status: :bad_request
+      render json: { has_13_digits: false, check_digit_valid: false, book_exists: false, duplicates: [] }, status: :bad_request
       return
     end
     digits_only = isbn.gsub(/\D/, "")
     has_13_digits = digits_only.length == 13
     check_digit_valid = has_13_digits && Book.valid_isbn13?(isbn)
     # 借還系統看所有來源的書，只要不是「歸還圖書館」且有書名
-    book_exists = Book.where.not(status: Book::STATUS_RETURNED_LIBRARY)
-                      .where.not(title: [ nil, "" ])
-                      .to_a
-                      .any? { |b| Book.isbn_match?(b.isbn, isbn) }
-    render json: { has_13_digits: has_13_digits, check_digit_valid: check_digit_valid, book_exists: book_exists }
+    matching_books =
+      Book.where.not(status: Book::STATUS_RETURNED_LIBRARY)
+          .where.not(title: [ nil, "" ])
+          .includes(:batch_year, :user)
+          .to_a
+          .select { |b| Book.isbn_match?(b.isbn, isbn) }
+    book_exists = matching_books.any?
+    duplicates =
+      matching_books.map do |b|
+        source_label =
+          if b.source.present?
+            I18n.t("activerecord.enums.book.source.#{b.source}", default: b.source)
+          else
+            nil
+          end
+        if b.owned_by_teacher? && b.user.present?
+          source_label = "#{source_label}（#{b.user.name}）"
+        end
+        {
+          id: b.id,
+          title: b.title,
+          edition_part: b.edition_part,
+          volume: b.volume,
+          batch_label: b.batch_year&.display_label_with_grade,
+          source_label: source_label,
+          call_number: b.call_number
+        }
+      end
+    render json: {
+      has_13_digits: has_13_digits,
+      check_digit_valid: check_digit_valid,
+      book_exists: book_exists,
+      duplicates: duplicates
+    }
   end
 
   def process_isbn
