@@ -132,13 +132,7 @@
                     <%= format_isbn13(book.isbn) %>
                     <% if book.invalid_isbn? %><span class="ml-1 text-amber-600" title="ISBN 格式錯誤">⚠</span><% end %>
                   </td>
-                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    <% if book.owned_by_library? %>
-                      <%= book.id %>
-                    <% else %>
-                      —
-                    <% end %>
-                  </td>
+                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500"><%= book.call_number.presence || "—" %></td>
                   <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500"><%= book.total %></td>
                   <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500"><%= book.display_status %></td>
                   <td class="px-6 py-4 text-sm text-gray-500 max-w-xs truncate"><%= book.note %></td>
@@ -199,8 +193,8 @@
                 <% if book.isbn.present? %>
                   <div class="flex gap-1.5 min-w-0"><span class="text-gray-400 shrink-0">ISBN</span><span class="text-gray-700 truncate"><%= format_isbn13(book.isbn) %><% if book.invalid_isbn? %><span class="text-amber-600 ml-0.5" title="ISBN 格式錯誤">⚠</span><% end %></span></div>
                 <% end %>
-                <% if book.owned_by_library? %>
-                  <div class="flex gap-1.5"><span class="text-gray-400 shrink-0">登錄號</span><span class="text-gray-700"><%= book.id %></span></div>
+                <% if book.call_number.present? %>
+                  <div class="flex gap-1.5"><span class="text-gray-400 shrink-0">登錄號</span><span class="text-gray-700"><%= book.call_number %></span></div>
                 <% end %>
                 <div class="flex gap-1.5"><span class="text-gray-400 shrink-0">總數</span><span class="text-gray-700"><%= book.total %></span></div>
                 <div class="flex gap-1.5 col-span-2"><span class="text-gray-400 shrink-0">狀態</span><span class="text-gray-700"><%= book.display_status %></span></div>

@@ -1,16 +1,24 @@
 import { Controller } from "@hotwired/stimulus"
 
-// Toggles visibility of the teacher dropdown when book source is "老師的書" (owned_by_teacher)
+// Toggles visibility of fields that depend on book source
 export default class extends Controller {
-  static targets = ["sourceSelect", "teacherField"]
+  static targets = ["sourceSelect", "teacherField", "callNumberField"]
 
   connect() {
-    this.toggleTeacherField()
+    this.toggleFields()
   }
 
-  toggleTeacherField() {
-    if (!this.hasSourceSelectTarget || !this.hasTeacherFieldTarget) return
+  toggleFields() {
+    if (!this.hasSourceSelectTarget) return
     const isTeacher = this.sourceSelectTarget.value === "owned_by_teacher"
-    this.teacherFieldTarget.style.display = isTeacher ? "" : "none"
+    const isLibrary = this.sourceSelectTarget.value === "owned_by_library"
+
+    if (this.hasTeacherFieldTarget) {
+      this.teacherFieldTarget.style.display = isTeacher ? "" : "none"
+    }
+
+    if (this.hasCallNumberFieldTarget) {
+      this.callNumberFieldTarget.style.display = isLibrary ? "" : "none"
+    }
   }
 }

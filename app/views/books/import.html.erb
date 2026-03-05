@@ -187,7 +187,7 @@
                     </td>
                     <td class="px-4 py-2 text-sm text-gray-900">
                       <% if existing&.owned_by_library? %>
-                        <%= existing.id %>
+                        <%= existing.call_number.presence || existing.id %>
                       <% else %>
                         —
                       <% end %>
@@ -253,7 +253,7 @@
                     <p>
                       <span class="text-gray-400">登錄號</span>
                       <% if existing&.owned_by_library? %>
-                        <span class="ml-1 text-gray-900"><%= existing.id %></span>
+                        <span class="ml-1 text-gray-900"><%= existing.call_number.presence || existing.id %></span>
                       <% else %>
                         <span class="ml-1 text-gray-500">—</span>
                       <% end %>

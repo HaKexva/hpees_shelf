@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_02_27_013807) do
+ActiveRecord::Schema[8.1].define(version: 2026_03_04_120000) do
   create_table "app_settings", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.string "key", null: false
@@ -33,6 +33,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_02_27_013807) do
   create_table "books", force: :cascade do |t|
     t.integer "batch_year_id"
     t.datetime "borrowed_at"
+    t.string "call_number"
     t.datetime "created_at", null: false
     t.string "edition_part"
     t.integer "grade_id"
@@ -45,6 +46,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_02_27_013807) do
     t.datetime "updated_at", null: false
     t.integer "user_id"
     t.string "volume"
+    t.index ["call_number"], name: "index_books_on_call_number"
     t.index ["user_id"], name: "index_books_on_user_id"
   end
 
