@@ -66,6 +66,40 @@
               class="mt-1 text-xs text-amber-900 hidden"
             ></div>
           </div>
+          <% if @pending_books.present? %>
+            <div class="mt-2 rounded-md border border-amber-200 bg-amber-50 p-3">
+              <label class="block text-xs font-medium text-gray-700 mb-1">選擇書籍（冊別）</label>
+              <select id="pending_book_select" name="pending_book_id" class="block w-full shadow-sm rounded-lg border border-gray-300 px-3 py-2 text-sm" required>
+                <option value="">請選擇</option>
+                <% @pending_books.each do |book| %>
+                  <% parts = [] %>
+                  <% if book.batch_year.present? %>
+                    <% parts << book.batch_year.display_label_with_grade %>
+                  <% end %>
+                  <% if book.source.present? %>
+                    <% source_label = t("activerecord.enums.book.source.#{book.source}") rescue book.source %>
+                    <% if book.owned_by_teacher? && book.user.present? %>
+                      <% source_label = "#{source_label}（#{book.user.name}）" %>
+                    <% end %>
+                    <% parts << source_label %>
+                  <% end %>
+                  <% if book.call_number.present? %>
+                    <% parts << "登錄號 #{book.call_number}" %>
+                  <% end %>
+                  <option value="<%= book.id %>">
+                    <%= book.title %><%= " #{book.edition_part}" if book.edition_part.present? %><%= " 冊#{book.volume}" if book.volume.present? %><%= " — #{parts.join('・')}" if parts.any? %>
+                  </option>
+                <% end %>
+              </select>
+              <div class="flex items-center gap-2 mt-2">
+                <button type="button" class="rounded-lg px-3.5 py-1.5 bg-amber-600 hover:bg-amber-500 text-white text-xs font-medium cursor-pointer" data-pending-volume-submit>
+                  確認冊別
+                </button>
+                <%= link_to "取消", root_path(clear_pending: "1"), class: "text-gray-600 hover:text-gray-900 text-xs font-medium" %>
+              </div>
+              <p class="mt-1 text-[11px] text-gray-500">取消後需重新掃描 ISBN。</p>
+            </div>
+          <% end %>
           <div class="relative" data-controller="student-search" data-student-search-placeholder-value="搜尋姓名或學號…">
             <label class="block text-sm font-medium text-gray-700 mb-2">借閱人</label>
             <input type="hidden" name="user_id" data-student-search-target="hidden" value="">
@@ -144,42 +178,26 @@
       <% end %>
 
       <% if @pending_books.present? %>
-        <div class="mt-1 rounded-md border border-amber-200 bg-amber-50 p-4">
-          <h2 class="font-semibold text-sm text-gray-900 mb-1">有多本相同 ISBN，請選擇冊別</h2>
-          <p class="text-xs text-gray-600 mb-2">ISBN：<%= @pending_isbn_display %></p>
-          <%= form_with url: confirm_borrow_return_path, method: :post, local: true, data: { turbo: false } do |f| %>
-            <div class="mb-2">
-              <label class="block text-xs font-medium text-gray-700 mb-1">選擇書籍（冊別）</label>
-              <select name="book_id" required class="block w-full shadow-sm rounded-lg border border-gray-300 px-3 py-2 text-sm">
-                <option value="">請選擇</option>
-                <% @pending_books.each do |book| %>
-                  <% parts = [] %>
-                  <% if book.batch_year.present? %>
-                    <% parts << book.batch_year.display_label_with_grade %>
-                  <% end %>
-                  <% if book.source.present? %>
-                    <% source_label = t("activerecord.enums.book.source.#{book.source}") rescue book.source %>
-                    <% if book.owned_by_teacher? && book.user.present? %>
-                      <% source_label = "#{source_label}（#{book.user.name}）" %>
-                    <% end %>
-                    <% parts << source_label %>
-                  <% end %>
-                  <% if book.call_number.present? %>
-                    <% parts << "登錄號 #{book.call_number}" %>
-                  <% end %>
-                  <option value="<%= book.id %>">
-                    <%= book.title %><%= " #{book.edition_part}" if book.edition_part.present? %><%= " 冊#{book.volume}" if book.volume.present? %><%= " — #{parts.join('・')}" if parts.any? %>
-                  </option>
-                <% end %>
-              </select>
-            </div>
-            <div class="flex items-center gap-2 mt-1">
-              <button type="submit" class="rounded-lg px-3.5 py-1.5 bg-amber-600 hover:bg-amber-500 text-white text-xs font-medium cursor-pointer">確認</button>
-              <%= link_to "取消", root_path(clear_pending: "1"), class: "text-gray-600 hover:text-gray-900 text-xs font-medium" %>
-            </div>
-          <% end %>
-          <p class="text-[11px] text-gray-500 mt-1">取消後需重新掃描 ISBN。</p>
-        </div>
+        <%= form_with url: confirm_borrow_return_path, method: :post, local: true, data: { turbo: false }, html: { id: "pending-volume-form" } do |f| %>
+          <%= hidden_field_tag :book_id, "", id: "pending_book_id" %>
+        <% end %>
+        <script>
+          (function() {
+            var form = document.getElementById("pending-volume-form");
+            var select = document.getElementById("pending_book_select");
+            var button = document.querySelector("[data-pending-volume-submit]");
+            if (!form || !select || !button) return;
+            button.addEventListener("click", function() {
+              if (!select.value) {
+                alert("請先選擇冊別。");
+                return;
+              }
+              var hidden = document.getElementById("pending_book_id");
+              if (hidden) hidden.value = select.value;
+              form.submit();
+            });
+          })();
+        </script>
       <% end %>
     </div>
 
