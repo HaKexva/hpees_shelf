@@ -38,6 +38,9 @@
             "block shadow-sm rounded-md border px-3 py-2 mt-2 w-full",
             (book.errors[:call_number].none? ? "border-gray-400 focus:outline-blue-600" : "border-red-400 focus:outline-red-600")
           ],
+          maxlength: 8,
+          inputmode: "numeric",
+          pattern: "\\d{8}",
           data: { required_field_target: "input", action: "blur->required-field#blur" } %>
   </div>
 
