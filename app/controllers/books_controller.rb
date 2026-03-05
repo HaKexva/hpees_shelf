@@ -405,11 +405,24 @@ class BooksController < ApplicationController
 
   private
     def set_book
-      @book = Book.find(params.expect(:id))
+      @book = Book.find(params[:id])
     end
 
     def book_params
-      params.expect(book: [ :title, :isbn, :total, :volume, :note, :source, :borrowed_at, :edition_part, :batch_year_id, :grade_id, :user_id, :call_number ])
+      params.require(:book).permit(
+        :title,
+        :isbn,
+        :total,
+        :volume,
+        :note,
+        :source,
+        :borrowed_at,
+        :edition_part,
+        :batch_year_id,
+        :grade_id,
+        :user_id,
+        :call_number
+      )
     end
 
     # Lightweight CSV parser (without the csv gem), returns [headers, rows], where rows is an Array of Hashes
