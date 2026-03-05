@@ -229,26 +229,14 @@ class DashboardController < ApplicationController
       end
     end
 
-    # Checkout: if this ISBN has more than one volume (any status), always show volume picker
-    all_volumes_with_isbn = if action == "checkout"
-      Book.where.not(status: Book::STATUS_RETURNED_LIBRARY)
-          .where.not(title: [ nil, "" ])
-          .to_a
-          .select { |b| Book.isbn_match?(b.isbn, isbn) }
-    else
-      []
-    end
-
-    if action == "checkout" && all_volumes_with_isbn.size >= 2
-      session[:pending_book_ids] = books.map(&:id)
-      session[:pending_action] = action
-      session[:pending_user_id] = borrower&.id
-      session[:pending_isbn] = isbn
-      redirect_to root_path, status: :see_other
+    if books.size == 1
+      _do_action(books.first, action, borrower)
+      redirect_to root_path, notice: @process_notice, status: :see_other
       return
     end
 
-    if books.size == 1
+    keys = books.map { |b| _duplicate_display_key(b) }.uniq
+    if keys.size == 1
       _do_action(books.first, action, borrower)
       redirect_to root_path, notice: @process_notice, status: :see_other
       return
@@ -308,6 +296,19 @@ class DashboardController < ApplicationController
       return
     end
 
+    if books.size == 1
+      _do_borrow_or_return_by_status(books.first, borrower)
+      redirect_to root_path, notice: @process_notice, status: :see_other
+      return
+    end
+
+    keys = books.map { |b| _duplicate_display_key(b) }.uniq
+    if keys.size == 1
+      _do_borrow_or_return_by_status(books.first, borrower)
+      redirect_to root_path, notice: @process_notice, status: :see_other
+      return
+    end
+
     session[:pending_book_ids] = books.map(&:id)
     session[:pending_action] = nil
     session[:pending_user_id] = borrower.id
@@ -337,6 +338,17 @@ class DashboardController < ApplicationController
       book.update!(user_id: nil, status: Book::STATUS_ON_SHELF, borrowed_at: nil)
       @process_notice = "已還書：#{book.title}。"
     end
+  end
+
+  def _duplicate_display_key(book)
+    [
+      book.batch_year_id,
+      book.source,
+      book.user_id,
+      book.call_number,
+      book.volume,
+      book.edition_part
+    ]
   end
 
   def _student_at_borrow_limit?(borrower)
