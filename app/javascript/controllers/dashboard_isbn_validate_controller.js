@@ -32,11 +32,11 @@ export default class extends Controller {
           this.setInputState(false)
           this.renderDuplicates([])
         } else if (data.book_exists) {
-          this.clearMessage()
+          this.showMessage("格式正確，館內有書", true)
           this.setInputState(true)
           this.renderDuplicates(data.duplicates || [])
         } else {
-          this.clearMessage()
+          this.showMessage("格式正確，館內無此書", false)
           this.setInputState(false)
           this.renderDuplicates([])
         }
