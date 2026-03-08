@@ -67,7 +67,8 @@
 
   <div class="my-5">
     <%= form.label :total, "總數" %>
-    <%= form.number_field :total, class: ["block shadow-sm rounded-md border px-3 py-2 mt-2 w-full", {"border-gray-400 focus:outline-blue-600": book.errors[:total].none?, "border-red-400 focus:outline-red-600": book.errors[:total].any?}] %>
+    <%= form.number_field :total, min: 1, class: ["block shadow-sm rounded-md border px-3 py-2 mt-2 w-full", {"border-gray-400 focus:outline-blue-600": book.errors[:total].none?, "border-red-400 focus:outline-red-600": book.errors[:total].any?}] %>
+    <p class="mt-1 text-xs text-gray-500">同一本書有多本時請填 2 以上，借出 1 本後其餘仍可借。</p>
   </div>
 
   <div class="my-5">

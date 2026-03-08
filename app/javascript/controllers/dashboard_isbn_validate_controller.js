@@ -31,14 +31,62 @@ export default class extends Controller {
           this.showMessage(parts.join("；"), false)
           this.setInputState(false)
           this.renderDuplicates([])
-        } else if (data.book_exists) {
-          this.showMessage("格式正確，館內有書", true)
-          this.setInputState(true)
-          this.renderDuplicates(data.duplicates || [])
-        } else {
+          this.setPendingBookId(null)
+          return
+        }
+
+        if (!data.book_exists) {
           this.showMessage("格式正確，館內無此書", false)
           this.setInputState(false)
           this.renderDuplicates([])
+          this.setPendingBookId(null)
+          return
+        }
+
+        const allDuplicates = Array.isArray(data.duplicates) ? data.duplicates : []
+        const actionType = this.currentActionType()
+
+        // 借書時：只有「唯一一筆且該筆不可借」才提示；總數還有（多筆或有一筆可借）就還可以借
+        if (actionType === "checkout" && allDuplicates.length === 1 && !allDuplicates[0].borrowable_for_checkout) {
+          this.showMessage("格式正確，此本目前已借出，請稍後再試", false)
+          this.setInputState(false)
+          this.renderDuplicates([])
+          this.setPendingBookId(null)
+          return
+        }
+
+        this.showMessage("格式正確，館內有書", true)
+        this.setInputState(true)
+
+        const borrowable = allDuplicates.filter((b) => b.borrowable_for_checkout)
+
+        if (actionType === "checkout") {
+          if (borrowable.length === 0) {
+            this.showMessage("格式正確，此幾本目前皆已借出，請稍後再試", false)
+            this.setInputState(false)
+            this.renderDuplicates([])
+            this.setPendingBookId(null)
+            return
+          }
+          if (borrowable.length === 1) {
+            // 可借選項只有一個：隱藏選單，直接帶入該本，避免跳出失誤
+            this.renderDuplicates([])
+            this.setPendingBookId(borrowable[0].id)
+            return
+          }
+          // 可借選項兩個以上：顯示下拉（只列可借的）
+          this.renderDuplicates(borrowable)
+          this.setPendingBookId(null)
+          return
+        }
+
+        // 還書：可顯示多筆冊別
+        if (allDuplicates.length >= 2) {
+          this.renderDuplicates(allDuplicates)
+          this.setPendingBookId(null)
+        } else {
+          this.renderDuplicates([])
+          this.setPendingBookId(null)
         }
       })
       .catch(() => {
@@ -73,6 +121,26 @@ export default class extends Controller {
     this.inputTarget.classList.toggle("border-green-400", valid === true)
   }
 
+  currentActionType() {
+    const form = this.element.closest("form")
+    if (!form) return null
+    const radio = form.querySelector("input[name='action_type']:checked")
+    return radio ? radio.value : null
+  }
+
+  setPendingBookId(id) {
+    const form = this.element.closest("form")
+    if (!form) return
+    let hidden = form.querySelector("input[name='pending_book_id']")
+    if (!hidden) {
+      hidden = document.createElement("input")
+      hidden.type = "hidden"
+      hidden.name = "pending_book_id"
+      form.appendChild(hidden)
+    }
+    hidden.value = id || ""
+  }
+
   renderDuplicates(duplicates) {
     if (!this.hasDuplicatesTarget) return
     const container = this.duplicatesTarget
@@ -82,27 +150,38 @@ export default class extends Controller {
       return
     }
 
-    const itemsHtml = duplicates
-      .map((b) => {
-        const parts = []
-        if (b.batch_label) parts.push(b.batch_label)
-        if (b.source_label) parts.push(b.source_label)
-        if (b.call_number) parts.push(`登錄號 ${b.call_number}`)
-        const meta = parts.length > 0 ? ` — ${parts.join("・")}` : ""
-        const volume = b.volume ? ` 冊${b.volume}` : ""
-        const edition = b.edition_part ? ` ${b.edition_part}` : ""
-        return `<li class="flex justify-between gap-2">
-  <span class="truncate">${this.escapeHtml(b.title || "（無書名）")}${edition}${volume}${meta}</span>
-</li>`
-      })
-      .join("")
-
     container.innerHTML = `
       <div class="mt-2 rounded-md border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
-        <p class="font-medium mb-1">有 <span class="font-bold">${duplicates.length}</span> 本相同 ISBN，稍後需選冊別：</p>
-        <ul class="space-y-0.5">
-          ${itemsHtml}
-        </ul>
+        <p class="font-medium mb-1">有 <span class="font-bold">${duplicates.length}</span> 本相同 ISBN，請先選擇冊別：</p>
+        <label class="block text-xs font-medium text-gray-700 mb-1" for="inline_pending_book_select">選擇書籍（冊別）</label>
+        <select
+          id="inline_pending_book_select"
+          name="pending_book_id"
+          class="block w-full shadow-sm rounded-lg border border-gray-300 px-3 py-2 text-sm bg-white"
+          required
+        >
+          <option value="">請選擇</option>
+          ${duplicates
+            .map((b) => {
+              const parts = []
+              if (b.batch_label) parts.push(b.batch_label)
+              if (b.source_label) parts.push(b.source_label)
+              if (b.call_number) parts.push(`登錄號 ${b.call_number}`)
+              const meta = parts.length > 0 ? ` — ${parts.join("・")}` : ""
+              const volume = b.volume ? ` 冊${b.volume}` : ""
+              const edition = b.edition_part ? ` ${b.edition_part}` : ""
+              const copyInfo =
+                typeof b.available_copies === "number"
+                  ? `（可借 ${b.available_copies} 本）`
+                  : b.borrowable_for_checkout
+                    ? "（可借）"
+                    : "（已借出）"
+              const label = `${this.escapeHtml(b.title || "（無書名）")}${edition}${volume}${meta} ${copyInfo}`
+              return `<option value="${b.id}">${label}</option>`
+            })
+            .join("")}
+        </select>
+        <p class="mt-1 text-[11px] text-gray-500">選擇冊別後，再輸入借閱人並按下送出。</p>
       </div>
     `
     container.classList.remove("hidden")

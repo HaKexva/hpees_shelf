@@ -29,6 +29,42 @@
 
 zh-TW:
   hello: "哈囉世界"
+  datetime:
+    distance_in_words:
+      half_a_minute: "半分鐘"
+      less_than_x_seconds:
+        one: "少於 1 秒"
+        other: "少於 %{count} 秒"
+      x_seconds:
+        one: "1 秒"
+        other: "%{count} 秒"
+      less_than_x_minutes:
+        one: "少於 1 分鐘"
+        other: "少於 %{count} 分鐘"
+      x_minutes:
+        one: "1 分鐘"
+        other: "%{count} 分鐘"
+      about_x_hours:
+        one: "約 1 小時"
+        other: "約 %{count} 小時"
+      x_days:
+        one: "1 天"
+        other: "%{count} 天"
+      about_x_months:
+        one: "約 1 個月"
+        other: "約 %{count} 個月"
+      x_months:
+        one: "1 個月"
+        other: "%{count} 個月"
+      about_x_years:
+        one: "約 1 年"
+        other: "約 %{count} 年"
+      over_x_years:
+        one: "超過 1 年"
+        other: "超過 %{count} 年"
+      almost_x_years:
+        one: "將近 1 年"
+        other: "將近 %{count} 年"
   activerecord:
     attributes:
       book:

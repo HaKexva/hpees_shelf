@@ -25,6 +25,12 @@ class BooksController < ApplicationController
     @invalid_books = @books.select { |b| b.missing_required_fields.any? }
     @books_with_invalid_isbn = @books.select(&:invalid_isbn?)
     @any_library_books_to_return = Book.where(source: :owned_by_library).where.not(status: Book::STATUS_RETURNED_LIBRARY).exists?
+    # 借閱超過一天視為失蹤，在頁面上方列出
+    @missing_books = Book.where.not(title: [ nil, "" ])
+                         .where.not(status: Book::STATUS_RETURNED_LIBRARY)
+                         .overdue_as_missing
+                         .includes(:batch_year, :borrowers)
+                         .order(borrowed_at: :asc)
   end
 
   # GET /books/import

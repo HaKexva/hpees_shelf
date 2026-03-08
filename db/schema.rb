@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_03_04_120000) do
+ActiveRecord::Schema[8.1].define(version: 2026_03_06_100000) do
   create_table "app_settings", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.string "key", null: false
@@ -57,6 +57,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_03_04_120000) do
     t.datetime "returned_at"
     t.datetime "updated_at", null: false
     t.integer "user_id", null: false
+    t.index ["book_id", "returned_at"], name: "index_circulation_records_on_book_id_and_returned_at"
     t.index ["book_id"], name: "index_circulation_records_on_book_id"
     t.index ["user_id"], name: "index_circulation_records_on_user_id"
   end

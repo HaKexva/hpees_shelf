@@ -1,8 +1,9 @@
 class Book < ApplicationRecord
   belongs_to :batch_year
-  belongs_to :user, optional: true # current borrower (library) or teacher (owned_by_teacher)
+  belongs_to :user, optional: true # current borrower (single-copy) or teacher (owned_by_teacher)
   has_many :circulation_records
   has_many :loan_records, -> { where(returned_at: nil) }, class_name: "CirculationRecord"
+  # When total > 1, borrowers are has_many (one circulation_record per copy lent).
   has_many :borrowers, through: :loan_records, source: :user
 
   validates :batch_year_id, presence: true
@@ -41,7 +42,7 @@ class Book < ApplicationRecord
   EDITION_PART_OPTIONS = [ [ "—", "" ], [ EDITION_PART_TOP, EDITION_PART_TOP ], [ EDITION_PART_BOTTOM, EDITION_PART_BOTTOM ] ].freeze
 
   # Display status: borrowed items with borrowed_at more than one day ago are treated as missing (status is stored in Chinese).
-  # When borrowed, appends borrower name (from circulation_records) e.g. "借閱中（王小明）".
+  # When borrowed, appends borrower name(s). When total > 1, can show multiple (has many borrowers).
   def display_status
     return status if status == STATUS_RETURNED_LIBRARY
     return STATUS_ON_SHELF if status == STATUS_ON_SHELF
@@ -49,8 +50,14 @@ class Book < ApplicationRecord
     if status == STATUS_BORROWED && borrowed_at.present? && borrowed_at < 1.day.ago
       STATUS_MISSING
     elsif status == STATUS_BORROWED
-      current_borrower = borrowers.first
-      current_borrower ? "#{STATUS_BORROWED}（#{current_borrower.name}）" : STATUS_BORROWED
+      names = borrowers.map(&:name).compact
+      if names.empty?
+        STATUS_BORROWED
+      elsif names.size == 1
+        "#{STATUS_BORROWED}（#{names.first}）"
+      else
+        "#{STATUS_BORROWED}（#{names.join('、')}）"
+      end
     else
       STATUS_BORROWED
     end
@@ -60,8 +67,9 @@ class Book < ApplicationRecord
     circulation_records.where(returned_at: nil)
   end
 
+  # 未還本數（直接查 DB，避免關聯快取導致「總數 3 借出 1 本後仍可借」算錯）
   def active_loans_count
-    active_circulation_records.count
+    CirculationRecord.where(book_id: id, returned_at: nil).count
   end
 
   def effective_total
@@ -69,6 +77,7 @@ class Book < ApplicationRecord
     t.positive? ? t : 1
   end
 
+  # 可借冊數（總數 - 未還筆數）。總數 3 借出 1 本後仍為 2，可繼續借。
   def available_copies
     [ effective_total - active_loans_count, 0 ].max
   end
@@ -77,10 +86,25 @@ class Book < ApplicationRecord
     available_copies.positive?
   end
 
+  # True when this user has an active loan (for return eligibility). Supports total > 1 (has many borrowers).
+  def borrowed_by?(user)
+    return false if user.blank?
+    borrowers.exists?(id: user.id)
+  end
+
   # True when book has an ISBN that fails ISBN-13 validation (for showing warnings on list/show)
   def invalid_isbn?
     isbn.present? && !self.class.valid_isbn13?(isbn)
   end
+
+  # Books with at least one loan over one day (借閱超過一天視為失蹤). Single-copy: book.borrowed_at; multi-copy: any active circulation_record.
+  scope :overdue_as_missing, -> {
+    one_day_ago = 1.day.ago
+    where(status: STATUS_BORROWED).where(
+      "books.borrowed_at IS NOT NULL AND books.borrowed_at < :cutoff OR EXISTS (SELECT 1 FROM circulation_records cr WHERE cr.book_id = books.id AND cr.returned_at IS NULL AND cr.borrowed_at < :cutoff)",
+      cutoff: one_day_ago
+    )
+  }
 
   # The "Return to library" button is only shown during 7–9 (Jul–Sep) and 12–2 (Dec–Feb); hidden in other months
   def self.show_return_to_library_button?

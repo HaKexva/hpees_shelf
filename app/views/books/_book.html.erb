@@ -33,10 +33,10 @@
     <strong class="block font-medium mb-1">目前狀態：</strong>
     <%= book.display_status %>
   </div>
-  <% if book.owned_by_library? && book.borrowers.first.present? %>
+  <% if book.owned_by_library? && book.borrowers.any? %>
     <div>
       <strong class="block font-medium mb-1">借閱人：</strong>
-      <%= book.borrowers.first.name %>
+      <%= book.borrowers.map(&:name).join("、") %>
     </div>
   <% end %>
   <% if book.owned_by_teacher? && book.user.present? %>
