@@ -7,7 +7,7 @@
       <p class="mt-1 text-sm text-gray-500">目前學年度：<%= BatchYear.display_current_school_year_roc %>學年度</p>
     </div>
     <div class="flex flex-wrap gap-2 items-center">
-      <%= button_to "建立目前所有屆數", auto_create_batch_years_path, method: :post, class: "rounded-md px-3.5 py-2.5 bg-green-600 hover:bg-green-500 text-white font-medium cursor-pointer", form: { data: { turbo_confirm: "將自動建立所有目前屆數。確定？" } } %>
+      <%= button_to "建立目前所有屆數", auto_create_batch_years_path, method: :post, class: "rounded-md px-3.5 py-2.5 bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 font-medium cursor-pointer", form: { data: { turbo_confirm: "將自動建立所有目前屆數。確定？" } } %>
       <% if BatchYear.show_advance_school_year_button? %>
         <% next_roc = BatchYear.display_current_school_year_roc + 1 %>
         <%= button_to "切換至#{next_roc}學年度", reassign_grades_batch_years_path, method: :post, class: "rounded-md px-3.5 py-2.5 bg-amber-600 hover:bg-amber-500 text-white font-medium cursor-pointer", form: { data: { turbo_confirm: "切換後即不可切回，確定？？" } } %>
