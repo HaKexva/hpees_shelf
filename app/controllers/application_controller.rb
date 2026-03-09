@@ -1,5 +1,6 @@
 class ApplicationController < ActionController::Base
   # Allow all Safari versions, but still require modern Chrome/Firefox/Opera and block Internet Explorer.
+  # from https://edgeapi.rubyonrails.org/classes/ActionController/AllowBrowser/ClassMethods.html
   allow_browser versions: { chrome: 120, firefox: 121, opera: 106, ie: false }
 
   # Changes to the importmap will invalidate the etag for HTML responses
