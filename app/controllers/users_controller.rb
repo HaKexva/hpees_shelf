@@ -241,16 +241,16 @@ class UsersController < ApplicationController
 
     def _parse_csv_users(content)
       lines = content.split(/\r?\n/)
-      return [[], []] if lines.empty?
+      return [ [], [] ] if lines.empty?
 
       headers = _parse_csv_line_users(lines[0])
       rows = lines[1..].filter_map do |line|
         next nil if line.strip.empty?
 
         values = _parse_csv_line_users(line)
-        headers.each_with_index.to_h { |h, i| [h, values[i]] }
+        headers.each_with_index.to_h { |h, i| [ h, values[i] ] }
       end
-      [headers, rows]
+      [ headers, rows ]
     end
 
     def _parse_csv_line_users(line)
@@ -297,7 +297,7 @@ class UsersController < ApplicationController
       return false if v.blank?
 
       s = v.to_s.strip
-      ["1", "true", "yes", "y", "是"].include?(s.downcase) || s == "是"
+      [ "1", "true", "yes", "y", "是" ].include?(s.downcase) || s == "是"
     end
 
     def _restore_import_preview_users(import_data)
