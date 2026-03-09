@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_03_06_100000) do
+ActiveRecord::Schema[8.1].define(version: 2026_03_09_121925) do
   create_table "app_settings", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.string "key", null: false
@@ -44,7 +44,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_03_06_100000) do
     t.string "title"
     t.integer "total"
     t.datetime "updated_at", null: false
-    t.integer "user_id"
+    t.bigint "user_id"
     t.string "volume"
     t.index ["call_number"], name: "index_books_on_call_number"
     t.index ["user_id"], name: "index_books_on_user_id"
@@ -150,7 +150,6 @@ ActiveRecord::Schema[8.1].define(version: 2026_03_06_100000) do
   end
 
   add_foreign_key "books", "batch_years"
-  add_foreign_key "books", "users"
   add_foreign_key "circulation_records", "books"
   add_foreign_key "circulation_records", "users"
   add_foreign_key "library_loan_histories", "batch_years"
