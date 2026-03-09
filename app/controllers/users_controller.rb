@@ -100,6 +100,118 @@ class UsersController < ApplicationController
     end
   end
 
+  # GET /users/import — show form; POST with file — preview; POST with confirm + import_data — perform import
+  def import
+    BatchYear.ensure_office_exists!
+    @imported_data = []
+    @headers = []
+    @expected_columns = %w[name]
+    @column_names_zh = {
+      "name" => "姓名",
+      "id_number" => "學號",
+      "seat_number" => "座號",
+      "admin" => "管理員"
+    }
+
+    return unless request.post?
+
+    if params[:confirm] == "true" && params[:import_data].present?
+      import_data = JSON.parse(Base64.strict_decode64(params[:import_data]))
+
+      selected_batch_year_id = params[:batch_year_id].presence&.to_i
+      if selected_batch_year_id.blank? || selected_batch_year_id < 1
+        _restore_import_preview_users(import_data)
+        @batch_years = BatchYear.by_number_desc
+        flash.now[:alert] = "請選擇屆數。"
+        render :import, status: :unprocessable_entity
+        return
+      end
+
+      imported_count = 0
+      skipped_count = 0
+      duplicate_action = params[:duplicate_action] || "skip"
+      selected_duplicates = (params[:selected_duplicates] || []).map(&:to_i)
+      BatchYear.find_by(id: selected_batch_year_id)
+
+      import_data.each_with_index do |row, index|
+        name = _user_import_value(row, "name", "姓名")
+        next if name.blank?
+
+        id_number = _user_import_value(row, "id_number", "學號")
+        user_attrs = {
+          name: name,
+          id_number: id_number,
+          seat_number: _user_import_value(row, "seat_number", "座號"),
+          email: id_number.present? ? "#{id_number}@hpees.tp.edu.tw" : nil,
+          batch_year_id: selected_batch_year_id,
+          admin: _user_import_admin?(row)
+        }
+
+        is_duplicate = User.exists?(name: name, batch_year_id: selected_batch_year_id)
+        if is_duplicate
+          case duplicate_action
+          when "skip"
+            skipped_count += 1
+            next
+          when "select"
+            unless selected_duplicates.include?(index)
+              skipped_count += 1
+              next
+            end
+          end
+        end
+
+        user = User.new(user_attrs)
+        if user.save
+          imported_count += 1
+        else
+          Rails.logger.error "Failed to save user: #{user.errors.full_messages.join(', ')}"
+        end
+      end
+
+      message = "成功匯入 #{imported_count} 位人員。"
+      message += " 已跳過 #{skipped_count} 位重複人員。" if skipped_count > 0
+      redirect_to users_path, notice: message, status: :see_other
+    elsif params[:file].present?
+      file = params[:file]
+      begin
+        content = file.read.force_encoding("UTF-8")
+        @headers, rows = _parse_csv_users(content)
+        @imported_data = rows.reject { |row| row.values.all? { |v| v.nil? || v.to_s.strip.empty? } }
+
+        headers_stripped = @headers.map { |h| h&.to_s&.strip }
+        normalized_headers = headers_stripped.map do |h|
+          case h.to_s
+          when "姓名" then "name"
+          when "學號" then "id_number"
+          when "座號" then "seat_number"
+          when "管理員" then "admin"
+          else h.to_s.downcase.presence
+          end
+        end.compact
+        @missing_columns = @expected_columns - normalized_headers
+        @extra_columns = normalized_headers - @expected_columns - %w[id_number seat_number admin]
+
+        @invalid_row_indices = []
+        @imported_data.each_with_index do |row, index|
+          name = _user_import_value(row, "name", "姓名")
+          @invalid_row_indices << index if name.blank?
+        end
+
+        @duplicates = []
+        @new_users = []
+        if normalized_headers.include?("name")
+          @imported_data.each_with_index do |row, index|
+            @new_users << { index: index, row: row } if _user_import_value(row, "name", "姓名").present?
+          end
+        end
+      rescue StandardError => e
+        flash.now[:alert] = "無法解析 CSV：#{e.message}"
+      end
+      @batch_years ||= BatchYear.by_number_desc
+    end
+  end
+
   private
     def _ensure_admin_batch_year(attrs)
       return unless attrs[:admin].to_s == "1" || attrs["admin"].to_s == "1"
@@ -132,5 +244,94 @@ class UsersController < ApplicationController
           { extra_batch_year_ids: [] }
         ]
       )
+    end
+
+    def _parse_csv_users(content)
+      lines = content.split(/\r?\n/)
+      return [[], []] if lines.empty?
+
+      headers = _parse_csv_line_users(lines[0])
+      rows = lines[1..].filter_map do |line|
+        next nil if line.strip.empty?
+
+        values = _parse_csv_line_users(line)
+        headers.each_with_index.to_h { |h, i| [h, values[i]] }
+      end
+      [headers, rows]
+    end
+
+    def _parse_csv_line_users(line)
+      fields = []
+      i = 0
+      while i < line.length
+        if line[i] == '"'
+          i += 1
+          field = +""
+          while i < line.length
+            if line[i] == '"'
+              if line[i + 1] == '"'
+                field << '"'
+                i += 2
+              else
+                i += 1
+                break
+              end
+            else
+              field << line[i]
+              i += 1
+            end
+          end
+          fields << field
+        else
+          end_idx = line.index(",", i) || line.length
+          fields << line[i...end_idx].to_s.strip
+          i = end_idx + 1
+        end
+      end
+      fields
+    end
+
+    def _user_import_value(row, *keys)
+      keys.each do |k|
+        v = row[k]
+        return v.to_s.strip.presence if v.present? && v.to_s.strip.present?
+      end
+      nil
+    end
+
+    def _user_import_admin?(row)
+      v = _user_import_value(row, "admin", "管理員")
+      return false if v.blank?
+
+      s = v.to_s.strip
+      ["1", "true", "yes", "y", "是"].include?(s.downcase) || s == "是"
+    end
+
+    def _restore_import_preview_users(import_data)
+      @imported_data = import_data
+      @headers = import_data.first&.keys || []
+      headers_stripped = @headers.map { |h| h&.to_s&.strip }
+      normalized_headers = headers_stripped.map do |h|
+        case h.to_s
+        when "姓名" then "name"
+        when "學號" then "id_number"
+        when "座號" then "seat_number"
+        when "管理員" then "admin"
+        else h.to_s.downcase.presence
+        end
+      end.compact
+      @missing_columns = @expected_columns - normalized_headers
+      @extra_columns = normalized_headers - @expected_columns - %w[id_number seat_number admin]
+      @invalid_row_indices = []
+      @imported_data.each_with_index do |row, index|
+        name = _user_import_value(row, "name", "姓名")
+        @invalid_row_indices << index if name.blank?
+      end
+      @duplicates = []
+      @new_users = []
+      @imported_data.each_with_index do |row, index|
+        @new_users << { index: index, row: row } if _user_import_value(row, "name", "姓名").present?
+      end
+      @batch_years = BatchYear.by_number_desc
     end
 end
