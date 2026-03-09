@@ -37,7 +37,7 @@
         <tbody class="bg-white divide-y divide-gray-200">
           <% if @users.any? %>
             <% @users.each do |user| %>
-              <tr class="hover:bg-gray-50 cursor-pointer user-row" data-user-url="<%= user_path(user) %>" role="button" tabindex="0">
+              <tr class="hover:bg-gray-50 cursor-pointer user-row" data-user-url="<%= edit_user_path(user) %>" role="button" tabindex="0">
                 <td class="px-4 py-4 w-12 sticky left-0 bg-white z-10 border-r border-gray-200 align-middle" data-no-row-click>
                   <input type="checkbox" name="user_ids[]" value="<%= user.id %>" class="user-checkbox rounded" title="選擇以刪除">
                 </td>
@@ -79,7 +79,7 @@
     <% if @users.any? %>
       <div class="space-y-4">
         <% @users.each do |user| %>
-          <div class="bg-white rounded-2xl shadow-md border border-gray-100 overflow-hidden cursor-pointer user-card active:scale-[0.99] transition-transform touch-manipulation" data-user-url="<%= user_path(user) %>" role="button" tabindex="0">
+          <div class="bg-white rounded-2xl shadow-md border border-gray-100 overflow-hidden cursor-pointer user-card active:scale-[0.99] transition-transform touch-manipulation" data-user-url="<%= edit_user_path(user) %>" role="button" tabindex="0">
             <div class="p-4">
               <div class="flex justify-between items-start gap-3">
                 <div class="min-w-0 flex-1">

@@ -42,7 +42,7 @@
   <% if book.owned_by_teacher? && book.user.present? %>
     <div>
       <strong class="block font-medium mb-1">老師：</strong>
-      <%= link_to book.user.name, user_path(book.user), class: "text-indigo-600 hover:text-indigo-900" %>
+      <%= link_to book.user.name, edit_user_path(book.user), class: "text-indigo-600 hover:text-indigo-900" %>
     </div>
   <% end %>
 </div>
