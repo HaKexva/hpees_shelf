@@ -115,78 +115,20 @@ class DashboardController < ApplicationController
     end
 
     pending_book_id = params[:pending_book_id].presence&.to_i
-
-    if current_user_admin? || (current_user.nil? && params[:action_type].present?)
-      _process_isbn_admin(isbn, pending_book_id: pending_book_id)
-    else
-      _process_isbn_student(isbn, pending_book_id: pending_book_id)
-    end
-  end
-
-  def confirm_borrow_return
-    book_id = params[:book_id].presence&.to_i
-    pending_ids = session[:pending_book_ids].to_a
-    unless book_id && pending_ids.include?(book_id)
-      _clear_pending_session
-      redirect_to root_path, alert: "請選擇冊別。", status: :see_other
-      return
-    end
-
-    book = Book.find_by(id: book_id)
-    unless book
-      _clear_pending_session
-      redirect_to root_path, alert: "找不到該書籍。", status: :see_other
-      return
-    end
-
-    action = session[:pending_action].to_s
-    borrower = User.find_by(id: session[:pending_user_id]) if session[:pending_user_id].present?
-    borrower ||= current_user
-
-    need_borrower = action == "checkout" || (action.blank? && book.status == Book::STATUS_ON_SHELF)
-    if need_borrower && borrower.blank?
-      _clear_pending_session
-      redirect_to root_path, status: :see_other
-      return
-    end
-
-    if need_borrower && _student_at_borrow_limit?(borrower)
-      _clear_pending_session
-      redirect_to root_path, alert: "學生一次只能借一本書，請先歸還再借。", status: :see_other
-      return
-    end
-
-    doing_return = action == "return" || (action.blank? && book.status == Book::STATUS_BORROWED)
-    if doing_return && !book.borrowed_by?(borrower)
-      _clear_pending_session
-      redirect_to root_path, alert: "此書不是此人借閱的，無法歸還。", status: :see_other
-      return
-    end
-
-    doing_checkout = action == "checkout" || (action.blank? && book.status == Book::STATUS_ON_SHELF)
-    if doing_checkout && book.status != Book::STATUS_ON_SHELF
-      _clear_pending_session
-      redirect_to root_path, alert: "此書已借閱中，請勿重複借閱。", status: :see_other
-      return
-    end
-    if doing_checkout && !borrower.admin? && book.batch_year_id != borrower.batch_year_id
-      _clear_pending_session
-      redirect_to root_path, alert: "此書與借閱人的屆數不同，無法借閱。", status: :see_other
-      return
-    end
-
-    if action == "return" || action == "checkout"
-      _do_action(book, action, borrower)
-    else
-      _do_borrow_or_return_by_status(book, borrower)
-    end
-    _clear_pending_session
-    redirect_to root_path, notice: @process_notice, status: :see_other
+    _process_isbn(isbn, pending_book_id: pending_book_id)
   end
 
   private
 
-  def _process_isbn_admin(isbn, pending_book_id: nil)
+  def _process_isbn(isbn, pending_book_id: nil)
+    if current_user_admin? || (current_user.nil? && params[:action_type].present?)
+      _process_isbn_as_admin(isbn, pending_book_id: pending_book_id)
+    else
+      _process_isbn_as_student(isbn, pending_book_id: pending_book_id)
+    end
+  end
+
+  def _process_isbn_as_admin(isbn, pending_book_id: nil)
     action = params[:action_type].to_s == "return" ? "return" : "checkout"
     base_books =
       Book.where.not(status: Book::STATUS_RETURNED_LIBRARY)
@@ -286,7 +228,7 @@ class DashboardController < ApplicationController
     redirect_to root_path, alert: "有多本相同 ISBN，請在表單中選擇冊別後再送出。", status: :see_other
   end
 
-  def _process_isbn_student(isbn, pending_book_id: nil)
+  def _process_isbn_as_student(isbn, pending_book_id: nil)
     # 學生借還：同樣看所有來源；總數 > 1 的書借出 1 本後其餘仍可借
     books = Book.where.not(status: Book::STATUS_RETURNED_LIBRARY)
                 .where.not(title: [ nil, "" ])
