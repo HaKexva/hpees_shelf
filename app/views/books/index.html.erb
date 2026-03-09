@@ -4,7 +4,7 @@
   <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6">
     <h1 class="font-bold text-2xl sm:text-4xl text-gray-900">書籍列表</h1>
     <div class="flex flex-wrap gap-2">
-      <%= link_to "匯入 CSV", import_books_path, class: "rounded-md px-3.5 py-2.5 bg-green-600 hover:bg-green-500 text-white block font-medium" %>
+      <%= link_to "匯入 CSV", import_books_path, class: "rounded-md px-3.5 py-2.5 bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 block font-medium" %>
       <% if Book.show_return_to_library_button? && @any_library_books_to_return %>
         <%= link_to "歸還圖書館書籍", return_to_library_batch_books_path, class: "rounded-md px-3.5 py-2.5 bg-amber-600 hover:bg-amber-500 text-white block font-medium" %>
       <% end %>
