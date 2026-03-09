@@ -43,7 +43,7 @@
           <tbody class="bg-white divide-y divide-gray-200">
             <% if @batch_years.any? %>
               <% @batch_years.each do |batch_year| %>
-                <tr class="hover:bg-gray-50 cursor-pointer batch-year-row" data-batch-year-url="<%= batch_year_path(batch_year) %>" role="button" tabindex="0">
+                <tr class="hover:bg-gray-50 cursor-pointer batch-year-row" data-batch-year-url="<%= edit_batch_year_path(batch_year) %>" role="button" tabindex="0">
                   <td class="px-4 py-4 w-12 sticky left-0 bg-white z-10 border-r border-gray-200 align-middle" data-no-row-click>
                     <input type="checkbox" name="batch_year_ids[]" value="<%= batch_year.id %>" class="batch-year-checkbox rounded" title="選擇以刪除">
                   </td>
@@ -105,7 +105,7 @@
               </div>
             </div>
             <div class="px-4 py-3 bg-gray-50/80 flex justify-start border-t border-gray-100 text-xs text-gray-500">
-              <%= link_to "查看詳細", batch_year_path(batch_year), class: "underline underline-offset-2 decoration-gray-300 hover:decoration-gray-500" %>
+              <%= link_to "編輯屆數", edit_batch_year_path(batch_year), class: "underline underline-offset-2 decoration-gray-300 hover:decoration-gray-500" %>
             </div>
           </div>
         <% end %>
