@@ -6,16 +6,9 @@ class UsersController < ApplicationController
     @users = User.active.includes(:batch_year).order(:name)
   end
 
-  # GET /users/1 or /users/1.json
+  # GET /users/1 — redirect to edit (no separate show page)
   def show
-    # 此使用者的「圖書館借閱歷史」：透過 circulation_records + library 書籍
-    @library_loan_records =
-      @user.circulation_records
-           .joins(:book)
-           .where(books: { source: Book.sources[:owned_by_library] })
-           .where.not(returned_at: nil)
-           .includes(:book)
-           .order(returned_at: :desc)
+    redirect_to edit_user_path(@user), status: :see_other
   end
 
   # GET /users/new
@@ -39,8 +32,8 @@ class UsersController < ApplicationController
 
     respond_to do |format|
       if @user.save
-        format.html { redirect_to @user, notice: "人員已建立。" }
-        format.json { render :show, status: :created, location: @user }
+        format.html { redirect_to edit_user_path(@user), notice: "人員已建立。" }
+        format.json { render :edit, status: :created, location: @user }
       else
         @batch_years = BatchYear.by_number_desc
         format.html { render :new, status: :unprocessable_entity }
@@ -55,8 +48,8 @@ class UsersController < ApplicationController
     _ensure_admin_batch_year(attrs)
     respond_to do |format|
       if @user.update(attrs)
-        format.html { redirect_to @user, notice: "人員已更新。", status: :see_other }
-        format.json { render :show, status: :ok, location: @user }
+        format.html { redirect_to edit_user_path(@user), notice: "人員已更新。", status: :see_other }
+        format.json { render :edit, status: :ok, location: @user }
       else
         @batch_years = BatchYear.by_number_desc
         format.html { render :edit, status: :unprocessable_entity }
@@ -68,15 +61,15 @@ class UsersController < ApplicationController
   # POST /users/:id/cancel_resignation (HAK-41: only if resigned < 1 month)
   def cancel_resignation
     unless @user.resigned?
-      redirect_to @user, alert: "此人員未標記為離職。", status: :see_other
+      redirect_to edit_user_path(@user), alert: "此人員未標記為離職。", status: :see_other
       return
     end
     unless @user.restore_allowed?
-      redirect_to @user, alert: "離職超過 1 個月無法復原。", status: :see_other
+      redirect_to edit_user_path(@user), alert: "離職超過 1 個月無法復原。", status: :see_other
       return
     end
     @user.update!(resigned_at: nil)
-    redirect_to @user, notice: "已取消離職。", status: :see_other
+    redirect_to edit_user_path(@user), notice: "已取消離職。", status: :see_other
   end
 
   # DELETE /users/1 or /users/1.json
