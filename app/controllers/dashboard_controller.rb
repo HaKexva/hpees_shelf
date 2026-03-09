@@ -122,182 +122,164 @@ class DashboardController < ApplicationController
 
   def _process_isbn(isbn, pending_book_id: nil)
     if current_user_admin? || (current_user.nil? && params[:action_type].present?)
-      _process_isbn_as_admin(isbn, pending_book_id: pending_book_id)
-    else
-      _process_isbn_as_student(isbn, pending_book_id: pending_book_id)
-    end
-  end
+      # Admin flow: can specify borrower, explicit checkout/return
+      action = params[:action_type].to_s == "return" ? "return" : "checkout"
+      base_books =
+        Book.where.not(status: Book::STATUS_RETURNED_LIBRARY)
+            .where.not(title: [ nil, "" ])
+            .includes(:batch_year, :borrowers, :circulation_records)
+            .to_a
+            .select { |b| Book.isbn_match?(b.isbn, isbn) }
 
-  def _process_isbn_as_admin(isbn, pending_book_id: nil)
-    action = params[:action_type].to_s == "return" ? "return" : "checkout"
-    base_books =
-      Book.where.not(status: Book::STATUS_RETURNED_LIBRARY)
-          .where.not(title: [ nil, "" ])
-          .includes(:batch_year, :borrowers, :circulation_records)
-          .to_a
-          .select { |b| Book.isbn_match?(b.isbn, isbn) }
-
-    # 總數 > 1 的書：借出 1 本後其餘仍可借（用 DB 查未還本數）
-    active_counts = CirculationRecord.where(book_id: base_books.map(&:id), returned_at: nil).group(:book_id).count
-    books =
-      if action == "checkout"
-        base_books.select do |b|
-          eff_total = b.total.to_i.positive? ? b.total.to_i : 1
-          if b.owned_by_library? && eff_total > 1
-            (eff_total - active_counts[b.id].to_i).positive?
-          else
-            b.status == Book::STATUS_ON_SHELF
+      active_counts = CirculationRecord.where(book_id: base_books.map(&:id), returned_at: nil).group(:book_id).count
+      books =
+        if action == "checkout"
+          base_books.select do |b|
+            eff_total = b.total.to_i.positive? ? b.total.to_i : 1
+            if b.owned_by_library? && eff_total > 1
+              (eff_total - active_counts[b.id].to_i).positive?
+            else
+              b.status == Book::STATUS_ON_SHELF
+            end
           end
+        else
+          base_books.select { |b| b.status == Book::STATUS_BORROWED }
         end
-      else
-        base_books.select { |b| b.status == Book::STATUS_BORROWED }
-      end
 
-    if pending_book_id.present?
-      books = books.select { |b| b.id == pending_book_id }
-    end
+      books = books.select { |b| b.id == pending_book_id } if pending_book_id.present?
 
-    if books.empty?
-      if action == "checkout"
+      if books.empty?
         alert_msg =
-          if base_books.any?
-            "此本目前無可借，請在表單中改選其他冊別。"
+          if action == "checkout"
+            base_books.any? ? "此本目前無可借，請在表單中改選其他冊別。" : "找不到此書。"
           else
-            "找不到此書。"
+            "找不到可還的書（借閱中且符合此 ISBN）。"
           end
+        redirect_to root_path, alert: alert_msg, status: :see_other
+        return
+      end
+
+      user_id = params[:user_id].presence&.to_i
+      id_number = params[:id_number].to_s.strip
+      borrower = if user_id.present?
+        User.find_by(id: user_id)
+      elsif id_number.present?
+        User.active.find_by(id_number: id_number)
       else
-        alert_msg = "找不到可還的書（借閱中且符合此 ISBN）。"
+        current_user
       end
-      redirect_to root_path, alert: alert_msg, status: :see_other
-      return
-    end
 
-    user_id = params[:user_id].presence&.to_i
-    id_number = params[:id_number].to_s.strip
-    borrower = if user_id.present?
-      User.find_by(id: user_id)
-    elsif id_number.present?
-      User.active.find_by(id_number: id_number)
-    else
-      current_user
-    end
-
-    if action == "checkout" && borrower.blank?
-      redirect_to root_path, alert: id_number.present? ? "找不到此學號的學生。" : "找不到借閱人。", status: :see_other
-      return
-    end
-
-    if action == "checkout" && _student_at_borrow_limit?(borrower)
-      redirect_to root_path, alert: "學生一次只能借一本書，請先歸還再借。", status: :see_other
-      return
-    end
-
-    if action == "checkout" && !borrower.admin?
-      books = books.select { |b| b.batch_year_id == borrower.batch_year_id }
-      if books.empty?
-        redirect_to root_path, alert: "此書與借閱人的屆數不同，無法借閱。", status: :see_other
+      if action == "checkout" && borrower.blank?
+        redirect_to root_path, alert: id_number.present? ? "找不到此學號的學生。" : "找不到借閱人。", status: :see_other
         return
       end
-    end
 
-    if action == "return"
-      books = books.select { |b| b.borrowed_by?(borrower) }
-      if books.empty?
-        redirect_to root_path, alert: "此書不是此人借閱的，無法歸還。", status: :see_other
-        return
-      end
-    end
-
-    if books.size == 1
-      _do_action(books.first, action, borrower)
-      _clear_pending_session
-      redirect_to root_path, notice: @process_notice, status: :see_other
-      return
-    end
-
-    keys = books.map { |b| _duplicate_display_key(b) }.uniq
-    if keys.size == 1
-      _do_action(books.first, action, borrower)
-      _clear_pending_session
-      redirect_to root_path, notice: @process_notice, status: :see_other
-      return
-    end
-
-    # 只做「送出前」選冊別，不再導向「送出後」的選冊別畫面
-    _clear_pending_session
-    redirect_to root_path, alert: "有多本相同 ISBN，請在表單中選擇冊別後再送出。", status: :see_other
-  end
-
-  def _process_isbn_as_student(isbn, pending_book_id: nil)
-    # 學生借還：同樣看所有來源；總數 > 1 的書借出 1 本後其餘仍可借
-    books = Book.where.not(status: Book::STATUS_RETURNED_LIBRARY)
-                .where.not(title: [ nil, "" ])
-                .includes(:batch_year, :borrowers, :circulation_records)
-                .to_a
-                .select { |b| Book.isbn_match?(b.isbn, isbn) }
-
-    if pending_book_id.present?
-      books = books.select { |b| b.id == pending_book_id }
-    end
-
-    if books.empty?
-      redirect_to root_path, alert: "找不到此 ISBN 的圖書館館藏（ISBN：#{isbn}）。", status: :see_other
-      return
-    end
-
-    borrower = current_user
-    if borrower.blank?
-      redirect_to root_path, status: :see_other
-      return
-    end
-
-    if books.size == 1
-      book = books.first
-      if book.status == Book::STATUS_ON_SHELF && _student_at_borrow_limit?(borrower)
+      if action == "checkout" && _student_at_borrow_limit?(borrower)
         redirect_to root_path, alert: "學生一次只能借一本書，請先歸還再借。", status: :see_other
         return
       end
-      if book.status == Book::STATUS_ON_SHELF && book.batch_year_id != borrower.batch_year_id
-        redirect_to root_path, alert: "此書與您的屆數不同，無法借閱。", status: :see_other
+
+      if action == "checkout" && !borrower.admin?
+        books = books.select { |b| b.batch_year_id == borrower.batch_year_id }
+        if books.empty?
+          redirect_to root_path, alert: "此書與借閱人的屆數不同，無法借閱。", status: :see_other
+          return
+        end
+      end
+
+      if action == "return"
+        books = books.select { |b| b.borrowed_by?(borrower) }
+        if books.empty?
+          redirect_to root_path, alert: "此書不是此人借閱的，無法歸還。", status: :see_other
+          return
+        end
+      end
+
+      if books.size == 1
+        _do_action(books.first, action, borrower)
+        _clear_pending_session
+        redirect_to root_path, notice: @process_notice, status: :see_other
         return
       end
-      if book.status == Book::STATUS_BORROWED && !book.borrowed_by?(borrower)
-        redirect_to root_path, alert: "此書不是您借閱的，無法歸還。", status: :see_other
+
+      keys = books.map { |b| _duplicate_display_key(b) }.uniq
+      if keys.size == 1
+        _do_action(books.first, action, borrower)
+        _clear_pending_session
+        redirect_to root_path, notice: @process_notice, status: :see_other
         return
       end
-      _do_borrow_or_return_by_status(book, borrower)
+
       _clear_pending_session
-      redirect_to root_path, notice: @process_notice, status: :see_other
-      return
-    end
+      redirect_to root_path, alert: "有多本相同 ISBN，請在表單中選擇冊別後再送出。", status: :see_other
+    else
+      # Student flow: only operate on books this student can borrow/return
+      books = Book.where.not(status: Book::STATUS_RETURNED_LIBRARY)
+                  .where.not(title: [ nil, "" ])
+                  .includes(:batch_year, :borrowers, :circulation_records)
+                  .to_a
+                  .select { |b| Book.isbn_match?(b.isbn, isbn) }
 
-    books = books.select do |b|
-      (b.status == Book::STATUS_ON_SHELF && b.batch_year_id == borrower.batch_year_id) ||
-        (b.status == Book::STATUS_BORROWED && b.borrowed_by?(borrower))
-    end
-    if books.empty?
-      redirect_to root_path, alert: "沒有您可借或可還的書（此書與您的屆數不同或非您借閱）。", status: :see_other
-      return
-    end
+      books = books.select { |b| b.id == pending_book_id } if pending_book_id.present?
 
-    if books.size == 1
-      _do_borrow_or_return_by_status(books.first, borrower)
+      if books.empty?
+        redirect_to root_path, alert: "找不到此 ISBN 的圖書館館藏（ISBN：#{isbn}）。", status: :see_other
+        return
+      end
+
+      borrower = current_user
+      if borrower.blank?
+        redirect_to root_path, status: :see_other
+        return
+      end
+
+      if books.size == 1
+        book = books.first
+        if book.status == Book::STATUS_ON_SHELF && _student_at_borrow_limit?(borrower)
+          redirect_to root_path, alert: "學生一次只能借一本書，請先歸還再借。", status: :see_other
+          return
+        end
+        if book.status == Book::STATUS_ON_SHELF && book.batch_year_id != borrower.batch_year_id
+          redirect_to root_path, alert: "此書與您的屆數不同，無法借閱。", status: :see_other
+          return
+        end
+        if book.status == Book::STATUS_BORROWED && !book.borrowed_by?(borrower)
+          redirect_to root_path, alert: "此書不是您借閱的，無法歸還。", status: :see_other
+          return
+        end
+        _do_borrow_or_return_by_status(book, borrower)
+        _clear_pending_session
+        redirect_to root_path, notice: @process_notice, status: :see_other
+        return
+      end
+
+      books = books.select do |b|
+        (b.status == Book::STATUS_ON_SHELF && b.batch_year_id == borrower.batch_year_id) ||
+          (b.status == Book::STATUS_BORROWED && b.borrowed_by?(borrower))
+      end
+      if books.empty?
+        redirect_to root_path, alert: "沒有您可借或可還的書（此書與您的屆數不同或非您借閱）。", status: :see_other
+        return
+      end
+
+      if books.size == 1
+        _do_borrow_or_return_by_status(books.first, borrower)
+        _clear_pending_session
+        redirect_to root_path, notice: @process_notice, status: :see_other
+        return
+      end
+
+      keys = books.map { |b| _duplicate_display_key(b) }.uniq
+      if keys.size == 1
+        _do_borrow_or_return_by_status(books.first, borrower)
+        _clear_pending_session
+        redirect_to root_path, notice: @process_notice, status: :see_other
+        return
+      end
+
       _clear_pending_session
-      redirect_to root_path, notice: @process_notice, status: :see_other
-      return
+      redirect_to root_path, alert: "有多本相同 ISBN，請在表單中選擇冊別後再送出。", status: :see_other
     end
-
-    keys = books.map { |b| _duplicate_display_key(b) }.uniq
-    if keys.size == 1
-      _do_borrow_or_return_by_status(books.first, borrower)
-      _clear_pending_session
-      redirect_to root_path, notice: @process_notice, status: :see_other
-      return
-    end
-
-    # 只做「送出前」選冊別，不再導向「送出後」的選冊別畫面
-    _clear_pending_session
-    redirect_to root_path, alert: "有多本相同 ISBN，請在表單中選擇冊別後再送出。", status: :see_other
   end
 
   def _do_action(book, action, borrower)
