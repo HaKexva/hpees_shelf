@@ -6,8 +6,14 @@
 
     <%= render "form", batch_year: @batch_year %>
 
-    <p class="mt-4">
-      <%= link_to "返回屆數列表", batch_years_path, class: "rounded-md px-3.5 py-2.5 bg-gray-100 hover:bg-gray-50 font-medium" %>
-    </p>
+    <div class="mt-4 flex flex-col sm:flex-row gap-2">
+      <%= button_to "刪除此屆數",
+                    @batch_year,
+                    method: :delete,
+                    data: { turbo_confirm: "確定要刪除此屆數嗎？" },
+                    form: { class: "inline" },
+                    class: "w-full sm:w-auto text-center rounded-md px-3.5 py-2.5 bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 font-medium" %>
+      <%= link_to "返回屆數列表", batch_years_path, class: "w-full sm:w-auto text-center rounded-md px-3.5 py-2.5 bg-gray-100 hover:bg-gray-50 font-medium inline-block" %>
+    </div>
   </div>
 </div>
