@@ -31,13 +31,12 @@
             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">學號</th>
             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">座號</th>
             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">管理員</th>
-            <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">編輯</th>
           </tr>
         </thead>
         <tbody class="bg-white divide-y divide-gray-200">
           <% if @users.any? %>
             <% @users.each do |user| %>
-              <tr class="hover:bg-gray-50 cursor-pointer user-row" data-user-url="<%= user_path(user) %>" role="button" tabindex="0">
+              <tr class="hover:bg-gray-50 cursor-pointer user-row" data-user-url="<%= edit_user_path(user) %>" role="button" tabindex="0">
                 <td class="px-4 py-4 w-12 sticky left-0 bg-white z-10 border-r border-gray-200 align-middle" data-no-row-click>
                   <input type="checkbox" name="user_ids[]" value="<%= user.id %>" class="user-checkbox rounded" title="選擇以刪除">
                 </td>
@@ -51,16 +50,6 @@
                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500"><%= user.admin ? "—" : (user.id_number || "—") %></td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500"><%= user.admin ? "—" : (user.seat_number || "—") %></td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500"><%= user.admin ? "是" : "否" %></td>
-                <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2" data-no-row-click>
-                  <% if user.resigned? %>
-                    <%= link_to "取消離職", cancel_resignation_user_path(user), method: :post, class: "inline-flex text-amber-700 hover:text-amber-900 text-xs font-medium", data: { turbo_confirm: "確定要取消離職嗎？" } %>
-                  <% end %>
-                  <%= link_to edit_user_path(user), class: "inline-flex text-indigo-600 hover:text-indigo-900", title: "編輯", aria: { label: "編輯" } do %>
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                    </svg>
-                  <% end %>
-                </td>
               </tr>
             <% end %>
           <% else %>
@@ -79,7 +68,7 @@
     <% if @users.any? %>
       <div class="space-y-4">
         <% @users.each do |user| %>
-          <div class="bg-white rounded-2xl shadow-md border border-gray-100 overflow-hidden cursor-pointer user-card active:scale-[0.99] transition-transform touch-manipulation" data-user-url="<%= user_path(user) %>" role="button" tabindex="0">
+          <div class="bg-white rounded-2xl shadow-md border border-gray-100 overflow-hidden cursor-pointer user-card active:scale-[0.99] transition-transform touch-manipulation" data-user-url="<%= edit_user_path(user) %>" role="button" tabindex="0">
             <div class="p-4">
               <div class="flex justify-between items-start gap-3">
                 <div class="min-w-0 flex-1">
