@@ -6,16 +6,27 @@ A library management system built with Rails 8.1.
 
 ### Prerequisites
 
-- Ruby 3.4.8
-- PostgreSQL 14+
-- Node.js (for asset pipeline)
+- Ruby 3.4.8 (see `.ruby-version`)
+- PostgreSQL 17
 
-### Install PostgreSQL
+### 1. Install PostgreSQL
 
 **macOS (Homebrew):**
 
 ```bash
 brew install postgresql@17
+```
+
+After installation, follow the instructions printed by Homebrew to add PostgreSQL to your PATH. Typically:
+
+```bash
+echo 'export PATH="/opt/homebrew/opt/postgresql@17/bin:$PATH"' >> ~/.zshrc
+source ~/.zshrc
+```
+
+Then start the service:
+
+```bash
 brew services start postgresql@17
 ```
 
@@ -26,18 +37,27 @@ sudo apt-get install postgresql postgresql-contrib libpq-dev
 sudo systemctl start postgresql
 ```
 
-### Setup
+### 2. Install Gems
 
 ```bash
-# Install gems
 bundle install
+```
 
-# Create databases and run migrations
+### 3. Create Database and Run Migrations
+
+```bash
 bin/rails db:prepare
+```
 
-# Start the dev server
+This creates `hpees_shelf_development` and runs all pending migrations.
+
+### 4. Start the Dev Server
+
+```bash
 bin/dev
 ```
+
+Visit `http://localhost:3000`.
 
 ### Running Tests
 
