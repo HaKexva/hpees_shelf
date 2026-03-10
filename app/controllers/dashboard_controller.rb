@@ -177,23 +177,12 @@ class DashboardController < ApplicationController
         end
       end
 
-      if books.size == 1
-        _do_action(books.first, action, borrower)
-        _clear_pending_session
-        redirect_to root_path, notice: @process_notice, status: :see_other
-        return
-      end
-
-      keys = books.map { |b| _duplicate_display_key(b) }.uniq
-      if keys.size == 1
-        _do_action(books.first, action, borrower)
-        _clear_pending_session
-        redirect_to root_path, notice: @process_notice, status: :see_other
-        return
-      end
-
+      # 正常情況下，前端已強制選擇冊別（pending_book_id 為必填），
+      # 能走到這裡代表仍有多筆符合條件，但在 UI 上無法區分。
+      # 為了不再打斷使用者流程，fallback 為選第一筆。
+      _do_action(books.first, action, borrower)
       _clear_pending_session
-      redirect_to root_path, alert: "有多本相同 ISBN，請在表單中選擇冊別後再送出。", status: :see_other
+      redirect_to root_path, notice: @process_notice, status: :see_other
     else
       # Student flow: only operate on books this student can borrow/return
       books = Book.where.not(status: Book::STATUS_RETURNED_LIBRARY)
@@ -244,23 +233,11 @@ class DashboardController < ApplicationController
         return
       end
 
-      if books.size == 1
-        _do_borrow_or_return_by_status(books.first, borrower)
-        _clear_pending_session
-        redirect_to root_path, notice: @process_notice, status: :see_other
-        return
-      end
-
-      keys = books.map { |b| _duplicate_display_key(b) }.uniq
-      if keys.size == 1
-        _do_borrow_or_return_by_status(books.first, borrower)
-        _clear_pending_session
-        redirect_to root_path, notice: @process_notice, status: :see_other
-        return
-      end
-
+      # 正常情況下，前端已強制選擇冊別，能走到這裡代表仍有多筆可操作的書。
+      # 為了不中斷流程，學生流程 fallback 也採用第一筆。
+      _do_borrow_or_return_by_status(books.first, borrower)
       _clear_pending_session
-      redirect_to root_path, alert: "有多本相同 ISBN，請在表單中選擇冊別後再送出。", status: :see_other
+      redirect_to root_path, notice: @process_notice, status: :see_other
     end
   end
 
@@ -328,17 +305,6 @@ class DashboardController < ApplicationController
       end
       @process_notice = "已還書：#{book.title}。"
     end
-  end
-
-  def _duplicate_display_key(book)
-    [
-      book.batch_year_id,
-      book.source,
-      book.user_id,
-      book.call_number,
-      book.volume,
-      book.edition_part
-    ]
   end
 
   def _student_at_borrow_limit?(borrower)
