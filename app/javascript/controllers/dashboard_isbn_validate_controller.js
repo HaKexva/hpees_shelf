@@ -179,9 +179,11 @@ export default class extends Controller {
     if (actionType === "return") {
       const form = this.element.closest("form")
       if (form) {
-        const userSelect = form.querySelector("select[name='user_id']")
+        const hiddenUser    = form.querySelector("input[name='user_id']")
+        const userSelect    = form.querySelector("select[name='user_id']")
         const idNumberInput = form.querySelector("input[name='id_number']")
         const hasUser =
+          (hiddenUser && hiddenUser.value && hiddenUser.value !== "") ||
           (userSelect && userSelect.value && userSelect.value !== "") ||
           (idNumberInput && idNumberInput.value.trim() !== "")
         if (!hasUser) {
