@@ -134,15 +134,21 @@ export default class extends Controller {
     params.append("isbn", rawIsbn)
 
     if (form) {
-      const userSelect = form.querySelector("select[name='user_id']")
+      const hiddenUser    = form.querySelector("input[name='user_id']")
+      const userSelect    = form.querySelector("select[name='user_id']")
       const idNumberInput = form.querySelector("input[name='id_number']")
-      const actionType = this.currentActionType()
+      const actionType    = this.currentActionType()
 
-      if (userSelect && userSelect.value) {
+      // 優先使用 hidden user_id（由 student-search controller 設定），
+      // 再退而求其次使用任何 select 或學號欄位。
+      if (hiddenUser && hiddenUser.value && hiddenUser.value !== "") {
+        params.append("user_id", hiddenUser.value)
+      } else if (userSelect && userSelect.value) {
         params.append("user_id", userSelect.value)
       } else if (idNumberInput && idNumberInput.value.trim() !== "") {
         params.append("id_number", idNumberInput.value.trim())
       }
+
       if (actionType) {
         params.append("action_type", actionType)
       }
