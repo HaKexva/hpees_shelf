@@ -37,6 +37,17 @@ class DashboardController < ApplicationController
     digits_only = isbn.gsub(/\D/, "")
     has_13_digits = digits_only.length == 13
     check_digit_valid = has_13_digits && Book.valid_isbn13?(isbn)
+
+    action = params[:action_type].to_s
+    user_id = params[:user_id].presence&.to_i
+    id_number = params[:id_number].to_s.strip
+    borrower = if user_id.present?
+      User.find_by(id: user_id)
+    elsif id_number.present?
+      User.active.find_by(id_number: id_number)
+    else
+      current_user
+    end
     # 借還系統看所有來源的書，只要不是「歸還圖書館」且有書名；每本都要檢查總數（含 circulation）
     matching_books =
       Book.where.not(status: Book::STATUS_RETURNED_LIBRARY)
@@ -81,6 +92,13 @@ class DashboardController < ApplicationController
           borrowable_for_checkout: borrowable_for_checkout
         }
       end
+
+    # 管理員還書：若指定了借閱人，只保留該借閱人目前未還的冊別，這樣前端下拉只會在
+    # 「同一個人借了多本同 ISBN」的情況下出現。
+    if action == "return" && borrower.present? && (current_user_admin? || current_user.nil?)
+      borrower_book_ids = CirculationRecord.where(user_id: borrower.id, returned_at: nil).pluck(:book_id).uniq
+      duplicates.select! { |d| borrower_book_ids.include?(d[:id]) }
+    end
     render json: {
       has_13_digits: has_13_digits,
       check_digit_valid: check_digit_valid,

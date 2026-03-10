@@ -13,7 +13,7 @@ export default class extends Controller {
       this.renderDuplicates([])
       return
     }
-    const url = `${this.urlValue}?isbn=${encodeURIComponent(raw)}`
+    const url = this.buildValidateUrl(raw)
     this.messageTarget.textContent = "檢查中…"
     this.messageTarget.classList.remove("text-green-600", "text-red-600", "text-gray-500")
     this.messageTarget.classList.add("text-gray-500")
@@ -128,6 +128,29 @@ export default class extends Controller {
     return radio ? radio.value : null
   }
 
+  buildValidateUrl(rawIsbn) {
+    const form = this.element.closest("form")
+    const params = new URLSearchParams()
+    params.append("isbn", rawIsbn)
+
+    if (form) {
+      const userSelect = form.querySelector("select[name='user_id']")
+      const idNumberInput = form.querySelector("input[name='id_number']")
+      const actionType = this.currentActionType()
+
+      if (userSelect && userSelect.value) {
+        params.append("user_id", userSelect.value)
+      } else if (idNumberInput && idNumberInput.value.trim() !== "") {
+        params.append("id_number", idNumberInput.value.trim())
+      }
+      if (actionType) {
+        params.append("action_type", actionType)
+      }
+    }
+
+    return `${this.urlValue}?${params.toString()}`
+  }
+
   setPendingBookId(id) {
     const form = this.element.closest("form")
     if (!form) return
@@ -145,13 +168,6 @@ export default class extends Controller {
     if (!this.hasDuplicatesTarget) return
     const container = this.duplicatesTarget
     const actionType = this.currentActionType()
-
-    // 還書時不顯示冊別下拉，交由後端依借閱人判斷哪一本要還
-    if (actionType === "return") {
-      container.innerHTML = ""
-      container.classList.add("hidden")
-      return
-    }
 
     if (!Array.isArray(duplicates) || duplicates.length <= 1) {
       container.innerHTML = ""
