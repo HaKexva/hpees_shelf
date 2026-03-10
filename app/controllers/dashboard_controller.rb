@@ -1,10 +1,5 @@
 class DashboardController < ApplicationController
   def index
-    if params[:clear_pending].present?
-      _clear_pending_session
-      redirect_to root_path, status: :see_other
-      return
-    end
     # 目前借閱中：顯示所有來源的書，只要狀態是「借閱中」且有書名
     @library_books_borrowed = Book.where(status: Book::STATUS_BORROWED)
                                   .where.not(title: [ nil, "" ])
@@ -12,19 +7,6 @@ class DashboardController < ApplicationController
                                   .order(:title)
     if current_user_admin? || current_user.nil?
       @users = User.active.order(:admin, :name)
-    end
-    # 多本同 ISBN 時請選擇冊別
-    pending_ids = session[:pending_book_ids].to_a
-    if pending_ids.any?
-      @pending_books = Book.where(id: pending_ids).includes(:batch_year, :borrowers).order(:id)
-      @pending_action = session[:pending_action]
-      @pending_user_id = session[:pending_user_id]
-      @pending_isbn_display = session[:pending_isbn]
-    else
-      @pending_books = nil
-      @pending_action = nil
-      @pending_user_id = nil
-      @pending_isbn_display = nil
     end
   end
 
@@ -369,10 +351,6 @@ class DashboardController < ApplicationController
   end
 
   def _clear_pending_session
-    session.delete(:pending_book_ids)
-    session.delete(:pending_action)
-    session.delete(:pending_mode)
-    session.delete(:pending_user_id)
-    session.delete(:pending_isbn)
+    # keep for backward-compatibility; no-op now that inline pending selection is used
   end
 end
