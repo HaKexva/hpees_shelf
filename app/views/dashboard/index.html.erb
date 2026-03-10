@@ -171,12 +171,23 @@
       if (!form) return;
       var borrowerInput = form.querySelector("[data-student-search-target='input']");
       var borrowerError = document.getElementById("borrower-error");
+      var isbnInput = form.querySelector("[data-dashboard-isbn-validate-target='input']");
 
       if (borrowerInput) {
         borrowerInput.addEventListener("input", function() {
           borrowerInput.classList.remove("border-red-400", "focus:outline-red-600");
           borrowerInput.classList.add("border-gray-300");
           if (borrowerError) borrowerError.classList.add("hidden");
+        });
+
+        // 還書情境：選完借閱人、離開欄位時，若已輸入 ISBN，立刻重新觸發 ISBN 驗證，
+        // 讓黃色「選擇冊別」區塊可以在選完人之後馬上出現（若有需要）。
+        borrowerInput.addEventListener("blur", function() {
+          if (!isbnInput) return;
+          var val = isbnInput.value.trim();
+          if (val !== "") {
+            isbnInput.dispatchEvent(new Event("blur", { bubbles: true }));
+          }
         });
       }
 
