@@ -144,6 +144,15 @@ export default class extends Controller {
   renderDuplicates(duplicates) {
     if (!this.hasDuplicatesTarget) return
     const container = this.duplicatesTarget
+    const actionType = this.currentActionType()
+
+    // 還書時不顯示冊別下拉，交由後端依借閱人判斷哪一本要還
+    if (actionType === "return") {
+      container.innerHTML = ""
+      container.classList.add("hidden")
+      return
+    }
+
     if (!Array.isArray(duplicates) || duplicates.length <= 1) {
       container.innerHTML = ""
       container.classList.add("hidden")
@@ -170,12 +179,13 @@ export default class extends Controller {
               const meta = parts.length > 0 ? ` — ${parts.join("・")}` : ""
               const volume = b.volume ? ` 冊${b.volume}` : ""
               const edition = b.edition_part ? ` ${b.edition_part}` : ""
+              // 借書時才顯示「可借 X 本」資訊；還書時不需要
               const copyInfo =
-                typeof b.available_copies === "number"
+                actionType === "checkout" && typeof b.available_copies === "number"
                   ? `（可借 ${b.available_copies} 本）`
-                  : b.borrowable_for_checkout
+                  : actionType === "checkout" && b.borrowable_for_checkout
                     ? "（可借）"
-                    : "（已借出）"
+                    : ""
               const label = `${this.escapeHtml(b.title || "（無書名）")}${edition}${volume}${meta} ${copyInfo}`
               return `<option value="${b.id}">${label}</option>`
             })
