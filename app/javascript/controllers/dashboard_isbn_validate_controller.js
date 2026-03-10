@@ -169,6 +169,23 @@ export default class extends Controller {
     const container = this.duplicatesTarget
     const actionType = this.currentActionType()
 
+    // 還書時：必須先選擇「借閱人」，才顯示重複書籍下拉
+    if (actionType === "return") {
+      const form = this.element.closest("form")
+      if (form) {
+        const userSelect = form.querySelector("select[name='user_id']")
+        const idNumberInput = form.querySelector("input[name='id_number']")
+        const hasUser =
+          (userSelect && userSelect.value && userSelect.value !== "") ||
+          (idNumberInput && idNumberInput.value.trim() !== "")
+        if (!hasUser) {
+          container.innerHTML = ""
+          container.classList.add("hidden")
+          return
+        }
+      }
+    }
+
     if (!Array.isArray(duplicates) || duplicates.length <= 1) {
       container.innerHTML = ""
       container.classList.add("hidden")
