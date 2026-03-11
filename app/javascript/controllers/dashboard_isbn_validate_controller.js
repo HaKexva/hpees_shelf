@@ -13,7 +13,7 @@ export default class extends Controller {
       this.renderDuplicates([])
       return
     }
-    const url = `${this.urlValue}?isbn=${encodeURIComponent(raw)}`
+    const url = this.buildValidateUrl(raw)
     this.messageTarget.textContent = "檢查中…"
     this.messageTarget.classList.remove("text-green-600", "text-red-600", "text-gray-500")
     this.messageTarget.classList.add("text-gray-500")
@@ -128,22 +128,85 @@ export default class extends Controller {
     return radio ? radio.value : null
   }
 
+  // 僅還書時：選完借閱人需重新驗證，讓黃色「選擇冊別」區塊可顯示。借書時不觸發，避免清空已選冊別。
+  validateIfReturn() {
+    if (this.currentActionType() === "return") this.validate()
+  }
+
+  buildValidateUrl(rawIsbn) {
+    const form = this.element.closest("form")
+    const params = new URLSearchParams()
+    params.append("isbn", rawIsbn)
+
+    if (form) {
+      const hiddenUser    = form.querySelector("input[name='user_id']")
+      const userSelect    = form.querySelector("select[name='user_id']")
+      const idNumberInput = form.querySelector("input[name='id_number']")
+      const actionType    = this.currentActionType()
+
+      // 優先使用 hidden user_id（由 student-search controller 設定），
+      // 再退而求其次使用任何 select 或學號欄位。
+      if (hiddenUser && hiddenUser.value && hiddenUser.value !== "") {
+        params.append("user_id", hiddenUser.value)
+      } else if (userSelect && userSelect.value) {
+        params.append("user_id", userSelect.value)
+      } else if (idNumberInput && idNumberInput.value.trim() !== "") {
+        params.append("id_number", idNumberInput.value.trim())
+      }
+
+      if (actionType) {
+        params.append("action_type", actionType)
+      }
+    }
+
+    return `${this.urlValue}?${params.toString()}`
+  }
+
   setPendingBookId(id) {
     const form = this.element.closest("form")
     if (!form) return
-    let hidden = form.querySelector("input[name='pending_book_id']")
-    if (!hidden) {
-      hidden = document.createElement("input")
-      hidden.type = "hidden"
-      hidden.name = "pending_book_id"
-      form.appendChild(hidden)
+    const hidden = form.querySelector("input[name='pending_book_id'][type='hidden']")
+    if (id != null && id !== "") {
+      // 單一選項：用 hidden 帶入
+      if (!hidden) {
+        const el = document.createElement("input")
+        el.type = "hidden"
+        el.name = "pending_book_id"
+        form.appendChild(el)
+        el.value = id
+      } else {
+        hidden.value = id
+      }
+    } else {
+      // 多選項：由下拉選單提供值，移除 hidden 避免覆蓋使用者選擇
+      if (hidden) hidden.remove()
     }
-    hidden.value = id || ""
   }
 
   renderDuplicates(duplicates) {
     if (!this.hasDuplicatesTarget) return
     const container = this.duplicatesTarget
+    const actionType = this.currentActionType()
+
+    // 還書時：必須先選擇「借閱人」，才顯示重複書籍下拉
+    if (actionType === "return") {
+      const form = this.element.closest("form")
+      if (form) {
+        const hiddenUser    = form.querySelector("input[name='user_id']")
+        const userSelect    = form.querySelector("select[name='user_id']")
+        const idNumberInput = form.querySelector("input[name='id_number']")
+        const hasUser =
+          (hiddenUser && hiddenUser.value && hiddenUser.value !== "") ||
+          (userSelect && userSelect.value && userSelect.value !== "") ||
+          (idNumberInput && idNumberInput.value.trim() !== "")
+        if (!hasUser) {
+          container.innerHTML = ""
+          container.classList.add("hidden")
+          return
+        }
+      }
+    }
+
     if (!Array.isArray(duplicates) || duplicates.length <= 1) {
       container.innerHTML = ""
       container.classList.add("hidden")
@@ -170,12 +233,13 @@ export default class extends Controller {
               const meta = parts.length > 0 ? ` — ${parts.join("・")}` : ""
               const volume = b.volume ? ` 冊${b.volume}` : ""
               const edition = b.edition_part ? ` ${b.edition_part}` : ""
+              // 借書時才顯示「可借 X 本」資訊；還書時不需要
               const copyInfo =
-                typeof b.available_copies === "number"
+                actionType === "checkout" && typeof b.available_copies === "number"
                   ? `（可借 ${b.available_copies} 本）`
-                  : b.borrowable_for_checkout
+                  : actionType === "checkout" && b.borrowable_for_checkout
                     ? "（可借）"
-                    : "（已借出）"
+                    : ""
               const label = `${this.escapeHtml(b.title || "（無書名）")}${edition}${volume}${meta} ${copyInfo}`
               return `<option value="${b.id}">${label}</option>`
             })

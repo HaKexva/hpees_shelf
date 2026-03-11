@@ -81,10 +81,19 @@ class BooksController < ApplicationController
 
         source_raw = _import_row_value(row, "source", "Source", "來源")
         source_key = _normalize_import_source(source_raw)
+        total_raw = _import_row_value(row, "total", "Total", "總數")
+        total_value = total_raw.to_s.to_i
+        # 圖書館館藏：總數不允許 > 1（避免 CSV 匯入錯誤設定）
+        if source_key == "owned_by_library" && total_value > 1
+          Rails.logger.warn "Skip library book with total > 1 in import (index #{index}, ISBN #{isbn}, total #{total_value})"
+          skipped_count += 1
+          next
+        end
+
         book_attrs = {
           title: title,
           isbn: isbn,
-          total: _import_row_value(row, "total", "Total", "總數").to_s.to_i,
+          total: total_value,
           volume: _import_row_value(row, "volume", "Volume", "冊數"),
           note: _import_row_value(row, "note", "Note", "備註"),
           source: source_key,

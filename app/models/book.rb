@@ -16,7 +16,7 @@ class Book < ApplicationRecord
             if: :owned_by_library?
   validate :isbn_must_be_valid_13_if_present
   enum :source, { owned_by_library: 0, donated: 1, owned_by_class: 2, owned_by_teacher: 3 }
-  before_validation :set_total_to_one_if_blank
+  before_validation :normalize_total
 
   # Current status (stored in Chinese): on-shelf, borrowed, missing, returned-to-library
   STATUS_ON_SHELF = "架上"
@@ -144,7 +144,13 @@ class Book < ApplicationRecord
     errors.add(:isbn, "應為 13 碼且校驗碼正確")
   end
 
-  def set_total_to_one_if_blank
-    self.total = 1 if total.blank? || total.to_i <= 0
+  def normalize_total
+    if owned_by_library?
+      # 圖書館館藏一律視為單冊：總數強制為 1
+      self.total = 1
+    elsif total.blank? || total.to_i <= 0
+      # 其他來源：空白或 <= 0 時預設為 1
+      self.total = 1
+    end
   end
 end
