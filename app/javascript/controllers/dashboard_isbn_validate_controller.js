@@ -128,6 +128,11 @@ export default class extends Controller {
     return radio ? radio.value : null
   }
 
+  // 僅還書時：選完借閱人需重新驗證，讓黃色「選擇冊別」區塊可顯示。借書時不觸發，避免清空已選冊別。
+  validateIfReturn() {
+    if (this.currentActionType() === "return") this.validate()
+  }
+
   buildValidateUrl(rawIsbn) {
     const form = this.element.closest("form")
     const params = new URLSearchParams()
@@ -160,14 +165,22 @@ export default class extends Controller {
   setPendingBookId(id) {
     const form = this.element.closest("form")
     if (!form) return
-    let hidden = form.querySelector("input[name='pending_book_id']")
-    if (!hidden) {
-      hidden = document.createElement("input")
-      hidden.type = "hidden"
-      hidden.name = "pending_book_id"
-      form.appendChild(hidden)
+    const hidden = form.querySelector("input[name='pending_book_id'][type='hidden']")
+    if (id != null && id !== "") {
+      // 單一選項：用 hidden 帶入
+      if (!hidden) {
+        const el = document.createElement("input")
+        el.type = "hidden"
+        el.name = "pending_book_id"
+        form.appendChild(el)
+        el.value = id
+      } else {
+        hidden.value = id
+      }
+    } else {
+      // 多選項：由下拉選單提供值，移除 hidden 避免覆蓋使用者選擇
+      if (hidden) hidden.remove()
     }
-    hidden.value = id || ""
   }
 
   renderDuplicates(duplicates) {

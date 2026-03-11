@@ -48,6 +48,8 @@ export default class extends Controller {
     this.inputTarget.placeholder = this.placeholder
     this.listTarget.classList.add("hidden")
     document.removeEventListener("click", this.closeBound)
+    // 還書時選完借閱人需重新驗證 ISBN，讓黃色「選擇冊別」區塊可顯示
+    this.dispatch("user-selected", { bubbles: true })
   }
 
   clear() {
