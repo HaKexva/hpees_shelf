@@ -182,7 +182,7 @@
     <% if @books.any? %>
       <div class="space-y-4">
         <% @books.each do |book| %>
-          <div class="bg-white rounded-2xl shadow-md border border-gray-100 overflow-hidden cursor-pointer book-card active:scale-[0.99] transition-transform touch-manipulation" data-book-url="<%= edit_book_path(book) %>" role="button" tabindex="0">
+          <div class="bg-white rounded-2xl shadow-md border border-gray-100 overflow-hidden">
             <div class="p-4">
               <div class="flex justify-between items-start gap-3">
                 <div class="min-w-0 flex-1">
@@ -275,24 +275,5 @@
       });
     })();
 
-    // 手機版 card 點擊導頁（不影響桌機版表格）
-    (function() {
-      var cards = document.querySelectorAll('.book-card');
-      if (!cards.length) return;
-      cards.forEach(function(card) {
-        card.addEventListener('click', function(e) {
-          if (e.target.closest('[data-no-row-click]')) return;
-          var url = card.getAttribute('data-book-url');
-          if (url) window.location = url;
-        });
-        card.addEventListener('keydown', function(e) {
-          if (e.key !== 'Enter' && e.key !== ' ') return;
-          if (e.target.closest('[data-no-row-click]')) return;
-          e.preventDefault();
-          var url = card.getAttribute('data-book-url');
-          if (url) window.location = url;
-        });
-      });
-    })();
   </script>
 </div>
