@@ -1,16 +1,17 @@
-<% content_for :title, @batch_year.name %>
+<% content_for :title, "檢視 #{@batch_year.display_label}" %>
 
 <div class="w-full max-w-5xl mx-auto px-4 sm:px-0 pb-8">
-  <div class="flex justify-between items-center mb-6">
+  <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6">
     <div>
-      <h1 class="font-bold text-4xl"><%= @batch_year.display_label %></h1>
+      <h1 class="font-bold text-2xl sm:text-4xl text-gray-900">檢視 <%= @batch_year.display_label %></h1>
       <p class="text-gray-600 mt-1">
-        <% if @batch_year.grade_id.present? %><%= @batch_year.grade_id == BatchYear::GRADE_GRADUATED ? "畢業" : "年級 #{@batch_year.grade_id}" %><% end %>
+        <% if @batch_year.grade_id.present? %><%= @batch_year.grade_id == BatchYear::GRADE_GRADUATED ? "畢業" : "#{@batch_year.grade_id} 年級" %><% end %>
       </p>
     </div>
-    <div class="flex gap-2">
+    <div class="flex flex-wrap gap-2">
       <%= link_to "編輯屆數", edit_batch_year_path(@batch_year), class: "rounded-md px-3.5 py-2.5 bg-gray-100 hover:bg-gray-50 font-medium" %>
       <%= link_to "書籍列表", books_path(batch_year_id: @batch_year.id), class: "rounded-md px-3.5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-medium" %>
+      <%= link_to "返回屆數列表", batch_years_path, class: "rounded-md px-3.5 py-2.5 bg-gray-100 hover:bg-gray-50 font-medium" %>
     </div>
   </div>
 
@@ -67,6 +68,51 @@
     </div>
   <% else %>
     <p class="text-gray-500">此屆數尚無書籍。請在新增書籍時選擇此屆數。</p>
+  <% end %>
+
+  <h2 class="font-semibold text-lg mb-4 mt-10">此屆數人員（<%= @users.size %> 人）</h2>
+
+  <% if @users.any? %>
+    <!-- 桌機版表格 -->
+    <div class="bg-white rounded-lg shadow overflow-hidden hidden md:block">
+      <table class="min-w-full divide-y divide-gray-200">
+        <thead class="bg-gray-50">
+          <tr>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">姓名</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">學號</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">身分</th>
+          </tr>
+        </thead>
+        <tbody class="bg-white divide-y divide-gray-200">
+          <% @users.each do |user| %>
+            <tr class="hover:bg-gray-50">
+              <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                <%= link_to user.name, edit_user_path(user), class: "text-blue-600 hover:text-blue-900" %>
+              </td>
+              <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500"><%= user.id_number.presence || "—" %></td>
+              <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500"><%= user.admin? ? "老師" : "學生" %></td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- 手機版卡片 -->
+    <div class="md:hidden space-y-3">
+      <% @users.each do |user| %>
+        <div class="bg-white rounded-xl shadow border border-gray-200 p-4">
+          <p class="text-sm font-medium text-gray-900">
+            <%= link_to user.name, edit_user_path(user), class: "text-blue-600 hover:text-blue-900" %>
+          </p>
+          <div class="mt-2 text-xs text-gray-600 space-y-0.5">
+            <p><span class="text-gray-400">學號</span> <%= user.id_number.presence || "—" %></p>
+            <p><span class="text-gray-400">身分</span> <%= user.admin? ? "老師" : "學生" %></p>
+          </div>
+        </div>
+      <% end %>
+    </div>
+  <% else %>
+    <p class="text-gray-500">此屆數尚無人員。</p>
   <% end %>
 
   <p class="mt-6">

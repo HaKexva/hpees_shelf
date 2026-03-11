@@ -7,7 +7,8 @@ class BatchYearsController < ApplicationController
   end
 
   def show
-    @books = @batch_year.books.where.not(title: [ nil, "" ])
+    @books = @batch_year.books.where.not(title: [ nil, "" ]).includes(:batch_year).order(:title)
+    @users = @batch_year.users.order(:admin, :name)
   end
 
   def new
