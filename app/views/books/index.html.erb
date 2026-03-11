@@ -72,6 +72,8 @@
             <label class="block text-sm font-medium text-gray-700 mb-2">屆數</label>
             <%= f.select :batch_year_id, options_from_collection_for_select(@batch_years, :id, :display_label_with_grade, @filter_batch_year_id), { include_blank: "全部屆數" }, { class: "block w-full shadow-sm rounded-lg border border-gray-300 px-3 py-2.5 text-base", onchange: "this.form.submit()" } %>
           </div>
+        </div>
+        <div class="flex flex-wrap items-end gap-4">
           <div class="min-w-0 flex-1 sm:flex-initial sm:w-40">
             <label class="block text-sm font-medium text-gray-700 mb-2">來源</label>
             <%= select_tag :source, options_for_select(Book.sources.keys.map { |k| [t("activerecord.enums.book.source.#{k}"), k] }, @filter_source), { include_blank: "全部來源", class: "block w-full shadow-sm rounded-lg border border-gray-300 px-3 py-2.5 text-base", onchange: "this.form.submit()" } %>
@@ -80,11 +82,9 @@
             <label class="block text-sm font-medium text-gray-700 mb-2">狀態</label>
             <%= select_tag :status, options_for_select(Book::STATUS_OPTIONS.map { |label, value| [label, value] }, @filter_status), { include_blank: "全部狀態", class: "block w-full shadow-sm rounded-lg border border-gray-300 px-3 py-2.5 text-base", onchange: "this.form.submit()" } %>
           </div>
-        </div>
-        <div class="flex flex-wrap items-center gap-4">
           <%= f.submit "套用篩選", class: "rounded-lg px-4 py-2.5 bg-gray-100 hover:bg-gray-200 font-medium cursor-pointer" %>
           <% if @filter_batch_year_id.present? || @filter_q.present? || @filter_source.present? || @filter_status.present? %>
-            <span class="text-sm text-gray-500">（已套用篩選）</span>
+            <span class="text-sm text-gray-500 self-center">（已套用篩選）</span>
           <% end %>
         </div>
       </div>
