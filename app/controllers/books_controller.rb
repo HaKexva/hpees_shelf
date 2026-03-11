@@ -247,7 +247,7 @@ class BooksController < ApplicationController
 
     respond_to do |format|
       if @book.save
-        format.html { redirect_to edit_book_path(@book), notice: "書籍已建立。" }
+        format.html { redirect_to books_path, notice: "書籍已建立。", status: :see_other }
         format.json { render :show, status: :created, location: @book }
       else
         BatchYear.ensure_office_exists!
@@ -268,7 +268,7 @@ class BooksController < ApplicationController
       if @book.update(attrs)
         # When batch_year changes, optionally sync grade (if grade was not changed in the form, derive from batch_year)
         @book.update_column(:grade_id, @book.batch_year&.grade_id) if @book.batch_year_id.present?
-        format.html { redirect_to edit_book_path(@book), notice: "書籍已更新。", status: :see_other }
+        format.html { redirect_to books_path, notice: "書籍已更新。", status: :see_other }
         format.json { render :show, status: :ok, location: @book }
       else
         BatchYear.ensure_office_exists!

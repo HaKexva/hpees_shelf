@@ -32,7 +32,7 @@ class UsersController < ApplicationController
 
     respond_to do |format|
       if @user.save
-        format.html { redirect_to edit_user_path(@user), notice: "人員已建立。" }
+        format.html { redirect_to users_path, notice: "人員已建立。", status: :see_other }
         format.json { render :edit, status: :created, location: @user }
       else
         @batch_years = BatchYear.by_number_desc
@@ -48,7 +48,7 @@ class UsersController < ApplicationController
     _ensure_admin_batch_year(attrs)
     respond_to do |format|
       if @user.update(attrs)
-        format.html { redirect_to edit_user_path(@user), notice: "人員已更新。", status: :see_other }
+        format.html { redirect_to users_path, notice: "人員已更新。", status: :see_other }
         format.json { render :edit, status: :ok, location: @user }
       else
         @batch_years = BatchYear.by_number_desc
