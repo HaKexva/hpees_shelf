@@ -1,9 +1,9 @@
 #!/bin/bash -e
 
-# If running the rails server then create or migrate existing database.
-# Use db:prepare (never db:reset or db:schema:load) so we do not clear existing data on deploy.
-if [ "${@: -2:1}" == "./bin/rails" ] && [ "${@: -1:1}" == "server" ]; then
-  ./bin/rails db:prepare
-fi
+# Run pending migrations on every deploy.
+# Use db:migrate (not db:prepare) to avoid falling back to schema:load which wipes data.
+echo "Running db:migrate..."
+./bin/rails db:migrate
+echo "db:migrate completed."
 
 exec "${@}"
