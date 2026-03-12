@@ -28,7 +28,7 @@ module RubyUI
     private
 
     def render_flash_messages
-      required_alert = helpers.respond_to?(:required_fields_alert) ? helpers.required_fields_alert : nil
+      required_alert = view_context.respond_to?(:required_fields_alert) ? view_context.required_fields_alert : nil
       return if flash.blank? && required_alert.blank?
       div(class: "mb-4 space-y-2") do
         if flash[:alert].present?
@@ -44,7 +44,7 @@ module RubyUI
     end
 
     def flash
-      helpers.flash
+      view_context.flash
     end
 
     def render_desktop_sidebar
@@ -94,7 +94,7 @@ module RubyUI
     end
 
     def nav_link(href:, &block)
-      active = helpers.current_page?(href)
+      active = view_context.current_page?(href)
       link_class = "block px-4 py-2 rounded-md text-sm font-medium transition-colors "
       link_class += active ? "bg-accent text-accent-foreground" : "hover:bg-accent hover:text-accent-foreground"
       a(href: href, class: link_class) do
