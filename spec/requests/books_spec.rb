@@ -34,7 +34,7 @@ RSpec.describe "Books", type: :request do
         }
       }.to change(Book, :count).by(1)
 
-      expect(response).to redirect_to(edit_book_url(Book.last))
+      expect(response).to redirect_to(books_url)
     end
   end
 
@@ -66,7 +66,7 @@ RSpec.describe "Books", type: :request do
           source: book.source
         }
       }
-      expect(response).to redirect_to(edit_book_url(book))
+      expect(response).to redirect_to(books_url)
     end
   end
 
