@@ -16,7 +16,13 @@ class User < ApplicationRecord
             format: {
               with: /\A\d{6}\z/,
               allow_blank: true,
-              message: "需為 6 位數字"
+              message: "需為 6 位數字或留空"
+            }
+  validates :seat_number,
+            format: {
+              with: /\A\d{2}\z/,
+              allow_blank: true,
+              message: "需為 2 位數字或留空"
             }
 
   scope :active, -> { where(resigned_at: nil) }

@@ -4,16 +4,46 @@
   <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6">
     <h1 class="font-bold text-2xl sm:text-4xl text-gray-900">人員列表</h1>
     <div class="flex flex-wrap gap-2 items-center">
-      <%= link_to "匯入 CSV", import_users_path, class: "rounded-md px-3.5 py-2.5 bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 block font-medium" %>
-      <%= link_to "新增人員", new_user_path, class: "rounded-md px-3.5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white block font-medium" %>
+      <%= link_to "匯入 CSV", import_users_path, class: "inline-flex items-center rounded-md px-3.5 py-2.5 bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 font-medium" %>
+      <%= link_to "新增人員", new_user_path, class: "inline-flex items-center rounded-md px-3.5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-medium" %>
     </div>
+  </div>
+
+  <div class="mb-4">
+    <%= form_with url: users_path, method: :get, local: true do |f| %>
+      <div class="flex flex-wrap items-end gap-4">
+        <div class="min-w-0 flex-1 sm:flex-initial sm:w-40">
+          <label class="block text-sm font-medium text-gray-700 mb-2">姓名</label>
+          <%= text_field_tag :q_name, @filter_q_name, placeholder: "姓名", class: "block w-full shadow-sm rounded-lg border border-gray-300 px-3 py-2.5 text-base", onchange: "this.form.submit()" %>
+        </div>
+        <div class="min-w-0 flex-1 sm:flex-initial sm:w-28">
+          <label class="block text-sm font-medium text-gray-700 mb-2">座號</label>
+          <%= text_field_tag :q_seat_number, @filter_q_seat_number, placeholder: "座號", class: "block w-full shadow-sm rounded-lg border border-gray-300 px-3 py-2.5 text-base", onchange: "this.form.submit()" %>
+        </div>
+        <div class="min-w-0 flex-1 sm:flex-initial sm:w-28">
+          <label class="block text-sm font-medium text-gray-700 mb-2">學號</label>
+          <%= text_field_tag :q_id_number, @filter_q_id_number, placeholder: "學號", class: "block w-full shadow-sm rounded-lg border border-gray-300 px-3 py-2.5 text-base", onchange: "this.form.submit()" %>
+        </div>
+        <div class="min-w-0 flex-1 sm:flex-initial sm:w-40">
+          <label class="block text-sm font-medium text-gray-700 mb-2">屆數</label>
+          <%= f.select :batch_year_id, options_from_collection_for_select(@batch_years, :id, :display_label_with_grade, @filter_batch_year_id), { include_blank: "全部屆數" }, { class: "block w-full shadow-sm rounded-lg border border-gray-300 px-3 py-2.5 text-base", onchange: "this.form.submit()" } %>
+        </div>
+        <% if @filter_q_name.present? || @filter_q_seat_number.present? || @filter_q_id_number.present? || @filter_batch_year_id.present? %>
+          <span class="text-sm text-gray-500 self-center">（已套用篩選）</span>
+        <% end %>
+      </div>
+    <% end %>
   </div>
 
   <!-- 桌機版：表格 + 批次刪除 -->
   <%= form_with url: bulk_destroy_users_path, method: :delete, id: "bulk-destroy-users-form" do |f| %>
+    <%= hidden_field_tag :q_name, @filter_q_name if @filter_q_name.present? %>
+    <%= hidden_field_tag :q_seat_number, @filter_q_seat_number if @filter_q_seat_number.present? %>
+    <%= hidden_field_tag :q_id_number, @filter_q_id_number if @filter_q_id_number.present? %>
+    <%= hidden_field_tag :batch_year_id, @filter_batch_year_id if @filter_batch_year_id.present? %>
     <div class="hidden md:block">
     <div class="flex gap-2 items-center mb-4">
-      <button type="submit" class="rounded-md px-3.5 py-2.5 bg-red-600 hover:bg-red-500 text-white font-medium cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed" id="bulk-destroy-btn" disabled data-turbo-confirm="確定要刪除所選的人員嗎？">
+      <button type="submit" class="inline-flex items-center rounded-md px-3.5 py-2.5 bg-red-600 hover:bg-red-500 text-white font-medium cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed" id="bulk-destroy-btn" disabled data-turbo-confirm="確定要刪除所選的人員嗎？">
         刪除所選
       </button>
       <span class="text-sm text-gray-500" id="bulk-destroy-count">已選 0 位</span>
@@ -32,13 +62,14 @@
             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">學號</th>
             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">座號</th>
             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">管理員</th>
+            <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">編輯</th>
           </tr>
         </thead>
         <tbody class="bg-white divide-y divide-gray-200">
           <% if @users.any? %>
             <% @users.each do |user| %>
-              <tr class="hover:bg-gray-50 cursor-pointer user-row" data-user-url="<%= edit_user_path(user) %>" role="button" tabindex="0">
-                <td class="px-4 py-4 w-12 sticky left-0 bg-white z-10 border-r border-gray-200 align-middle" data-no-row-click>
+              <tr class="hover:bg-gray-50">
+                <td class="px-4 py-4 w-12 sticky left-0 bg-white z-10 border-r border-gray-200 align-middle">
                   <input type="checkbox" name="user_ids[]" value="<%= user.id %>" class="user-checkbox rounded" title="選擇以刪除">
                 </td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
@@ -51,11 +82,18 @@
                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500"><%= user.admin ? "—" : (user.id_number || "—") %></td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500"><%= user.admin ? "—" : (user.seat_number || "—") %></td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500"><%= user.admin ? "是" : "否" %></td>
+                <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                  <%= link_to edit_user_path(user), class: "inline-flex text-indigo-600 hover:text-indigo-900", title: "編輯", aria: { label: "編輯" } do %>
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                    </svg>
+                  <% end %>
+                </td>
               </tr>
             <% end %>
-          <% else %>
+            <% else %>
             <tr>
-              <td colspan="7" class="px-6 py-10 text-center text-gray-500">找不到任何人員。</td>
+              <td colspan="8" class="px-6 py-10 text-center text-gray-500">找不到任何人員。</td>
             </tr>
           <% end %>
         </tbody>
@@ -69,7 +107,7 @@
     <% if @users.any? %>
       <div class="space-y-4">
         <% @users.each do |user| %>
-          <div class="bg-white rounded-2xl shadow-md border border-gray-100 overflow-hidden cursor-pointer user-card active:scale-[0.99] transition-transform touch-manipulation" data-user-url="<%= edit_user_path(user) %>" role="button" tabindex="0">
+          <div class="bg-white rounded-2xl shadow-md border border-gray-100 overflow-hidden">
             <div class="p-4">
               <div class="flex justify-between items-start gap-3">
                 <div class="min-w-0 flex-1">
@@ -133,39 +171,6 @@
         updateState();
       });
       updateState();
-
-      form.querySelectorAll('.user-row').forEach(function(row) {
-        row.addEventListener('click', function(e) {
-          if (e.target.closest('[data-no-row-click]')) return;
-          var url = row.getAttribute('data-user-url');
-          if (url) window.location = url;
-        });
-        row.addEventListener('keydown', function(e) {
-          if (e.key !== 'Enter' && e.key !== ' ') return;
-          if (e.target.closest('[data-no-row-click]')) return;
-          e.preventDefault();
-          var url = row.getAttribute('data-user-url');
-          if (url) window.location = url;
-        });
-      });
-    })();
-
-    // 手機版 card 點擊導頁
-    (function() {
-      document.querySelectorAll('.user-card').forEach(function(card) {
-        card.addEventListener('click', function(e) {
-          if (e.target.closest('[data-no-row-click]')) return;
-          var url = card.getAttribute('data-user-url');
-          if (url) window.location = url;
-        });
-        card.addEventListener('keydown', function(e) {
-          if (e.key !== 'Enter' && e.key !== ' ') return;
-          if (e.target.closest('[data-no-row-click]')) return;
-          e.preventDefault();
-          var url = card.getAttribute('data-user-url');
-          if (url) window.location = url;
-        });
-      });
     })();
   </script>
 </div>

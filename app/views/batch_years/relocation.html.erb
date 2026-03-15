@@ -7,7 +7,7 @@
     <p class="text-gray-600 mt-1">學年度已切換，請為下列書籍與人員指定新屆數（可選「老師」或班級屆數）。</p>
     <% if @show_return_to_library_button %>
       <% if @any_library_books_to_return %>
-        <%= link_to "歸還圖書館書籍", return_to_library_batch_books_path, class: "inline-block mt-3 rounded-md px-3.5 py-2.5 bg-amber-600 hover:bg-amber-500 text-white font-medium" %>
+        <%= link_to "歸還圖書館書籍", return_to_library_batch_books_path, class: "inline-flex items-center mt-3 rounded-md px-3.5 py-2.5 bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 font-medium" %>
       <% else %>
         <span class="inline-block mt-3 rounded-md px-3.5 py-2.5 bg-gray-100 text-gray-600 text-sm font-medium">已歸還完成</span>
       <% end %>
@@ -168,10 +168,10 @@
       </div>
     </div>
 
-    <div class="flex flex-wrap gap-2">
-      <%= f.submit "儲存屆數指定", class: "rounded-md px-3.5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-medium cursor-pointer" %>
-      <%= submit_tag "儲存草稿", formaction: save_relocation_draft_batch_years_path, class: "rounded-md px-3.5 py-2.5 bg-gray-200 hover:bg-gray-300 font-medium cursor-pointer", data: { turbo: false } %>
-      <%= link_to "返回屆數列表", batch_years_path, class: "rounded-md px-3.5 py-2.5 bg-gray-100 hover:bg-gray-50 font-medium" %>
+    <div class="flex flex-wrap gap-2 items-center">
+      <%= f.submit "儲存屆數指定", class: "inline-flex items-center rounded-md px-3.5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-medium cursor-pointer" %>
+      <%= submit_tag "儲存草稿", formaction: save_relocation_draft_batch_years_path, class: "inline-flex items-center rounded-md px-3.5 py-2.5 bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 font-medium cursor-pointer", data: { turbo: false } %>
+      <%= link_to "返回屆數列表", batch_years_path, class: "inline-flex items-center rounded-md px-3.5 py-2.5 bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 font-medium" %>
     </div>
   <% end %>
 </div>

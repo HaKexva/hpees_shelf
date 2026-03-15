@@ -7,19 +7,19 @@
       <p class="mt-1 text-sm text-gray-500">目前學年度：<%= BatchYear.display_current_school_year_roc %>學年度</p>
     </div>
     <div class="flex flex-wrap gap-2 items-center">
-      <%= button_to "建立目前所有屆數", auto_create_batch_years_path, method: :post, class: "rounded-md px-3.5 py-2.5 bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 font-medium cursor-pointer", form: { data: { turbo_confirm: "將自動建立所有目前屆數。確定？" } } %>
+      <%= button_to "建立目前所有屆數", auto_create_batch_years_path, method: :post, class: "inline-flex items-center rounded-md px-3.5 py-2.5 bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 font-medium cursor-pointer", form: { data: { turbo_confirm: "將自動建立所有目前屆數。確定？" } } %>
       <% if BatchYear.show_advance_school_year_button? %>
         <% next_roc = BatchYear.display_current_school_year_roc + 1 %>
-        <%= button_to "切換至#{next_roc}學年度", reassign_grades_batch_years_path, method: :post, class: "rounded-md px-3.5 py-2.5 bg-amber-600 hover:bg-amber-500 text-white font-medium cursor-pointer", form: { data: { turbo_confirm: "切換後即不可切回，確定？？" } } %>
+        <%= button_to "切換至#{next_roc}學年度", reassign_grades_batch_years_path, method: :post, class: "inline-flex items-center rounded-md px-3.5 py-2.5 bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 font-medium cursor-pointer", form: { data: { turbo_confirm: "切換後即不可切回，確定？？" } } %>
       <% end %>
-      <%= link_to "新增屆數", new_batch_year_path, class: "rounded-md px-3.5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white block font-medium" %>
+      <%= link_to "新增屆數", new_batch_year_path, class: "inline-flex items-center rounded-md px-3.5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-medium" %>
     </div>
   </div>
 
   <%= form_with url: bulk_destroy_batch_years_path, method: :delete, id: "bulk-destroy-batch-years-form" do |f| %>
     <div class="hidden md:block">
       <div class="flex gap-2 items-center mb-4">
-        <button type="submit" class="rounded-md px-3.5 py-2.5 bg-red-600 hover:bg-red-500 text-white font-medium cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed" id="bulk-destroy-btn" disabled data-turbo-confirm="確定要刪除所選的屆數嗎？">
+        <button type="submit" class="inline-flex items-center rounded-md px-3.5 py-2.5 bg-red-600 hover:bg-red-500 text-white font-medium cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed" id="bulk-destroy-btn" disabled data-turbo-confirm="確定要刪除所選的屆數嗎？">
           刪除所選
         </button>
         <span class="text-sm text-gray-500" id="bulk-destroy-count">已選 0 個</span>
@@ -43,7 +43,7 @@
           <tbody class="bg-white divide-y divide-gray-200">
             <% if @batch_years.any? %>
               <% @batch_years.each do |batch_year| %>
-                <tr class="hover:bg-gray-50 cursor-pointer batch-year-row" data-batch-year-url="<%= edit_batch_year_path(batch_year) %>" role="button" tabindex="0">
+                <tr class="hover:bg-gray-50">
                   <td class="px-4 py-4 w-12 sticky left-0 bg-white z-10 border-r border-gray-200 align-middle" data-no-row-click>
                     <input type="checkbox" name="batch_year_ids[]" value="<%= batch_year.id %>" class="batch-year-checkbox rounded" title="選擇以刪除">
                   </td>
@@ -51,7 +51,7 @@
                   <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500"><%= grade_label(batch_year.grade_id) %></td>
                   <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500"><%= batch_year.books.count %></td>
                   <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500"><%= batch_year.users.count %></td>
-                  <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2" data-no-row-click>
+                  <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2">
                     <%= link_to batch_year_path(batch_year), class: "inline-flex text-gray-600 hover:text-gray-900", title: "檢視", aria: { label: "檢視" } do %>
                       <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
@@ -149,21 +149,6 @@
         updateState();
       });
       updateState();
-
-      form.querySelectorAll('.batch-year-row').forEach(function(row) {
-        row.addEventListener('click', function(e) {
-          if (e.target.closest('[data-no-row-click]')) return;
-          var url = row.getAttribute('data-batch-year-url');
-          if (url) window.location = url;
-        });
-        row.addEventListener('keydown', function(e) {
-          if (e.key !== 'Enter' && e.key !== ' ') return;
-          if (e.target.closest('[data-no-row-click]')) return;
-          e.preventDefault();
-          var url = row.getAttribute('data-batch-year-url');
-          if (url) window.location = url;
-        });
-      });
     })();
   </script>
 </div>

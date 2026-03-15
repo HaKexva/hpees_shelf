@@ -1,4 +1,4 @@
-<%= form_with(model: batch_year, class: "contents", data: { controller: "unsaved-form" }) do |form| %>
+<%= form_with(model: batch_year, html: { id: dom_id(batch_year) }, class: "contents", data: { controller: "unsaved-form" }) do |form| %>
   <% if batch_year.errors.any? %>
     <div id="error_explanation" class="bg-red-50 text-red-500 px-3 py-2 font-medium rounded-md mt-3">
       <h2>有 <%= batch_year.errors.count %> 個錯誤，無法儲存此屆數：</h2>
@@ -21,7 +21,9 @@
     <%= form.select :grade_id, BatchYear.required_grade_options, {}, { required: true, class: [ "block shadow-sm rounded-md border px-3 py-2 mt-2 w-full max-w-xs", (batch_year.errors[:grade_id].none? ? "border-gray-400 focus:outline-blue-600" : "border-red-400 focus:outline-red-600") ] } %>
   </div>
 
-  <div class="inline">
-    <%= form.submit "儲存", class: "rounded-md px-3.5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-medium cursor-pointer" %>
-  </div>
+  <% unless local_assigns[:submit_in_page] %>
+    <div class="inline">
+      <%= form.submit "儲存", class: "inline-flex items-center rounded-md px-3.5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-medium cursor-pointer" %>
+    </div>
+  <% end %>
 <% end %>

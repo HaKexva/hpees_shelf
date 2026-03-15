@@ -1,4 +1,4 @@
-<%= form_with(model: user, class: "contents", data: { controller: "unsaved-form user-form" }) do |form| %>
+<%= form_with(model: user, html: { id: dom_id(user) }, class: "contents", data: { controller: "unsaved-form user-form" }) do |form| %>
   <% if user.errors.any? %>
     <div id="error_explanation" class="bg-red-50 text-red-500 px-3 py-2 font-medium rounded-md mt-3">
       <h2>有 <%= user.errors.count %> 個錯誤，無法儲存此人員：</h2>
@@ -90,11 +90,13 @@
   <% unless user.admin %>
     <div class="my-5">
       <%= form.label :id_number, "學號" %>
-      <%= form.text_field :id_number, class: ["block shadow-sm rounded-md border px-3 py-2 mt-2 w-full", {"border-gray-400 focus:outline-blue-600": user.errors[:id_number].none?, "border-red-400 focus:outline-red-600": user.errors[:id_number].any?}] %>
+      <%= form.text_field :id_number, maxlength: 6, pattern: "\\d{6}", inputmode: "numeric", placeholder: "6 位數字或留空", class: ["block shadow-sm rounded-md border px-3 py-2 mt-2 w-full", {"border-gray-400 focus:outline-blue-600": user.errors[:id_number].none?, "border-red-400 focus:outline-red-600": user.errors[:id_number].any?}] %>
+      <p class="mt-1 text-xs text-gray-500">需為 6 位數字或留空</p>
     </div>
     <div class="my-5">
       <%= form.label :seat_number, "座號" %>
-      <%= form.text_field :seat_number, class: ["block shadow-sm rounded-md border px-3 py-2 mt-2 w-full", {"border-gray-400 focus:outline-blue-600": user.errors[:seat_number].none?, "border-red-400 focus:outline-red-600": user.errors[:seat_number].any?}] %>
+      <%= form.text_field :seat_number, maxlength: 2, pattern: "\\d{2}", inputmode: "numeric", placeholder: "2 位數字或留空", class: ["block shadow-sm rounded-md border px-3 py-2 mt-2 w-full", {"border-gray-400 focus:outline-blue-600": user.errors[:seat_number].none?, "border-red-400 focus:outline-red-600": user.errors[:seat_number].any?}] %>
+      <p class="mt-1 text-xs text-gray-500">需為 2 位數字或留空</p>
     </div>
   <% end %>
 
@@ -106,7 +108,9 @@
   </div>
 
 
-  <div class="inline">
-    <%= form.submit "儲存", class: "w-full sm:w-auto rounded-md px-3.5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white inline-block font-medium cursor-pointer" %>
-  </div>
+  <% unless local_assigns[:submit_in_page] %>
+    <div class="inline">
+      <%= form.submit "儲存", class: "w-full sm:w-auto inline-flex items-center justify-center rounded-md px-3.5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-medium cursor-pointer" %>
+    </div>
+  <% end %>
 <% end %>

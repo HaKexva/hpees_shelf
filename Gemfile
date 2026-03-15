@@ -86,3 +86,5 @@ gem "rouge", "~> 4.7"
 gem "nokogiri", ">= 1.19.1"
 # See GHSA-mxw3-3hh2-x2mh and GHSA-whrj-4476-wvmp
 gem "rack", ">= 3.2.5"
+
+gem 'omniauth-google-oauth2'

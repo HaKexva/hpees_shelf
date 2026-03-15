@@ -3,23 +3,56 @@
 <div class="w-full">
   <div class="flex flex-wrap items-center justify-between gap-4 mb-6">
     <h1 class="font-bold text-2xl sm:text-4xl text-gray-900">借閱紀錄</h1>
-    <%= link_to "返回借還書", root_path, class: "rounded-lg px-4 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-800 font-medium text-sm" %>
+    <%= link_to "返回借還書", root_path, class: "inline-flex items-center rounded-md px-3.5 py-2.5 bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 font-medium" %>
   </div>
 
   <% if current_user_admin? || current_user.nil? %>
     <div class="bg-white rounded-xl shadow-md border border-gray-100 p-4 mb-6">
       <%= form_with url: loan_history_path, method: :get, local: true, class: "flex flex-wrap items-end gap-3", id: "loan-history-filter-form" do |f| %>
-        <div class="min-w-0 flex-1 sm:max-w-xs">
-          <label class="block text-sm font-medium text-gray-700 mb-1">篩選借閱人</label>
-          <select name="user_id" class="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" onchange="this.form.submit()">
-            <% selected_id = @filter_user_id || params[:user_id].presence&.to_i %>
-            <% @users.each do |u| %>
-              <option value="<%= u.id %>" <%= "selected" if selected_id.to_i == u.id %>>
-                <%= u.name %><%= "（老師）" if u.admin? %><%= " #{u.id_number}" if u.id_number.present? && !u.admin? %>
-              </option>
+        <div class="min-w-0 flex-1 sm:max-w-xs relative" data-controller="student-search" data-student-search-placeholder-value="搜尋姓名或學號…">
+          <label class="block text-sm font-medium text-gray-700 mb-1">借閱人（姓名／學號）</label>
+          <input type="hidden" name="user_id" data-student-search-target="hidden" value="<%= @filter_user_id %>">
+          <input
+            type="text"
+            data-student-search-target="input"
+            placeholder="搜尋姓名或學號…"
+            autocomplete="off"
+            class="block w-full shadow-sm rounded-lg border border-gray-300 px-3 py-2 text-sm"
+            data-action="focus->student-search#open input->student-search#filter"
+          >
+          <div
+            data-student-search-target="list"
+            class="hidden absolute z-10 mt-1 w-full rounded-lg border border-gray-200 bg-white shadow-lg max-h-60 overflow-auto"
+            role="listbox"
+          >
+            <% if @users.present? %>
+              <% @users.each do |u| %>
+                <% if u.admin? %>
+                  <% label = "#{u.name}（老師）" %>
+                  <% search_text = "#{u.name} 老師" %>
+                <% else %>
+                  <% label = "#{u.name}（#{u.id_number.presence || '—'}）" %>
+                  <% search_text = "#{u.name} #{u.id_number}" %>
+                <% end %>
+                <div
+                  data-student-search-target="item"
+                  data-user-id="<%= u.id %>"
+                  data-label="<%= label %>"
+                  data-search-text="<%= search_text %>"
+                  class="cursor-pointer px-3 py-2.5 text-sm text-gray-900 hover:bg-gray-100 border-b border-gray-50 last:border-0"
+                  role="option"
+                  data-action="click->student-search#select"
+                >
+                  <%= label %>
+                </div>
+              <% end %>
+              <p data-student-search-target="emptyHint" class="hidden px-3 py-2.5 text-sm text-gray-500">無符合的學生</p>
+            <% else %>
+              <p class="px-3 py-2.5 text-sm text-gray-500">尚無學生資料</p>
             <% end %>
-          </select>
+          </div>
         </div>
+        <%= f.submit "查詢", class: "inline-flex items-center rounded-md px-3.5 py-2 bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 font-medium cursor-pointer" %>
       <% end %>
     </div>
   <% end %>
