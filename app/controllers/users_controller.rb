@@ -4,6 +4,24 @@ class UsersController < ApplicationController
   # GET /users or /users.json — only active (non-resigned) users are shown; resigned users can still log in.
   def index
     @users = User.active.includes(:batch_year).order(:name)
+    @users = @users.where(batch_year_id: params[:batch_year_id]) if params[:batch_year_id].present?
+    if params[:q_name].to_s.strip.present?
+      pattern = "%#{User.sanitize_sql_like(params[:q_name].strip)}%"
+      @users = @users.where("name LIKE :p", p: pattern)
+    end
+    if params[:q_seat_number].to_s.strip.present?
+      pattern = "%#{User.sanitize_sql_like(params[:q_seat_number].strip)}%"
+      @users = @users.where("seat_number LIKE :p", p: pattern)
+    end
+    if params[:q_id_number].to_s.strip.present?
+      pattern = "%#{User.sanitize_sql_like(params[:q_id_number].strip)}%"
+      @users = @users.where("id_number LIKE :p", p: pattern)
+    end
+    @batch_years = BatchYear.by_number_desc
+    @filter_q_name = params[:q_name].to_s.strip.presence
+    @filter_q_seat_number = params[:q_seat_number].to_s.strip.presence
+    @filter_q_id_number = params[:q_id_number].to_s.strip.presence
+    @filter_batch_year_id = params[:batch_year_id].presence
   end
 
   # GET /users/1 — redirect to edit (no separate show page)
@@ -85,11 +103,17 @@ class UsersController < ApplicationController
   # DELETE /users/bulk_destroy
   def bulk_destroy
     ids = Array(params[:user_ids]).reject(&:blank?).map(&:to_i)
+    redirect_params = {
+      q_name: params[:q_name].presence,
+      q_seat_number: params[:q_seat_number].presence,
+      q_id_number: params[:q_id_number].presence,
+      batch_year_id: params[:batch_year_id].presence
+    }.compact
     if ids.any?
       count = User.where(id: ids).destroy_all.size
-      redirect_to users_path, notice: "已刪除 #{count} 位人員。", status: :see_other
+      redirect_to users_path(redirect_params), notice: "已刪除 #{count} 位人員。", status: :see_other
     else
-      redirect_to users_path, alert: "請至少選擇一位人員。", status: :see_other
+      redirect_to users_path(redirect_params), alert: "請至少選擇一位人員。", status: :see_other
     end
   end
 

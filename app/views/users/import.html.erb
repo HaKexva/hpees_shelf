@@ -3,7 +3,7 @@
 <div class="w-full max-w-5xl mx-auto px-4 sm:px-0 pb-8">
   <div class="flex justify-between items-center mb-6">
     <h1 class="font-bold text-4xl">匯入人員</h1>
-    <%= link_to "返回人員列表", users_path, class: "rounded-md px-3.5 py-2.5 bg-gray-100 hover:bg-gray-50 block font-medium" %>
+    <%= link_to "返回人員列表", users_path, class: "inline-flex items-center rounded-md px-3.5 py-2.5 bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 font-medium" %>
   </div>
 
   <div class="bg-white rounded-lg shadow p-6 mb-6">
@@ -19,7 +19,7 @@
         <input type="file" name="file" accept=".csv,text/csv" class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100" required>
       </div>
       <div>
-        <%= f.submit "上傳並預覽", class: "rounded-md px-3.5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-medium cursor-pointer" %>
+        <%= f.submit "上傳並預覽", class: "inline-flex items-center rounded-md px-3.5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-medium cursor-pointer" %>
       </div>
     <% end %>
   </div>
@@ -117,8 +117,8 @@
           </div>
 
           <div class="flex gap-2 items-center">
-            <%= f.submit "確認匯入", class: "rounded-md px-3.5 py-2.5 bg-green-600 hover:bg-green-500 text-white font-medium cursor-pointer" %>
-            <%= link_to "取消", import_users_path, class: "rounded-md px-3.5 py-2.5 bg-gray-100 hover:bg-gray-50 font-medium" %>
+            <%= f.submit "確認匯入", class: "inline-flex items-center rounded-md px-3.5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-medium cursor-pointer" %>
+            <%= link_to "取消", import_users_path, class: "inline-flex items-center rounded-md px-3.5 py-2.5 bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 font-medium" %>
           </div>
         <% end %>
       <% end %>
