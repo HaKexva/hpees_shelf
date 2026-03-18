@@ -39,14 +39,16 @@ class BooksController < ApplicationController
     BatchYear.ensure_office_exists!
     @imported_data = []
     @headers = []
-    @expected_columns = %w[title isbn total volume note source]
+    @required_columns = %w[title isbn source]
+    @expected_columns = %w[title isbn total volume note source call_number]
     @column_names_zh = {
       "title" => "書名",
       "isbn" => "ISBN",
       "total" => "總數",
       "volume" => "冊數",
       "note" => "備註",
-      "source" => "來源"
+      "source" => "來源",
+      "call_number" => "登錄號"
     }
 
     return unless request.post?
@@ -68,6 +70,7 @@ class BooksController < ApplicationController
 
       imported_count = 0
       skipped_count = 0
+      invalid_skipped_count = 0
       duplicate_action = params[:duplicate_action] || "skip"
       selected_duplicates = (params[:selected_duplicates] || []).map(&:to_i)
       batch_year = BatchYear.find_by(id: selected_batch_year_id)
@@ -76,13 +79,17 @@ class BooksController < ApplicationController
         title = _import_row_value(row, "title", "Title", "書名")
         isbn = _import_row_value(row, "isbn", "ISBN", "國際標準書號")
 
-        # Skip empty rows
-        next if title.blank?
+        # Skip invalid rows (only this row skipped; others still import)
+        if title.blank? || isbn.blank?
+          invalid_skipped_count += 1
+          next
+        end
 
         source_raw = _import_row_value(row, "source", "Source", "來源")
         source_key = _normalize_import_source(source_raw)
         total_raw = _import_row_value(row, "total", "Total", "總數")
-        total_value = total_raw.to_s.to_i
+        total_value = total_raw.present? && total_raw.to_s.strip.present? ? total_raw.to_s.to_i : 1
+        total_value = 1 if total_value < 1
         # 圖書館館藏：總數不允許 > 1（避免 CSV 匯入錯誤設定）
         if source_key == "owned_by_library" && total_value > 1
           Rails.logger.warn "Skip library book with total > 1 in import (index #{index}, ISBN #{isbn}, total #{total_value})"
@@ -100,6 +107,10 @@ class BooksController < ApplicationController
           grade_id: batch_year&.grade_id,
           batch_year_id: selected_batch_year_id
         }
+        if source_key == "owned_by_library"
+          call_num = _import_row_value(row, "call_number", "登錄號")
+          book_attrs[:call_number] = call_num.to_s.strip.presence if call_num.present?
+        end
         if source_key == "owned_by_teacher" && source_raw.present?
           teacher_name = _import_teacher_name_from_source(source_raw)
           if teacher_name.present?
@@ -112,8 +123,9 @@ class BooksController < ApplicationController
           end
         end
 
-        # Check for duplicate (same title and isbn)
-        is_duplicate = Book.exists?(title: title, isbn: isbn)
+        # Duplicate only when title, isbn, source (and for library: call_number) all match; any difference = independent book
+        existing = _import_find_existing(row, title, isbn, source_key)
+        is_duplicate = existing.present?
 
         if is_duplicate
           case duplicate_action
@@ -121,12 +133,14 @@ class BooksController < ApplicationController
             skipped_count += 1
             next
           when "select"
-            # Only import if this index was selected
             unless selected_duplicates.include?(index)
               skipped_count += 1
               next
             end
-            # "import" - import all duplicates, continue to save
+            # 勾選保留重複書籍：總數加一，不建立新檔案
+            existing.update_column(:total, existing.total.to_i + 1)
+            imported_count += 1
+            next
           end
         end
 
@@ -140,6 +154,7 @@ class BooksController < ApplicationController
 
       message = "成功匯入 #{imported_count} 本書籍。"
       message += " 已跳過 #{skipped_count} 本重複書籍。" if skipped_count > 0
+      message += " 已跳過 #{invalid_skipped_count} 筆不符合的資料。" if invalid_skipped_count > 0
       redirect_to books_path, notice: message, status: :see_other
     elsif params[:file].present?
       # Preview uploaded file (parse CSV without gem to avoid load path issues)
@@ -162,10 +177,11 @@ class BooksController < ApplicationController
           when "備註" then "note"
           when "國際標準書號" then "isbn"
           when "來源" then "source"
+          when "登錄號" then "call_number"
           else h_d
           end
         end.compact
-        @missing_columns = @expected_columns - normalized_headers
+        @missing_columns = @required_columns - normalized_headers
         @extra_columns = normalized_headers.compact - @expected_columns
 
         # Check if required columns exist (title or its aliases)
@@ -181,18 +197,19 @@ class BooksController < ApplicationController
           @invalid_row_indices << index if title.blank? || isbn.blank? || source.blank?
         end
 
-        # Only check for duplicates if required columns exist
+        # Only check for duplicates if required columns exist (duplicate = same title, isbn, source, and for library: call_number)
         @duplicates = []
         @new_books = []
         if has_title_column && has_isbn_column
           @imported_data.each_with_index do |row, index|
             title = _import_row_value(row, "title", "Title", "書名")
             isbn = _import_row_value(row, "isbn", "ISBN", "國際標準書號")
+            source_raw = _import_row_value(row, "source", "Source", "來源")
+            source_key = _normalize_import_source(source_raw)
 
-            # Skip rows with empty title
             next if title.blank?
 
-            existing = Book.find_by(title: title, isbn: isbn)
+            existing = _import_find_existing(row, title, isbn, source_key)
             if existing
               @duplicates << { index: index, row: row, existing: existing }
             else
@@ -379,12 +396,8 @@ class BooksController < ApplicationController
     redirect_to root_path, notice: "已登記借閱：#{@book.title} → #{user.name}。", status: :see_other
   end
 
-  # POST /books/1/return_shelf — Library book: clear borrower (還書)
+  # POST /books/1/return_shelf — Mark book as returned (還書); supports all sources (library, donated, class, teacher)
   def return_shelf
-    unless @book.owned_by_library?
-      redirect_to root_path, alert: "僅圖書館館藏可還書。", status: :see_other
-      return
-    end
     if @book.owned_by_library? && @book.effective_total > 1
       # 強制將所有未還的冊數一併標記為已還
       @book.circulation_records.where(returned_at: nil).update_all(returned_at: Time.current)
@@ -564,6 +577,17 @@ class BooksController < ApplicationController
       raw.to_s.strip.sub(/老師的書\z/, "").strip.presence
     end
 
+    # Find existing book that is considered "duplicate": same title, isbn, source; for library also same call_number.
+    # Any difference (e.g. different source or call_number) = independent book, returns nil.
+    def _import_find_existing(row, title, isbn, source_key)
+      scope = Book.where(title: title, isbn: isbn, source: source_key)
+      if source_key == "owned_by_library"
+        call_num = _import_row_value(row, "call_number", "登錄號")
+        scope = scope.where(call_number: call_num.to_s.strip.presence)
+      end
+      scope.first
+    end
+
     def _restore_import_preview(import_data)
       @imported_data = import_data
       @headers = import_data.first&.keys || []
@@ -577,10 +601,11 @@ class BooksController < ApplicationController
         when "備註" then "note"
         when "國際標準書號" then "isbn"
         when "來源" then "source"
+        when "登錄號" then "call_number"
         else h_d
         end
       end.compact
-      @missing_columns = @expected_columns - normalized_headers
+      @missing_columns = @required_columns - normalized_headers
       @extra_columns = normalized_headers - @expected_columns
       has_title_column = normalized_headers.include?("title")
       has_isbn_column = normalized_headers.include?("isbn")
@@ -588,7 +613,9 @@ class BooksController < ApplicationController
       @invalid_row_indices = []
       @imported_data.each_with_index do |row, index|
         title = _import_row_value(row, "title", "Title", "書名")
-        @invalid_row_indices << index if title.blank?
+        isbn = _import_row_value(row, "isbn", "ISBN", "國際標準書號")
+        source = _import_row_value(row, "source", "Source", "來源")
+        @invalid_row_indices << index if title.blank? || isbn.blank? || source.blank?
       end
 
       @duplicates = []
@@ -597,8 +624,10 @@ class BooksController < ApplicationController
         @imported_data.each_with_index do |row, index|
           title = _import_row_value(row, "title", "Title", "書名")
           isbn = _import_row_value(row, "isbn", "ISBN", "國際標準書號")
+          source_raw = _import_row_value(row, "source", "Source", "來源")
+          source_key = _normalize_import_source(source_raw)
           next if title.blank?
-          existing = Book.find_by(title: title, isbn: isbn)
+          existing = _import_find_existing(row, title, isbn, source_key)
           if existing
             @duplicates << { index: index, row: row, existing: existing }
           else

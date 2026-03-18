@@ -9,7 +9,7 @@
   <div class="bg-white rounded-lg shadow p-6 mb-6">
     <h2 class="font-semibold text-lg mb-4">上傳 CSV 檔案</h2>
     <p class="text-gray-600 mb-4">
-      上傳包含以下欄位的 CSV 檔案：<code class="bg-gray-100 px-1 rounded">書名</code>、<code class="bg-gray-100 px-1 rounded">ISBN</code>、<code class="bg-gray-100 px-1 rounded">總數</code>、<code class="bg-gray-100 px-1 rounded">冊數</code>、<code class="bg-gray-100 px-1 rounded">備註</code>、<code class="bg-gray-100 px-1 rounded">來源</code>。<br>
+      上傳包含以下欄位的 CSV 檔案。<strong>必填：</strong><code class="bg-gray-100 px-1 rounded">書名</code>、<code class="bg-gray-100 px-1 rounded">ISBN</code>、<code class="bg-gray-100 px-1 rounded">來源</code>；<strong>選填：</strong><code class="bg-gray-100 px-1 rounded">總數</code>（預設 1）、<code class="bg-gray-100 px-1 rounded">冊數</code>、<code class="bg-gray-100 px-1 rounded">備註</code>。<br>
       來源可填：圖書館館藏、捐贈的書、班級的書；老師的書請填「姓名＋老師的書」（例如：王小明老師的書）。<br>
       系統會在下方匯入步驟中<strong>要求選擇「屆數」</strong>並套用到本次匯入的所有書籍。
     </p>
@@ -31,7 +31,7 @@
         <h3 class="font-semibold text-red-800 mb-2">欄位不符，無法匯入</h3>
         <p class="text-red-700 text-sm mb-2">您的 CSV 欄位與預期格式不符，請修正您的 CSV 檔案後重新上傳：</p>
         <p class="text-red-700 text-sm"><strong>缺少的欄位：</strong> <%= @missing_columns.map { |c| @column_names_zh[c] || c }.join("、") %></p>
-        <p class="text-red-700 text-sm mt-2"><strong>預期欄位：</strong> 書名、ISBN、總數、冊數、備註、來源。</p>
+        <p class="text-red-700 text-sm mt-2"><strong>必填欄位：</strong> 書名、ISBN、來源。</p>
       </div>
     <% end %>
 
@@ -89,9 +89,9 @@
           </div>
 
           <!-- 手機版：卡片 -->
-          <div class="md:hidden space-y-3">
+          <div class="md:hidden space-y-4">
             <% @imported_data.each_with_index do |row, index| %>
-              <div class="bg-white rounded-xl border border-gray-200 p-3 shadow-sm">
+              <div class="bg-white rounded-2xl border border-gray-200 p-4 shadow-md">
                 <p class="mb-2">
                   <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">不符合</span>
                 </p>
@@ -116,7 +116,7 @@
           <% if @duplicates.present? %>
             <input type="hidden" name="duplicate_action" value="select">
             <p class="mb-4 p-4 bg-yellow-50 rounded-md border border-yellow-200 text-sm text-yellow-800">
-              左側「保留」欄位：勾選要一併匯入的重複書籍，未勾選的重複書籍將被跳過。可使用標題核取方塊全選或取消全選。
+              左側「保留」欄位：勾選後該書<strong>總數加一</strong>（不建立新書）。未勾選的重複書籍將被跳過。可使用標題核取方塊全選或取消全選。
             </p>
           <% end %>
 
@@ -137,15 +137,12 @@
                   <% @headers.each do |header| %>
                     <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"><%= header %></th>
                   <% end %>
-                  <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">屆數（現有）</th>
-                  <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">來源（現有）</th>
-                  <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">登錄號（圖書館）</th>
+                  <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">登錄號</th>
                 </tr>
               </thead>
               <tbody class="bg-white divide-y divide-gray-200">
                 <% @imported_data.each_with_index do |row, index| %>
                   <% is_duplicate = duplicate_indices.include?(index) %>
-                  <% existing = (@duplicates || []).find { |d| d[:index] == index }&.dig(:existing) %>
                   <tr class="<%= is_duplicate ? 'bg-yellow-50' : 'hover:bg-gray-50' %>">
                     <% if @duplicates.present? %>
                       <td class="px-4 py-2 text-sm w-12 sticky left-0 z-10 border-r border-gray-200 align-middle <%= is_duplicate ? 'bg-yellow-50' : 'bg-white' %>">
@@ -166,32 +163,7 @@
                     <% @headers.each do |header| %>
                       <td class="px-4 py-2 text-sm <%= is_duplicate ? 'text-yellow-700' : 'text-gray-900' %>"><%= import_cell_display(header, row[header]) %></td>
                     <% end %>
-                    <td class="px-4 py-2 text-sm text-gray-900">
-                      <% if existing&.batch_year.present? %>
-                        <%= existing.batch_year.display_label_with_grade %>
-                      <% else %>
-                        —
-                      <% end %>
-                    </td>
-                    <td class="px-4 py-2 text-sm text-gray-900">
-                      <% if existing&.source.present? %>
-                        <% source_label = t("activerecord.enums.book.source.#{existing.source}") rescue existing.source %>
-                        <% if existing.owned_by_teacher? && existing.user.present? %>
-                          <%= "#{source_label}（#{existing.user.name}）" %>
-                        <% else %>
-                          <%= source_label %>
-                        <% end %>
-                      <% else %>
-                        —
-                      <% end %>
-                    </td>
-                    <td class="px-4 py-2 text-sm text-gray-900">
-                      <% if existing&.owned_by_library? %>
-                        <%= existing.call_number.presence || existing.id %>
-                      <% else %>
-                        —
-                      <% end %>
-                    </td>
+                    <td class="px-4 py-2 text-sm <%= is_duplicate ? 'text-yellow-700' : 'text-gray-900' %>"><%= import_cell_display("登錄號", row["登錄號"] || row["call_number"]) %></td>
                   </tr>
                 <% end %>
               </tbody>
@@ -199,11 +171,10 @@
           </div>
 
           <!-- 手機版：卡片 -->
-          <div class="md:hidden space-y-3 mb-4">
+          <div class="md:hidden space-y-4 mb-4">
             <% @imported_data.each_with_index do |row, index| %>
               <% is_duplicate = duplicate_indices.include?(index) %>
-              <% existing = (@duplicates || []).find { |d| d[:index] == index }&.dig(:existing) %>
-              <div class="<%= is_duplicate ? 'bg-yellow-50' : 'bg-white' %> rounded-xl border border-gray-200 p-3 shadow-sm">
+              <div class="<%= is_duplicate ? 'bg-yellow-50 border-yellow-200' : 'bg-white border-gray-200' %> rounded-2xl border p-4 shadow-md">
                 <div class="flex items-start justify-between gap-2 mb-2">
                   <div>
                     <% if (@invalid_row_indices || []).include?(index) %>
@@ -228,36 +199,9 @@
                       <span class="flex-1 break-all <%= is_duplicate ? 'text-yellow-700' : 'text-gray-900' %>"><%= import_cell_display(header, row[header]) %></span>
                     </div>
                   <% end %>
-                  <div class="mt-2 pt-2 border-t border-gray-100 space-y-0.5">
-                    <p>
-                      <span class="text-gray-400">屆數</span>
-                      <% if existing&.batch_year.present? %>
-                        <span class="ml-1 text-gray-900"><%= existing.batch_year.display_label_with_grade %></span>
-                      <% else %>
-                        <span class="ml-1 text-gray-500">—</span>
-                      <% end %>
-                    </p>
-                    <p>
-                      <span class="text-gray-400">來源</span>
-                      <% if existing&.source.present? %>
-                        <% source_label = t("activerecord.enums.book.source.#{existing.source}") rescue existing.source %>
-                        <% if existing.owned_by_teacher? && existing.user.present? %>
-                          <span class="ml-1 text-gray-900"><%= "#{source_label}（#{existing.user.name}）" %></span>
-                        <% else %>
-                          <span class="ml-1 text-gray-900"><%= source_label %></span>
-                        <% end %>
-                      <% else %>
-                        <span class="ml-1 text-gray-500">—</span>
-                      <% end %>
-                    </p>
-                    <p>
-                      <span class="text-gray-400">登錄號</span>
-                      <% if existing&.owned_by_library? %>
-                        <span class="ml-1 text-gray-900"><%= existing.call_number.presence || existing.id %></span>
-                      <% else %>
-                        <span class="ml-1 text-gray-500">—</span>
-                      <% end %>
-                    </p>
+                  <div class="flex gap-2">
+                    <span class="text-gray-400 shrink-0">登錄號</span>
+                    <span class="flex-1 break-all <%= is_duplicate ? 'text-yellow-700' : 'text-gray-900' %>"><%= import_cell_display("登錄號", row["登錄號"] || row["call_number"]) %></span>
                   </div>
                 </div>
               </div>
