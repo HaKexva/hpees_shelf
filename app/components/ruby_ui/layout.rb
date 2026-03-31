@@ -6,7 +6,7 @@ module RubyUI
 
     def view_template(&block)
       div(class: "flex h-screen w-full overflow-hidden bg-background") do
-        # 1. Desktop Sidebar (Hidden on mobile)
+      # 1. Desktop Sidebar (Hidden on mobile)
         render_desktop_sidebar
 
         # 2. Main Content Area
@@ -49,7 +49,8 @@ module RubyUI
 
     def render_desktop_sidebar
       # "hidden lg:flex" so iPad (portrait/split) uses sheet; desktop sidebar from 1024px up
-      div(class: "hidden lg:flex w-64 shrink-0 flex-col border-r bg-card h-full") do
+      # 更窄的寬度，保留導覽文字又不吃太多空間
+      div(class: "hidden lg:flex w-48 shrink-0 flex-col border-r bg-card h-full") do
         div(class: "p-6") do
           h1(class: "text-lg font-semibold") { APP_NAME }
         end
@@ -72,8 +73,8 @@ module RubyUI
             end
           end
 
-          # Fixed width so sidebar is same on every page; matches MobileSidebar (18rem)
-          SheetContent(side: :right, class: "w-[18rem] max-w-[85vw] flex flex-col") do
+          # Fixed width so sidebar is same on every page; tuned narrower to roughly match desktop sidebar width
+          SheetContent(side: :right, class: "w-[14rem] max-w-[85vw] flex flex-col") do
             SheetHeader do
               SheetTitle { "導覽選單" }
             end
