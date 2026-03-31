@@ -104,8 +104,8 @@
     </div>
   <% end %>
 
-  <!-- 桌機版：表格 + 批次刪除 -->
-  <div class="hidden md:block">
+  <!-- 寬螢幕：表格 + 批次刪除 -->
+  <div class="hidden lg:block">
     <%= form_with url: bulk_destroy_books_path, method: :delete, id: "bulk-destroy-books-form" do |f| %>
       <%= hidden_field_tag :batch_year_id, @filter_batch_year_id if @filter_batch_year_id.present? %>
       <%= hidden_field_tag :q, @filter_q if @filter_q.present? %>
@@ -123,16 +123,16 @@
             <tr>
               <th class="px-4 py-3 text-left w-12 sticky left-0 bg-gray-50 z-10 border-r border-gray-200">
                 <% if @books.any? %>
-                  <input type="checkbox" id="select-all-books" class="rounded" title="全選">
+                  <input type="checkbox" id="select-all-books" class="rounded" title="全選" aria-label="全選書籍">
                 <% end %>
               </th>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">書名</th>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">屆數</th>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">來源</th>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">登錄號</th>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">總數</th>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">備註</th>
-              <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">編輯</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">書名</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">屆數</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">來源</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">登錄號</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">總數</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">備註</th>
+              <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">編輯</th>
             </tr>
           </thead>
           <tbody class="bg-white divide-y divide-gray-200">
@@ -147,7 +147,7 @@
                      end %>
                 <tr class="<%= [row_status_class, 'hover:bg-gray-50'].reject(&:blank?).join(' ') %>">
                   <td class="px-4 py-4 w-12 sticky left-0 z-10 border-r border-gray-200 align-middle <%= row_status_class %>">
-                    <input type="checkbox" name="book_ids[]" value="<%= book.id %>" class="book-checkbox rounded" title="選擇以刪除">
+                    <input type="checkbox" name="book_ids[]" value="<%= book.id %>" class="book-checkbox rounded" title="選擇以刪除" aria-label="選擇書籍 <%= book.title %> 以刪除">
                   </td>
                   <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 group">
                     <div class="relative">
@@ -157,11 +157,29 @@
                           （<%= book.volume %>）
                         <% end %>
                         <% if book.isbn.present? %>
+                          <!-- Hover-capable devices: show ISBN on hover without reserving space -->
                           <span
-                            class="absolute left-full ml-2 top-1/2 -translate-y-1/2 text-xs font-normal text-gray-700 opacity-0 group-hover:opacity-100 transition-opacity px-2 py-0.5 rounded bg-white/90 backdrop-blur whitespace-nowrap"
+                            class="absolute left-full ml-2 top-1/2 -translate-y-1/2 text-xs font-normal text-gray-700 opacity-0 group-hover:opacity-100 transition-opacity px-2 py-0.5 rounded bg-white/90 backdrop-blur whitespace-nowrap [@media(hover:none)]:hidden"
                           >
                             <%= format_isbn13(book.isbn) %>
                           </span>
+
+                          <details class="group relative inline-block ml-2 align-middle [@media(hover:hover)]:hidden">
+                            <summary
+                              class="list-none inline-flex items-center justify-center w-5 h-5 rounded-full bg-gray-100 text-gray-600 cursor-pointer"
+                              aria-label="ISBN"
+                              title="顯示 ISBN"
+                            >
+                              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M12 20a8 8 0 100-16 8 8 0 000 16z" />
+                              </svg>
+                            </summary>
+                            <span
+                              class="hidden group-open:inline-block group-hover:inline-block absolute left-full ml-2 top-1/2 -translate-y-1/2 text-xs font-normal text-gray-700 px-2 py-0.5 rounded bg-white shadow border border-gray-200 whitespace-nowrap z-20"
+                            >
+                              <%= format_isbn13(book.isbn) %>
+                            </span>
+                          </details>
                         <% end %>
                       </span>
                     </div>
@@ -191,37 +209,24 @@
     <% end %>
   </div>
 
-  <!-- 手機版：Card 風格列表 -->
-  <div class="block md:hidden pb-8">
+  <!-- 小螢幕/平板：Card 風格列表 -->
+  <div class="block lg:hidden pb-8">
     <% if @books.any? %>
       <div class="space-y-4">
         <% @books.each do |book| %>
           <div class="bg-white rounded-2xl shadow-md border border-gray-100 overflow-hidden">
             <div class="p-4">
-              <div class="flex justify-between items-start gap-3">
-                <div class="min-w-0 flex-1">
-                  <div class="flex items-start gap-2">
-                    <p class="text-base font-semibold text-gray-900 leading-snug break-words">
-                      <%= book.title %>
-                      <% if book.volume.present? %>
-                        （<%= book.volume %>）
-                      <% end %>
-                    </p>
-                    <% if book.isbn.present? %>
-                      <span
-                        class="inline-flex items-center justify-center w-8 h-8 rounded-full bg-gray-100 text-gray-600 shrink-0"
-                        title="<%= format_isbn13(book.isbn) %>"
-                        aria-label="ISBN"
-                      >
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M12 20a8 8 0 100-16 8 8 0 000 16z" />
-                        </svg>
-                      </span>
+              <div class="space-y-3">
+                <div class="min-w-0">
+                  <p class="text-base font-semibold text-gray-900 leading-snug break-words">
+                    <%= book.title %>
+                    <% if book.volume.present? %>
+                      （<%= book.volume %>）
                     <% end %>
-                  </div>
+                  </p>
                   <p class="text-xs text-gray-500 mt-1.5"><%= book.batch_year&.display_label_with_grade || "—" %></p>
                 </div>
-                <div class="flex items-start gap-1.5" data-no-row-click>
+                <div class="flex items-center justify-end gap-1.5" data-no-row-click>
                   <%= link_to edit_book_path(book), class: "inline-flex items-center justify-center w-9 h-9 rounded-full bg-indigo-50 text-indigo-600 hover:bg-indigo-100 active:bg-indigo-200 transition-colors", title: "編輯", aria: { label: "編輯" } do %>
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
@@ -237,6 +242,9 @@
               <div class="mt-4 grid grid-cols-2 gap-x-4 gap-y-1.5 text-sm">
                 <% if book.source.present? %>
                   <div class="flex gap-1.5"><span class="text-gray-400 shrink-0">來源</span><span class="text-gray-700 truncate"><%= t("activerecord.enums.book.source.#{book.source}") %></span></div>
+                <% end %>
+                <% if book.isbn.present? %>
+                  <div class="flex gap-1.5 min-w-0"><span class="text-gray-400 shrink-0">ISBN</span><span class="text-gray-700 truncate"><%= format_isbn13(book.isbn) %><% if book.invalid_isbn? %><span class="text-amber-600 ml-0.5" title="ISBN 格式錯誤">⚠</span><% end %></span></div>
                 <% end %>
                 <% if book.call_number.present? %>
                   <div class="flex gap-1.5"><span class="text-gray-400 shrink-0">登錄號</span><span class="text-gray-700"><%= book.call_number %></span></div>

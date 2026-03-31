@@ -152,10 +152,10 @@
             <% new_rows.each_with_index do |row, idx| %>
               <tr class="new-personnel-row">
                 <td class="px-4 py-2">
-                  <input type="text" name="new_personnel[][name]" value="<%= row["name"] %>" placeholder="姓名" class="block shadow-sm rounded-md border border-gray-300 px-3 py-2 text-sm w-40" />
+                  <input type="text" name="new_personnel[][name]" value="<%= row["name"] %>" placeholder="姓名" aria-label="姓名" class="block shadow-sm rounded-md border border-gray-300 px-3 py-2 text-sm w-40" />
                 </td>
                 <td class="px-4 py-2">
-                  <input type="text" name="new_personnel[][id_number]" value="<%= row["id_number"] %>" placeholder="6 碼學號" maxlength="6" pattern="\d{6}" class="block shadow-sm rounded-md border border-gray-300 px-3 py-2 text-sm w-28" />
+                  <input type="text" name="new_personnel[][id_number]" value="<%= row["id_number"] %>" placeholder="6 碼學號" maxlength="6" pattern="\d{6}" aria-label="學號" class="block shadow-sm rounded-md border border-gray-300 px-3 py-2 text-sm w-28" />
                 </td>
                 <td class="px-4 py-2">
                   <%= select_tag "new_personnel[][batch_year_id]", options_from_collection_for_select(@batch_years_with_office, :id, :display_label_with_grade, row["batch_year_id"]), { include_blank: "請選擇", class: "block shadow-sm rounded-md border border-gray-300 px-3 py-2 text-sm w-48" } %>
