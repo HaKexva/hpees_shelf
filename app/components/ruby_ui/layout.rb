@@ -6,7 +6,7 @@ module RubyUI
 
     def view_template(&block)
       div(class: "flex h-screen w-full overflow-hidden bg-background") do
-      # 1. Desktop Sidebar (Hidden on mobile)
+        # 1. Desktop Sidebar (Hidden on mobile)
         render_desktop_sidebar
 
         # 2. Main Content Area
