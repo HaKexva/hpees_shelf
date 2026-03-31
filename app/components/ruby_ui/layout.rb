@@ -48,8 +48,8 @@ module RubyUI
     end
 
     def render_desktop_sidebar
-        # "hidden lg:flex" so iPad (portrait/split) uses sheet; desktop sidebar from 1024px up
-        # 更窄的寬度，保留導覽文字又不吃太多空間
+      # "hidden lg:flex" so iPad (portrait/split) uses sheet; desktop sidebar from 1024px up
+      # 更窄的寬度，保留導覽文字又不吃太多空間
       div(class: "hidden lg:flex w-48 shrink-0 flex-col border-r bg-card h-full") do
         div(class: "p-6") do
           h1(class: "text-lg font-semibold") { APP_NAME }
@@ -61,7 +61,7 @@ module RubyUI
     end
 
     def render_mobile_header
-        # "lg:hidden" so iPad and phones get hamburger + sheet; hidden from 1024px up
+      # "lg:hidden" so iPad and phones get hamburger + sheet; hidden from 1024px up
       header(class: "lg:hidden flex items-center justify-between border-b px-4 py-3 bg-card shrink-0") do
         span(class: "font-semibold") { APP_NAME }
 
