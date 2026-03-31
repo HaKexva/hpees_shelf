@@ -54,7 +54,7 @@
           <tr>
             <th class="px-4 py-3 text-left w-12 sticky left-0 bg-gray-50 z-10 border-r border-gray-200">
               <% if @users.any? %>
-                <input type="checkbox" id="select-all-users" class="rounded" title="全選">
+                <input type="checkbox" id="select-all-users" class="rounded" title="全選" aria-label="全選人員">
               <% end %>
             </th>
             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">姓名</th>
@@ -70,7 +70,7 @@
             <% @users.each do |user| %>
               <tr class="hover:bg-gray-50">
                 <td class="px-4 py-4 w-12 sticky left-0 bg-white z-10 border-r border-gray-200 align-middle">
-                  <input type="checkbox" name="user_ids[]" value="<%= user.id %>" class="user-checkbox rounded" title="選擇以刪除">
+                  <input type="checkbox" name="user_ids[]" value="<%= user.id %>" class="user-checkbox rounded" title="選擇以刪除" aria-label="選擇人員 <%= user.name %> 以刪除">
                 </td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                   <%= user.name %>

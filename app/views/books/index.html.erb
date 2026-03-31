@@ -123,7 +123,7 @@
             <tr>
               <th class="px-4 py-3 text-left w-12 sticky left-0 bg-gray-50 z-10 border-r border-gray-200">
                 <% if @books.any? %>
-                  <input type="checkbox" id="select-all-books" class="rounded" title="全選">
+                  <input type="checkbox" id="select-all-books" class="rounded" title="全選" aria-label="全選書籍">
                 <% end %>
               </th>
               <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">書名</th>
@@ -147,7 +147,7 @@
                      end %>
                 <tr class="<%= [row_status_class, 'hover:bg-gray-50'].reject(&:blank?).join(' ') %>">
                   <td class="px-4 py-4 w-12 sticky left-0 z-10 border-r border-gray-200 align-middle <%= row_status_class %>">
-                    <input type="checkbox" name="book_ids[]" value="<%= book.id %>" class="book-checkbox rounded" title="選擇以刪除">
+                    <input type="checkbox" name="book_ids[]" value="<%= book.id %>" class="book-checkbox rounded" title="選擇以刪除" aria-label="選擇書籍 <%= book.title %> 以刪除">
                   </td>
                   <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 group">
                     <div class="relative">

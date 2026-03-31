@@ -210,16 +210,28 @@ class UsersController < ApplicationController
         @extra_columns = normalized_headers - @expected_columns - %w[id_number seat_number admin]
 
         @invalid_row_indices = []
+        names = []
         @imported_data.each_with_index do |row, index|
           name = _user_import_value(row, "name", "姓名")
+          names << name
           @invalid_row_indices << index if name.blank?
         end
 
-        @duplicates = []
+        # Detect duplicates within this import file by name (for preview only).
+        name_counts = names.tally
+        @duplicate_row_indices = []
+        @imported_data.each_with_index do |row, index|
+          next if @invalid_row_indices.include?(index)
+          name = names[index]
+          next if name.blank?
+          @duplicate_row_indices << index if name_counts[name].to_i > 1
+        end
+
         @new_users = []
         if normalized_headers.include?("name")
           @imported_data.each_with_index do |row, index|
-            @new_users << { index: index, row: row } if _user_import_value(row, "name", "姓名").present?
+            name = _user_import_value(row, "name", "姓名")
+            @new_users << { index: index, row: row } if name.present?
           end
         end
       rescue StandardError => e
