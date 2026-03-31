@@ -200,12 +200,25 @@
             <div class="p-4">
               <div class="flex justify-between items-start gap-3">
                 <div class="min-w-0 flex-1">
-                  <p class="text-base font-semibold text-gray-900 leading-snug line-clamp-2">
-                    <%= book.title %>
-                    <% if book.volume.present? %>
-                      （<%= book.volume %>）
+                  <div class="flex items-start gap-2">
+                    <p class="text-base font-semibold text-gray-900 leading-snug break-words">
+                      <%= book.title %>
+                      <% if book.volume.present? %>
+                        （<%= book.volume %>）
+                      <% end %>
+                    </p>
+                    <% if book.isbn.present? %>
+                      <span
+                        class="inline-flex items-center justify-center w-8 h-8 rounded-full bg-gray-100 text-gray-600 shrink-0"
+                        title="<%= format_isbn13(book.isbn) %>"
+                        aria-label="ISBN"
+                      >
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M12 20a8 8 0 100-16 8 8 0 000 16z" />
+                        </svg>
+                      </span>
                     <% end %>
-                  </p>
+                  </div>
                   <p class="text-xs text-gray-500 mt-1.5"><%= book.batch_year&.display_label_with_grade || "—" %></p>
                 </div>
                 <div class="flex items-start gap-1.5" data-no-row-click>
@@ -224,9 +237,6 @@
               <div class="mt-4 grid grid-cols-2 gap-x-4 gap-y-1.5 text-sm">
                 <% if book.source.present? %>
                   <div class="flex gap-1.5"><span class="text-gray-400 shrink-0">來源</span><span class="text-gray-700 truncate"><%= t("activerecord.enums.book.source.#{book.source}") %></span></div>
-                <% end %>
-                <% if book.isbn.present? %>
-                  <div class="flex gap-1.5 min-w-0"><span class="text-gray-400 shrink-0">ISBN</span><span class="text-gray-700 truncate"><%= format_isbn13(book.isbn) %><% if book.invalid_isbn? %><span class="text-amber-600 ml-0.5" title="ISBN 格式錯誤">⚠</span><% end %></span></div>
                 <% end %>
                 <% if book.call_number.present? %>
                   <div class="flex gap-1.5"><span class="text-gray-400 shrink-0">登錄號</span><span class="text-gray-700"><%= book.call_number %></span></div>
