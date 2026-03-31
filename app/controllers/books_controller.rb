@@ -160,7 +160,15 @@ class BooksController < ApplicationController
       # Preview uploaded file (parse CSV without gem to avoid load path issues)
       file = params[:file]
       begin
-        content = file.read.force_encoding("UTF-8")
+        raw = file.read
+        # Excel 匯出的 CSV（特別是在 Windows / 中文環境）常用 Big5/CP950 等編碼，
+        # 在這裡嘗試轉成 UTF-8，讓後續解析都能正常處理。
+        content =
+          begin
+            raw.encode("UTF-8")
+          rescue Encoding::UndefinedConversionError, Encoding::InvalidByteSequenceError
+            raw.force_encoding("CP950").encode("UTF-8", invalid: :replace, undef: :replace, replace: "")
+          end
         @headers, rows = _parse_csv(content)
         @imported_data = rows.reject do |row|
           row.values.all? { |v| v.nil? || v.to_s.strip.empty? }
