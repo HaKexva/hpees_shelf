@@ -206,7 +206,13 @@ class UsersController < ApplicationController
     elsif params[:file].present?
       file = params[:file]
       begin
-        content = file.read.force_encoding("UTF-8")
+        raw = file.read
+        content =
+          begin
+            raw.encode("UTF-8")
+          rescue Encoding::UndefinedConversionError, Encoding::InvalidByteSequenceError
+            raw.force_encoding("CP950").encode("UTF-8", invalid: :replace, undef: :replace, replace: "")
+          end
         @headers, rows = _parse_csv_users(content)
         @imported_data = rows.reject { |row| row.values.all? { |v| v.nil? || v.to_s.strip.empty? } }
 
