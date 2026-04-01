@@ -9,8 +9,8 @@
   <div class="bg-white rounded-lg shadow p-6 mb-6">
     <h2 class="font-semibold text-lg mb-4">上傳 CSV 檔案</h2>
     <p class="text-gray-600 mb-4">
-      上傳包含<strong>姓名</strong>欄位的 CSV 檔案。可選欄位：<code class="bg-gray-100 px-1 rounded">學號</code>、<code class="bg-gray-100 px-1 rounded">座號</code>、<code class="bg-gray-100 px-1 rounded">管理員</code>（填 1 或 是 則匯入後勾選管理員）。信箱由系統依學號自動帶入（學號@hpees.tp.edu.tw），學生不需填寫信箱。<br>
-      系統會在下方匯入步驟中<strong>要求選擇「屆數」</strong>並套用到本次匯入的所有人員。與該屆數中已存在之同名人員將自動跳過。
+      上傳包含<strong>姓名</strong>欄位的 CSV 檔案。可選欄位：<code class="bg-gray-100 px-1 rounded">學號</code>、<code class="bg-gray-100 px-1 rounded">座號</code>。管理員需要手動新增。跨屆數需要分批次新增。<br>
+      系統會在下方匯入步驟中<strong>要求選擇「屆數」</strong>並套用到本次匯入的所有人員。與該屆數中已存在之同名且同學號人員將自動跳過。
     </p>
 
     <%= form_with url: import_users_path, method: :post, multipart: true, class: "space-y-4", data: { turbo: false } do |f| %>
@@ -42,9 +42,14 @@
 
     <div class="bg-white rounded-lg shadow p-6">
       <h2 class="font-semibold text-lg mb-4">
+        <% invalid_count = (@invalid_row_indices || []).size %>
+        <% yellow_count = ((@duplicate_row_indices || []) | (@existing_duplicate_row_indices || [])).size %>
+        <% green_count = @imported_data.size - invalid_count - yellow_count %>
         預覽（共 <%= @imported_data.size %> 筆<%= "，" if @missing_columns.blank? %>
         <% if @missing_columns.blank? %>
-          <span class="text-green-600"><%= @new_users&.size || 0 %> 位將匯入</span>）
+          <span class="text-green-600"><%= green_count %> 位將匯入</span>
+          <span class="text-yellow-700">／<%= yellow_count %> 位重複</span>
+          <span class="text-red-600">／<%= invalid_count %> 位錯誤</span>）
         <% else %>
           — 請補齊「姓名」欄位後重新上傳）
         <% end %>
@@ -78,7 +83,6 @@
         <p class="text-gray-600 text-sm">請補齊缺少欄位後重新上傳 CSV，即可進行確認匯入。</p>
       <% else %>
         <%= form_with url: import_users_path, method: :post, data: { turbo: false }, id: "import-form" do |f| %>
-          <input type="hidden" name="confirm" value="true">
           <%= hidden_field_tag :import_data, Base64.strict_encode64(@imported_data.to_json) %>
 
           <div class="overflow-x-auto mb-4">
@@ -94,12 +98,15 @@
               <tbody class="bg-white divide-y divide-gray-200">
                 <% @imported_data.each_with_index do |row, index| %>
                   <% invalid = (@invalid_row_indices || []).include?(index) %>
-                  <% duplicate = !invalid && (@duplicate_row_indices || []).include?(index) %>
-                  <tr class="<%= invalid ? 'bg-red-50' : (duplicate ? 'bg-yellow-50' : 'hover:bg-gray-50') %>">
+                  <% duplicate_in_file = !invalid && (@duplicate_row_indices || []).include?(index) %>
+                  <% duplicate_existing = !invalid && (@existing_duplicate_row_indices || []).include?(index) %>
+                  <tr class="<%= invalid ? 'bg-red-50' : ((duplicate_existing || duplicate_in_file) ? 'bg-yellow-50' : 'hover:bg-gray-50') %>">
                     <td class="px-4 py-2 text-sm">
                       <% if invalid %>
                         <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">不符合（缺姓名）</span>
-                      <% elsif duplicate %>
+                      <% elsif duplicate_existing %>
+                        <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">重複（已存在）</span>
+                      <% elsif duplicate_in_file %>
                         <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">重複（同名）</span>
                       <% else %>
                         <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">新增</span>
@@ -116,11 +123,11 @@
 
           <div class="mb-4">
             <label class="block text-sm font-medium text-gray-700 mb-2">屆數（必填，套用至所有匯入的人員）</label>
-            <%= select_tag :batch_year_id, options_from_collection_for_select(@batch_years || BatchYear.class_batches_by_number_desc, :id, :display_label_with_grade), { include_blank: "請選擇屆數", required: true, class: "block w-48 shadow-sm rounded-md border border-gray-300 px-3 py-2" } %>
+            <%= select_tag :batch_year_id, options_from_collection_for_select(@batch_years || BatchYear.class_batches_by_number_desc, :id, :display_label_with_grade, params[:batch_year_id]), { include_blank: "請選擇屆數", required: true, class: "block w-48 shadow-sm rounded-md border border-gray-300 px-3 py-2", onchange: "this.form.requestSubmit()" } %>
           </div>
 
           <div class="flex gap-2 items-center">
-            <%= f.submit "確認匯入", class: "inline-flex items-center rounded-md px-3.5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-medium cursor-pointer" %>
+            <%= button_tag "確認匯入", type: "submit", name: "confirm", value: "true", class: "inline-flex items-center rounded-md px-3.5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-medium cursor-pointer" %>
             <%= link_to "取消", import_users_path, class: "inline-flex items-center rounded-md px-3.5 py-2.5 bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 font-medium" %>
           </div>
         <% end %>

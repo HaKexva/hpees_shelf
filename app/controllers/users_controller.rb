@@ -126,8 +126,7 @@ class UsersController < ApplicationController
     @column_names_zh = {
       "name" => "姓名",
       "id_number" => "學號",
-      "seat_number" => "座號",
-      "admin" => "管理員"
+      "seat_number" => "座號"
     }
 
     return unless request.post?
@@ -146,6 +145,8 @@ class UsersController < ApplicationController
 
       imported_count = 0
       skipped_count = 0
+      failed_count = 0
+      failed_examples = []
       duplicate_action = params[:duplicate_action] || "skip"
       selected_duplicates = (params[:selected_duplicates] || []).map(&:to_i)
       BatchYear.find_by(id: selected_batch_year_id)
@@ -161,10 +162,10 @@ class UsersController < ApplicationController
           seat_number: _user_import_value(row, "seat_number", "座號"),
           email: id_number.present? ? "#{id_number}@hpees.tp.edu.tw" : nil,
           batch_year_id: selected_batch_year_id,
-          admin: _user_import_admin?(row)
+          admin: false
         }
 
-        is_duplicate = User.exists?(name: name, batch_year_id: selected_batch_year_id)
+        is_duplicate = User.exists?(name: name, id_number: id_number, batch_year_id: selected_batch_year_id)
         if is_duplicate
           case duplicate_action
           when "skip"
@@ -182,13 +183,26 @@ class UsersController < ApplicationController
         if user.save
           imported_count += 1
         else
+          failed_count += 1
+          if failed_examples.size < 5
+            failed_examples << "第 #{index + 1} 筆（#{name}）：#{user.errors.full_messages.join('、')}"
+          end
           Rails.logger.error "Failed to save user: #{user.errors.full_messages.join(', ')}"
         end
       end
 
       message = "成功匯入 #{imported_count} 位人員。"
       message += " 已跳過 #{skipped_count} 位重複人員。" if skipped_count > 0
+      if failed_count > 0
+        message += " 另有 #{failed_count} 位匯入失敗（資料格式不符或缺欄位）。"
+        message += " 例：#{failed_examples.join('；')}" if failed_examples.any?
+      end
       redirect_to users_path, notice: message, status: :see_other
+    elsif params[:import_data].present?
+      import_data = JSON.parse(Base64.strict_decode64(params[:import_data]))
+      _restore_import_preview_users(import_data)
+      selected_batch_year_id = params[:batch_year_id].presence&.to_i
+      _compute_import_duplicates_users!(selected_batch_year_id)
     elsif params[:file].present?
       file = params[:file]
       begin
@@ -202,30 +216,18 @@ class UsersController < ApplicationController
           when "姓名" then "name"
           when "學號" then "id_number"
           when "座號" then "seat_number"
-          when "管理員" then "admin"
           else h.to_s.downcase.presence
           end
         end.compact
         @missing_columns = @expected_columns - normalized_headers
-        @extra_columns = normalized_headers - @expected_columns - %w[id_number seat_number admin]
+        @extra_columns = normalized_headers - @expected_columns - %w[id_number seat_number]
 
         @invalid_row_indices = []
-        names = []
         @imported_data.each_with_index do |row, index|
           name = _user_import_value(row, "name", "姓名")
-          names << name
           @invalid_row_indices << index if name.blank?
         end
-
-        # Detect duplicates within this import file by name (for preview only).
-        name_counts = names.tally
-        @duplicate_row_indices = []
-        @imported_data.each_with_index do |row, index|
-          next if @invalid_row_indices.include?(index)
-          name = names[index]
-          next if name.blank?
-          @duplicate_row_indices << index if name_counts[name].to_i > 1
-        end
+        _compute_import_duplicates_users!
 
         @new_users = []
         if normalized_headers.include?("name")
@@ -328,14 +330,6 @@ class UsersController < ApplicationController
       nil
     end
 
-    def _user_import_admin?(row)
-      v = _user_import_value(row, "admin", "管理員")
-      return false if v.blank?
-
-      s = v.to_s.strip
-      [ "1", "true", "yes", "y", "是" ].include?(s.downcase) || s == "是"
-    end
-
     def _restore_import_preview_users(import_data)
       @imported_data = import_data
       @headers = import_data.first&.keys || []
@@ -345,22 +339,49 @@ class UsersController < ApplicationController
         when "姓名" then "name"
         when "學號" then "id_number"
         when "座號" then "seat_number"
-        when "管理員" then "admin"
         else h.to_s.downcase.presence
         end
       end.compact
       @missing_columns = @expected_columns - normalized_headers
-      @extra_columns = normalized_headers - @expected_columns - %w[id_number seat_number admin]
+      @extra_columns = normalized_headers - @expected_columns - %w[id_number seat_number]
       @invalid_row_indices = []
       @imported_data.each_with_index do |row, index|
         name = _user_import_value(row, "name", "姓名")
         @invalid_row_indices << index if name.blank?
       end
+      _compute_import_duplicates_users!
       @duplicates = []
       @new_users = []
       @imported_data.each_with_index do |row, index|
         @new_users << { index: index, row: row } if _user_import_value(row, "name", "姓名").present?
       end
       @batch_years = BatchYear.by_number_desc
+    end
+
+    # Preview-only: duplicates inside CSV, and (optionally) duplicates vs existing users in DB for the selected batch year.
+    def _compute_import_duplicates_users!(selected_batch_year_id = nil)
+      keys = @imported_data.map do |row|
+        [
+          _user_import_value(row, "name", "姓名"),
+          _user_import_value(row, "id_number", "學號")
+        ]
+      end
+      key_counts = keys.tally
+
+      @duplicate_row_indices = []
+      @existing_duplicate_row_indices = []
+
+      @imported_data.each_with_index do |_row, index|
+        next if (@invalid_row_indices || []).include?(index)
+        name, id_number = keys[index]
+        next if name.blank?
+
+        key = [ name, id_number ]
+        @duplicate_row_indices << index if key_counts[key].to_i > 1
+
+        if selected_batch_year_id.present? && selected_batch_year_id.to_i > 0
+          @existing_duplicate_row_indices << index if User.exists?(name: name, id_number: id_number, batch_year_id: selected_batch_year_id.to_i)
+        end
+      end
     end
 end

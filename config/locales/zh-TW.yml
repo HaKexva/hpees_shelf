@@ -71,6 +71,12 @@ zh-TW:
         title: "書名"
         batch_year_id: "屆數"
         source: "來源"
+      user:
+        name: "姓名"
+        id_number: "學號"
+        seat_number: "座號"
+        batch_year: "屆數"
+        batch_year_id: "屆數"
     enums:
       book:
         source:

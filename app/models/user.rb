@@ -20,9 +20,9 @@ class User < ApplicationRecord
             }
   validates :seat_number,
             format: {
-              with: /\A\d{2}\z/,
+              with: /\A\d{1,2}\z/,
               allow_blank: true,
-              message: "需為 2 位數字或留空"
+              message: "需為 1~2 位數字或留空"
             }
 
   scope :active, -> { where(resigned_at: nil) }
