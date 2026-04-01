@@ -95,8 +95,8 @@
     </div>
     <div class="my-5">
       <%= form.label :seat_number, "座號" %>
-      <%= form.text_field :seat_number, maxlength: 2, pattern: "\\d{2}", inputmode: "numeric", placeholder: "2 位數字或留空", class: ["block shadow-sm rounded-md border px-3 py-2 mt-2 w-full", {"border-gray-400 focus:outline-blue-600": user.errors[:seat_number].none?, "border-red-400 focus:outline-red-600": user.errors[:seat_number].any?}] %>
-      <p class="mt-1 text-xs text-gray-500">需為 2 位數字或留空</p>
+      <%= form.text_field :seat_number, maxlength: 2, pattern: "\\d{1,2}", inputmode: "numeric", placeholder: "1~2 位數字或留空", class: ["block shadow-sm rounded-md border px-3 py-2 mt-2 w-full", {"border-gray-400 focus:outline-blue-600": user.errors[:seat_number].none?, "border-red-400 focus:outline-red-600": user.errors[:seat_number].any?}] %>
+      <p class="mt-1 text-xs text-gray-500">需為 1~2 位數字或留空</p>
     </div>
   <% end %>
 
