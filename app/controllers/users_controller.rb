@@ -376,7 +376,7 @@ class UsersController < ApplicationController
         name, id_number = keys[index]
         next if name.blank?
 
-        @duplicate_row_indices << index if key_counts[[name, id_number]].to_i > 1
+        @duplicate_row_indices << index if key_counts[ [name, id_number] ].to_i > 1
 
         if selected_batch_year_id.present? && selected_batch_year_id.to_i > 0
           @existing_duplicate_row_indices << index if User.exists?(name: name, id_number: id_number, batch_year_id: selected_batch_year_id.to_i)
