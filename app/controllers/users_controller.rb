@@ -146,6 +146,8 @@ class UsersController < ApplicationController
 
       imported_count = 0
       skipped_count = 0
+      failed_count = 0
+      failed_examples = []
       duplicate_action = params[:duplicate_action] || "skip"
       selected_duplicates = (params[:selected_duplicates] || []).map(&:to_i)
       BatchYear.find_by(id: selected_batch_year_id)
@@ -182,12 +184,20 @@ class UsersController < ApplicationController
         if user.save
           imported_count += 1
         else
+          failed_count += 1
+          if failed_examples.size < 5
+            failed_examples << "第 #{index + 1} 筆（#{name}）：#{user.errors.full_messages.join('、')}"
+          end
           Rails.logger.error "Failed to save user: #{user.errors.full_messages.join(', ')}"
         end
       end
 
       message = "成功匯入 #{imported_count} 位人員。"
       message += " 已跳過 #{skipped_count} 位重複人員。" if skipped_count > 0
+      if failed_count > 0
+        message += " 另有 #{failed_count} 位匯入失敗（資料格式不符或缺欄位）。"
+        message += " 例：#{failed_examples.join('；')}" if failed_examples.any?
+      end
       redirect_to users_path, notice: message, status: :see_other
     elsif params[:import_data].present?
       import_data = JSON.parse(Base64.strict_decode64(params[:import_data]))
