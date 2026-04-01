@@ -48,7 +48,8 @@
         預覽（共 <%= @imported_data.size %> 筆<%= "，" if @missing_columns.blank? %>
         <% if @missing_columns.blank? %>
           <span class="text-green-600"><%= green_count %> 位將匯入</span>
-          <span class="text-yellow-700">／<%= yellow_count %> 位重複</span>）
+          <span class="text-yellow-700">／<%= yellow_count %> 位重複</span>
+          <span class="text-red-600">／<%= invalid_count %> 位錯誤</span>）
         <% else %>
           — 請補齊「姓名」欄位後重新上傳）
         <% end %>
