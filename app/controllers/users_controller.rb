@@ -126,8 +126,7 @@ class UsersController < ApplicationController
     @column_names_zh = {
       "name" => "姓名",
       "id_number" => "學號",
-      "seat_number" => "座號",
-      "admin" => "管理員"
+      "seat_number" => "座號"
     }
 
     return unless request.post?
@@ -163,10 +162,10 @@ class UsersController < ApplicationController
           seat_number: _user_import_value(row, "seat_number", "座號"),
           email: id_number.present? ? "#{id_number}@hpees.tp.edu.tw" : nil,
           batch_year_id: selected_batch_year_id,
-          admin: _user_import_admin?(row)
+          admin: false
         }
 
-        is_duplicate = User.exists?(name: name, batch_year_id: selected_batch_year_id)
+        is_duplicate = User.exists?(name: name, id_number: id_number, batch_year_id: selected_batch_year_id)
         if is_duplicate
           case duplicate_action
           when "skip"
@@ -217,12 +216,11 @@ class UsersController < ApplicationController
           when "姓名" then "name"
           when "學號" then "id_number"
           when "座號" then "seat_number"
-          when "管理員" then "admin"
           else h.to_s.downcase.presence
           end
         end.compact
         @missing_columns = @expected_columns - normalized_headers
-        @extra_columns = normalized_headers - @expected_columns - %w[id_number seat_number admin]
+        @extra_columns = normalized_headers - @expected_columns - %w[id_number seat_number]
 
         @invalid_row_indices = []
         @imported_data.each_with_index do |row, index|
@@ -332,14 +330,6 @@ class UsersController < ApplicationController
       nil
     end
 
-    def _user_import_admin?(row)
-      v = _user_import_value(row, "admin", "管理員")
-      return false if v.blank?
-
-      s = v.to_s.strip
-      [ "1", "true", "yes", "y", "是" ].include?(s.downcase) || s == "是"
-    end
-
     def _restore_import_preview_users(import_data)
       @imported_data = import_data
       @headers = import_data.first&.keys || []
@@ -349,12 +339,11 @@ class UsersController < ApplicationController
         when "姓名" then "name"
         when "學號" then "id_number"
         when "座號" then "seat_number"
-        when "管理員" then "admin"
         else h.to_s.downcase.presence
         end
       end.compact
       @missing_columns = @expected_columns - normalized_headers
-      @extra_columns = normalized_headers - @expected_columns - %w[id_number seat_number admin]
+      @extra_columns = normalized_headers - @expected_columns - %w[id_number seat_number]
       @invalid_row_indices = []
       @imported_data.each_with_index do |row, index|
         name = _user_import_value(row, "name", "姓名")
@@ -371,21 +360,26 @@ class UsersController < ApplicationController
 
     # Preview-only: duplicates inside CSV, and (optionally) duplicates vs existing users in DB for the selected batch year.
     def _compute_import_duplicates_users!(selected_batch_year_id = nil)
-      names = @imported_data.map { |row| _user_import_value(row, "name", "姓名") }
-      name_counts = names.tally
+      keys = @imported_data.map do |row|
+        [
+          _user_import_value(row, "name", "姓名"),
+          _user_import_value(row, "id_number", "學號")
+        ]
+      end
+      key_counts = keys.tally
 
       @duplicate_row_indices = []
       @existing_duplicate_row_indices = []
 
       @imported_data.each_with_index do |_row, index|
         next if (@invalid_row_indices || []).include?(index)
-        name = names[index]
+        name, id_number = keys[index]
         next if name.blank?
 
-        @duplicate_row_indices << index if name_counts[name].to_i > 1
+        @duplicate_row_indices << index if key_counts[[name, id_number]].to_i > 1
 
         if selected_batch_year_id.present? && selected_batch_year_id.to_i > 0
-          @existing_duplicate_row_indices << index if User.exists?(name: name, batch_year_id: selected_batch_year_id.to_i)
+          @existing_duplicate_row_indices << index if User.exists?(name: name, id_number: id_number, batch_year_id: selected_batch_year_id.to_i)
         end
       end
     end

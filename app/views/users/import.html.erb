@@ -9,8 +9,8 @@
   <div class="bg-white rounded-lg shadow p-6 mb-6">
     <h2 class="font-semibold text-lg mb-4">上傳 CSV 檔案</h2>
     <p class="text-gray-600 mb-4">
-      上傳包含<strong>姓名</strong>欄位的 CSV 檔案。可選欄位：<code class="bg-gray-100 px-1 rounded">學號</code>、<code class="bg-gray-100 px-1 rounded">座號</code>、<code class="bg-gray-100 px-1 rounded">管理員</code>（填 1 或 是 則匯入後勾選管理員）。信箱由系統依學號自動帶入（學號@hpees.tp.edu.tw），學生不需填寫信箱。<br>
-      系統會在下方匯入步驟中<strong>要求選擇「屆數」</strong>並套用到本次匯入的所有人員。與該屆數中已存在之同名人員將自動跳過。
+      上傳包含<strong>姓名</strong>欄位的 CSV 檔案。可選欄位：<code class="bg-gray-100 px-1 rounded">學號</code>、<code class="bg-gray-100 px-1 rounded">座號</code>。管理員需要手動新增。跨屆數需要分批次新增。<br>
+      系統會在下方匯入步驟中<strong>要求選擇「屆數」</strong>並套用到本次匯入的所有人員。與該屆數中已存在之同名且同學號人員將自動跳過。
     </p>
 
     <%= form_with url: import_users_path, method: :post, multipart: true, class: "space-y-4", data: { turbo: false } do |f| %>
