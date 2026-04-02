@@ -113,6 +113,11 @@
           <input type="hidden" name="confirm" value="true">
           <%= hidden_field_tag :import_data, Base64.strict_encode64(@imported_data.to_json) %>
 
+          <div class="mb-4">
+            <label class="block text-sm font-medium text-gray-700 mb-2">屆數（必填，套用至所有匯入的書籍）</label>
+            <%= select_tag :batch_year_id, options_from_collection_for_select(BatchYear.class_batches_by_number_desc, :id, :display_label_with_grade, params[:batch_year_id]), { include_blank: "請選擇屆數", required: true, class: "block w-48 shadow-sm rounded-md border border-gray-300 px-3 py-2", onchange: "this.form.requestSubmit()" } %>
+          </div>
+
           <% if @duplicates.present? %>
             <input type="hidden" name="duplicate_action" value="select">
             <p class="mb-4 p-4 bg-yellow-50 rounded-md border border-yellow-200 text-sm text-yellow-800">
@@ -208,11 +213,6 @@
             <% end %>
           </div>
           
-          <div class="mb-4">
-            <label class="block text-sm font-medium text-gray-700 mb-2">屆數（必填，套用至所有匯入的書籍）</label>
-            <%= select_tag :batch_year_id, options_from_collection_for_select(BatchYear.class_batches_by_number_desc, :id, :display_label_with_grade), { include_blank: "請選擇屆數", required: true, class: "block w-48 shadow-sm rounded-md border border-gray-300 px-3 py-2" } %>
-          </div>
-
           <div class="flex gap-2 items-center">
             <%= f.submit "確認匯入", class: "inline-flex items-center rounded-md px-3.5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-medium cursor-pointer" %>
             <%= link_to "取消", import_books_path, class: "inline-flex items-center rounded-md px-3.5 py-2.5 bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 font-medium" %>
