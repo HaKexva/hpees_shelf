@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_03_09_121925) do
+ActiveRecord::Schema[8.1].define(version: 2026_04_02_120000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -38,6 +38,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_03_09_121925) do
     t.datetime "borrowed_at"
     t.string "call_number"
     t.datetime "created_at", null: false
+    t.datetime "deleted_at"
     t.string "edition_part"
     t.integer "grade_id"
     t.string "isbn"
@@ -50,6 +51,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_03_09_121925) do
     t.bigint "user_id"
     t.string "volume"
     t.index ["call_number"], name: "index_books_on_call_number"
+    t.index ["deleted_at"], name: "index_books_on_deleted_at"
     t.index ["user_id"], name: "index_books_on_user_id"
   end
 

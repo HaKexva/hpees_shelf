@@ -1,7 +1,14 @@
 class Book < ApplicationRecord
+  default_scope { where(deleted_at: nil) }
+
+  # Unscoped relation for associations that must resolve soft-deleted books (e.g. circulation history).
+  scope :with_deleted, -> { unscope(where: :deleted_at) }
+  scope :only_deleted, -> { unscope(where: :deleted_at).where.not(deleted_at: nil) }
+
   belongs_to :batch_year
   belongs_to :user, optional: true # current borrower (single-copy) or teacher (owned_by_teacher)
-  has_many :circulation_records
+  # Soft delete keeps the row; circulation_records remain linked (no dependent: :destroy).
+  has_many :circulation_records, inverse_of: :book
   has_many :loan_records, -> { where(returned_at: nil) }, class_name: "CirculationRecord"
   # When total > 1, borrowers are has_many (one circulation_record per copy lent).
   has_many :borrowers, through: :loan_records, source: :user
@@ -84,6 +91,17 @@ class Book < ApplicationRecord
 
   def can_borrow_copy?
     available_copies.positive?
+  end
+
+  # Soft delete: row remains so circulation_records and FKs stay valid; excluded from default Book scopes.
+  def destroy
+    return self if deleted_at.present?
+
+    transaction do
+      update_columns(deleted_at: Time.current, updated_at: Time.current)
+    end
+    @destroyed = true
+    self
   end
 
   # True when this user has an active loan (for return eligibility). Supports total > 1 (has many borrowers).

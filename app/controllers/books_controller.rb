@@ -481,7 +481,8 @@ class BooksController < ApplicationController
     redirect_params = {}
     redirect_params[:batch_year_id] = params[:batch_year_id] if params[:batch_year_id].present?
     if ids.any?
-      count = Book.where(id: ids).destroy_all.size
+      now = Time.current
+      count = Book.where(id: ids).update_all(deleted_at: now, updated_at: now)
       redirect_to books_path(redirect_params), notice: "已刪除 #{count} 本書籍。", status: :see_other
     else
       redirect_to books_path(redirect_params), alert: "請至少選擇一本書。", status: :see_other
