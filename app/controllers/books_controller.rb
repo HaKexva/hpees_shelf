@@ -157,18 +157,10 @@ class BooksController < ApplicationController
       message += " 已跳過 #{invalid_skipped_count} 筆不符合的資料。" if invalid_skipped_count > 0
       redirect_to books_path, notice: message, status: :see_other
     elsif params[:file].present?
-      # Preview uploaded file: CSV text uses byte-based decoding; .xlsx/.xls use Roo (not text decoding).
+      # Preview uploaded file: parsing lives in BooksImport::UploadParser (CSV encoding vs Excel binary).
       file = params[:file]
       begin
-        raw = file.read
-        raw = raw.force_encoding(Encoding::BINARY) if raw.encoding == Encoding::ASCII_8BIT
-        case _books_import_file_kind(file, raw)
-        when :spreadsheet
-          @headers, rows = _books_import_spreadsheet_rows(file, raw)
-        when :csv
-          content = _decode_books_csv_text_to_utf8(raw)
-          @headers, rows = _parse_csv(content)
-        end
+        @headers, rows = BooksImport::UploadParser.call(file)
         @imported_data = rows.reject do |row|
           row.values.all? { |v| v.nil? || v.to_s.strip.empty? }
         end
@@ -508,134 +500,6 @@ class BooksController < ApplicationController
         :user_id,
         :call_number
       )
-    end
-
-    XLS_OLE_MAGIC = "\xD0\xCF\x11\xE0\xA1\xB1\x1A\xE1".b.freeze
-
-    # Binary spreadsheet (Excel) vs plain-text CSV — must not run the same decoding path.
-    def _books_import_file_kind(uploaded_file, raw_bytes)
-      name = uploaded_file.original_filename.to_s.downcase
-      return :spreadsheet if name.end_with?(".xlsx", ".xls")
-      return :spreadsheet if raw_bytes.bytesize >= 4 && raw_bytes.byteslice(0, 4) == "PK\x03\x04".b
-      return :spreadsheet if raw_bytes.bytesize >= 8 && raw_bytes.byteslice(0, 8) == XLS_OLE_MAGIC
-
-      :csv
-    end
-
-    def _books_import_spreadsheet_extension(uploaded_file, raw_bytes)
-      name = uploaded_file.original_filename.to_s.downcase
-      return :xlsx if name.end_with?(".xlsx")
-      return :xls if name.end_with?(".xls")
-      return :xlsx if raw_bytes.bytesize >= 4 && raw_bytes.byteslice(0, 4) == "PK\x03\x04".b
-      return :xls if raw_bytes.bytesize >= 8 && raw_bytes.byteslice(0, 8) == XLS_OLE_MAGIC
-
-      :xlsx
-    end
-
-    # First sheet → same shape as _parse_csv: [ header strings ], [ row hashes keyed by header ]
-    def _books_import_spreadsheet_rows(uploaded_file, raw_bytes)
-      require "roo"
-      ext = _books_import_spreadsheet_extension(uploaded_file, raw_bytes)
-      require "roo-xls" if ext == :xls
-
-      path = uploaded_file.tempfile.path
-      spreadsheet = Roo::Spreadsheet.open(path, extension: ext)
-      sheet = spreadsheet.sheet(0)
-      first_row = sheet.first_row
-      last_row = sheet.last_row
-      return [ [], [] ] if first_row.nil? || last_row.nil? || first_row > last_row
-
-      headers = sheet.row(first_row).map { |cell| cell.to_s.strip }
-      rows = []
-      ((first_row + 1)..last_row).each do |r|
-        row_vals = sheet.row(r)
-        row_hash = {}
-        headers.each_with_index { |h, i| row_hash[h] = row_vals[i] }
-        rows << row_hash
-      end
-      [ headers, rows ]
-    end
-
-    # Decode CSV/plain-text bytes to UTF-8 without header-based encoding guessing (that can mangle valid UTF-8).
-    def _decode_books_csv_text_to_utf8(raw)
-      raw = raw.dup.force_encoding(Encoding::BINARY)
-      strip_bom = ->(s) { s.delete_prefix("\uFEFF") }
-
-      utf8 = raw.dup.force_encoding("UTF-8")
-      return strip_bom.call(utf8.encode("UTF-8")) if utf8.valid_encoding?
-
-      if raw.bytesize >= 2 && raw.byteslice(0, 2) == "\xFF\xFE".b
-        decoded = raw.force_encoding("UTF-16LE").encode("UTF-8", invalid: :replace, undef: :replace, replace: "")
-        return strip_bom.call(decoded)
-      end
-      if raw.bytesize >= 2 && raw.byteslice(0, 2) == "\xFE\xFF".b
-        decoded = raw.force_encoding("UTF-16BE").encode("UTF-8", invalid: :replace, undef: :replace, replace: "")
-        return strip_bom.call(decoded)
-      end
-
-      %w[CP950 Big5].each do |enc|
-        begin
-          decoded = raw.force_encoding(enc).encode("UTF-8", invalid: :replace, undef: :replace, replace: "")
-          return strip_bom.call(decoded)
-        rescue Encoding::UndefinedConversionError, Encoding::InvalidByteSequenceError
-          next
-        end
-      end
-
-      %w[UTF-16LE UTF-16BE].each do |enc|
-        begin
-          decoded = raw.force_encoding(enc).encode("UTF-8", invalid: :replace, undef: :replace, replace: "")
-          return strip_bom.call(decoded)
-        rescue Encoding::UndefinedConversionError, Encoding::InvalidByteSequenceError
-          next
-        end
-      end
-
-      strip_bom.call(raw.force_encoding("UTF-8").encode("UTF-8", invalid: :replace, undef: :replace, replace: ""))
-    end
-
-    # Lightweight CSV parser (without the csv gem), returns [headers, rows], where rows is an Array of Hashes
-    def _parse_csv(content)
-      lines = content.split(/\r?\n/)
-      return [ [], [] ] if lines.empty?
-      headers = _parse_csv_line(lines[0])
-      rows = lines[1..].filter_map do |line|
-        next nil if line.strip.empty?
-        values = _parse_csv_line(line)
-        headers.each_with_index.to_h { |h, i| [ h, values[i] ] }
-      end
-      [ headers, rows ]
-    end
-
-    def _parse_csv_line(line)
-      fields = []
-      i = 0
-      while i < line.length
-        if line[i] == '"'
-          i += 1
-          field = +""
-          while i < line.length
-            if line[i] == '"'
-              if line[i + 1] == '"'
-                field << '"'
-                i += 2
-              else
-                i += 1
-                break
-              end
-            else
-              field << line[i]
-              i += 1
-            end
-          end
-          fields << field
-        else
-          end_idx = line.index(",", i) || line.length
-          fields << line[i...end_idx].to_s.strip
-          i = end_idx + 1
-        end
-      end
-      fields
     end
 
     # Read a value from an import row by column name, order-independent; supports both English and Chinese headers
