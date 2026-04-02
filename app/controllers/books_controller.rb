@@ -161,14 +161,7 @@ class BooksController < ApplicationController
       file = params[:file]
       begin
         raw = file.read
-        # Excel 匯出的 CSV（特別是在 Windows / 中文環境）常用 Big5/CP950 等編碼，
-        # 在這裡嘗試轉成 UTF-8，讓後續解析都能正常處理。
-        content =
-          begin
-            raw.encode("UTF-8")
-          rescue Encoding::UndefinedConversionError, Encoding::InvalidByteSequenceError
-            raw.force_encoding("CP950").encode("UTF-8", invalid: :replace, undef: :replace, replace: "")
-          end
+        content = _decode_csv_to_utf8_books(raw)
         @headers, rows = _parse_csv(content)
         @imported_data = rows.reject do |row|
           row.values.all? { |v| v.nil? || v.to_s.strip.empty? }
@@ -176,19 +169,7 @@ class BooksController < ApplicationController
 
         # Check for column mismatches (match by column name, order does not matter; both English and Chinese headers are accepted)
         headers_downcase = @headers.map { |h| h&.to_s&.strip }
-        normalized_headers = headers_downcase.map do |h|
-          h_d = h&.downcase
-          case h
-          when "書名" then "title"
-          when "總數" then "total"
-          when "冊數" then "volume"
-          when "備註" then "note"
-          when "國際標準書號" then "isbn"
-          when "來源" then "source"
-          when "登錄號" then "call_number"
-          else h_d
-          end
-        end.compact
+        normalized_headers = headers_downcase.map { |h| _normalize_book_csv_header_value(h) }.compact
         @missing_columns = @required_columns - normalized_headers
         @extra_columns = normalized_headers.compact - @expected_columns
 
@@ -489,6 +470,60 @@ class BooksController < ApplicationController
   end
 
   private
+    def _normalize_book_csv_header_value(value)
+      s = value.to_s.strip
+      return nil if s.blank?
+
+      case s
+      when "書名" then "title"
+      when "總數" then "total"
+      when "冊數" then "volume"
+      when "備註" then "note"
+      when "國際標準書號" then "isbn"
+      when "來源" then "source"
+      when "登錄號" then "call_number"
+      else s.downcase.presence
+      end
+    end
+
+    def _decode_csv_to_utf8_books(raw)
+      required = @required_columns || %w[title isbn source]
+      strip_bom = ->(s) { s.delete_prefix("\uFEFF") }
+
+      header_matches_required = lambda do |decoded|
+        header_line = decoded.lines.first.to_s
+        headers = _parse_csv_line(header_line)
+        normalized = headers.map { |h| _normalize_book_csv_header_value(h) }.compact
+        (required - normalized).empty?
+      end
+
+      # 1) Prefer real UTF-8 if valid.
+      utf8 = raw.dup.force_encoding("UTF-8")
+      if utf8.valid_encoding?
+        decoded = strip_bom.call(utf8.encode("UTF-8"))
+        return decoded if header_matches_required.call(decoded)
+      end
+
+      # 2) Try common encodings for Excel/Sheets exports.
+      candidates = [
+        -> { raw.force_encoding("UTF-16LE").encode("UTF-8", invalid: :replace, undef: :replace, replace: "") },
+        -> { raw.force_encoding("UTF-16BE").encode("UTF-8", invalid: :replace, undef: :replace, replace: "") },
+        -> { raw.force_encoding("CP950").encode("UTF-8", invalid: :replace, undef: :replace, replace: "") },
+        -> { raw.force_encoding("Big5").encode("UTF-8", invalid: :replace, undef: :replace, replace: "") }
+      ]
+
+      candidates.each do |decoder|
+        begin
+          decoded = strip_bom.call(decoder.call)
+          return decoded if header_matches_required.call(decoded)
+        rescue Encoding::UndefinedConversionError, Encoding::InvalidByteSequenceError
+          next
+        end
+      end
+
+      # 3) Last resort: UTF-8 with replacement.
+      strip_bom.call(raw.force_encoding("UTF-8").encode("UTF-8", invalid: :replace, undef: :replace, replace: ""))
+    end
     def set_book
       @book = Book.find(params[:id])
     end
