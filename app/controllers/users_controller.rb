@@ -207,12 +207,7 @@ class UsersController < ApplicationController
       file = params[:file]
       begin
         raw = file.read
-        content =
-          begin
-            raw.encode("UTF-8")
-          rescue Encoding::UndefinedConversionError, Encoding::InvalidByteSequenceError
-            raw.force_encoding("CP950").encode("UTF-8", invalid: :replace, undef: :replace, replace: "")
-          end
+        content = _decode_csv_to_utf8(raw)
         @headers, rows = _parse_csv_users(content)
         @imported_data = rows.reject { |row| row.values.all? { |v| v.nil? || v.to_s.strip.empty? } }
 
@@ -326,6 +321,32 @@ class UsersController < ApplicationController
         end
       end
       fields
+    end
+
+    # Try decoding CSV bytes into UTF-8 for both:
+    # - Excel exports (Big5/CP950)
+    # - Google Sheets exports (UTF-8, sometimes with BOM / sometimes UTF-16)
+    def _decode_csv_to_utf8(raw)
+      candidates = [
+        -> { raw.encode("UTF-8") },
+        -> { raw.force_encoding("CP950").encode("UTF-8", invalid: :replace, undef: :replace, replace: "") },
+        -> { raw.force_encoding("Big5").encode("UTF-8", invalid: :replace, undef: :replace, replace: "") },
+        -> { raw.force_encoding("UTF-16LE").encode("UTF-8", invalid: :replace, undef: :replace, replace: "") },
+        -> { raw.force_encoding("UTF-16BE").encode("UTF-8", invalid: :replace, undef: :replace, replace: "") },
+        -> { raw.force_encoding("ISO-8859-1").encode("UTF-8", invalid: :replace, undef: :replace, replace: "") }
+      ]
+
+      candidates.each do |decoder|
+        begin
+          decoded = decoder.call
+          decoded.sub!(/\A\x{FEFF}/, "") # strip UTF-8 BOM
+          return decoded
+        rescue Encoding::UndefinedConversionError, Encoding::InvalidByteSequenceError
+          next
+        end
+      end
+
+      raw.force_encoding("UTF-8").encode("UTF-8", invalid: :replace, undef: :replace, replace: "")
     end
 
     def _user_import_value(row, *keys)
