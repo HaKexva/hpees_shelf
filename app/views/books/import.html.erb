@@ -113,6 +113,14 @@
           <input type="hidden" name="confirm" value="true">
           <%= hidden_field_tag :import_data, Base64.strict_encode64(@imported_data.to_json) %>
 
+          <% invalid_count = (@invalid_row_indices || []).size %>
+          <% if invalid_count > 0 %>
+            <div class="mb-4">
+              <%= button_tag "下載不符合清單 CSV", type: "submit", name: "export_invalid", value: "true", class: "inline-flex items-center rounded-md px-3.5 py-2.5 bg-red-600 hover:bg-red-500 text-white font-medium cursor-pointer" %>
+              <p class="mt-2 text-xs text-gray-600">會匯出「不符合」的資料列，缺少必填欄位（書名/ISBN/來源）將填入「請填寫」。</p>
+            </div>
+          <% end %>
+
           <% if @duplicates.present? %>
             <input type="hidden" name="duplicate_action" value="select">
             <p class="mb-4 p-4 bg-yellow-50 rounded-md border border-yellow-200 text-sm text-yellow-800">
@@ -161,7 +169,15 @@
                       <% end %>
                     </td>
                     <% @headers.each do |header| %>
-                      <td class="px-4 py-2 text-sm <%= is_duplicate ? 'text-yellow-700' : 'text-gray-900' %>"><%= import_cell_display(header, row[header]) %></td>
+                      <% required_header =
+                           case header.to_s.strip
+                           when "書名", "title", "Title" then true
+                           when "ISBN", "isbn", "國際標準書號" then true
+                           when "來源", "source", "Source" then true
+                           else false
+                           end %>
+                      <% missing_required = (@invalid_row_indices || []).include?(index) && required_header && row[header].to_s.strip.blank? %>
+                      <td class="px-4 py-2 text-sm <%= missing_required ? 'bg-red-50 text-red-700' : (is_duplicate ? 'text-yellow-700' : 'text-gray-900') %>"><%= import_cell_display(header, row[header]) %></td>
                     <% end %>
                     <td class="px-4 py-2 text-sm <%= is_duplicate ? 'text-yellow-700' : 'text-gray-900' %>"><%= import_cell_display("登錄號", row["登錄號"] || row["call_number"]) %></td>
                   </tr>
@@ -196,7 +212,15 @@
                   <% @headers.each do |header| %>
                     <div class="flex gap-2">
                       <span class="text-gray-400 shrink-0"><%= header %></span>
-                      <span class="flex-1 break-all <%= is_duplicate ? 'text-yellow-700' : 'text-gray-900' %>"><%= import_cell_display(header, row[header]) %></span>
+                      <% required_header =
+                           case header.to_s.strip
+                           when "書名", "title", "Title" then true
+                           when "ISBN", "isbn", "國際標準書號" then true
+                           when "來源", "source", "Source" then true
+                           else false
+                           end %>
+                      <% missing_required = (@invalid_row_indices || []).include?(index) && required_header && row[header].to_s.strip.blank? %>
+                      <span class="flex-1 break-all <%= missing_required ? 'bg-red-50 text-red-700' : (is_duplicate ? 'text-yellow-700' : 'text-gray-900') %>"><%= import_cell_display(header, row[header]) %></span>
                     </div>
                   <% end %>
                   <div class="flex gap-2">

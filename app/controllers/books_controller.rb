@@ -53,7 +53,42 @@ class BooksController < ApplicationController
 
     return unless request.post?
 
-    if params[:confirm] == "true" && params[:import_data].present?
+    if params[:export_invalid] == "true" && params[:import_data].present?
+      require "json"
+      require "base64"
+      import_data = JSON.parse(Base64.strict_decode64(params[:import_data]))
+
+      invalid_rows = []
+      import_data.each_with_index do |row, index|
+        title = _import_row_value(row, "title", "Title", "書名")
+        isbn = _import_row_value(row, "isbn", "ISBN", "國際標準書號")
+        source = _import_row_value(row, "source", "Source", "來源")
+        next unless title.blank? || isbn.blank? || source.blank?
+
+        invalid_rows << {
+          "書名" => title.presence || "請填寫",
+          "ISBN" => isbn.presence || "請填寫",
+          "來源" => source.presence || "請填寫",
+          "總數" => _import_row_value(row, "total", "Total", "總數").to_s.strip.presence,
+          "冊數" => _import_row_value(row, "volume", "Volume", "冊數").to_s.strip.presence,
+          "備註" => _import_row_value(row, "note", "Note", "備註").to_s.strip.presence,
+          "登錄號" => _import_row_value(row, "call_number", "登錄號").to_s.strip.presence
+        }
+      end
+
+      headers = %w[書名 ISBN 來源 總數 冊數 備註 登錄號]
+      bom = "\uFEFF"
+      csv = +""
+      csv << bom
+      csv << headers.map { |h| _books_import_csv_escape(h) }.join(",") << "\n"
+      invalid_rows.each do |r|
+        csv << headers.map { |h| _books_import_csv_escape(r[h]) }.join(",") << "\n"
+      end
+
+      filename = "books_import_invalid_#{Time.zone.now.strftime('%Y%m%d_%H%M')}.csv"
+      send_data csv, filename: filename, type: "text/csv; charset=utf-8"
+      return
+    elsif params[:confirm] == "true" && params[:import_data].present?
       # Confirm import from hidden field data (Base64 encoded JSON)
       require "json"
       require "base64"
@@ -489,6 +524,11 @@ class BooksController < ApplicationController
   end
 
   private
+    def _books_import_csv_escape(value)
+      s = value.to_s
+      return "\"#{s.gsub('"', '""')}\"" if s.include?(",") || s.include?("\"") || s.include?("\n") || s.include?("\r")
+      s
+    end
     def set_book
       @book = Book.find(params[:id])
     end
