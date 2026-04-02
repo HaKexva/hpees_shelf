@@ -339,7 +339,7 @@ class UsersController < ApplicationController
       candidates.each do |decoder|
         begin
           decoded = decoder.call
-          decoded.sub!(/\A\x{FEFF}/, "") # strip UTF-8 BOM
+          decoded = decoded.delete_prefix("\uFEFF") # strip UTF-8 BOM
           return decoded
         rescue Encoding::UndefinedConversionError, Encoding::InvalidByteSequenceError
           next
