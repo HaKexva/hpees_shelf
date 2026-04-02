@@ -87,7 +87,6 @@ class BooksController < ApplicationController
 
       filename = "books_import_invalid_#{Time.zone.now.strftime('%Y%m%d_%H%M')}.csv"
       send_data csv, filename: filename, type: "text/csv; charset=utf-8"
-      return
     elsif params[:confirm] == "true" && params[:import_data].present?
       # Confirm import from hidden field data (Base64 encoded JSON)
       require "json"
