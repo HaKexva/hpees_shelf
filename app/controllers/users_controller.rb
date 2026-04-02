@@ -340,36 +340,42 @@ class UsersController < ApplicationController
     # - Excel exports (Big5/CP950)
     # - Google Sheets exports (UTF-8, sometimes with BOM / sometimes UTF-16)
     def _decode_csv_to_utf8(raw)
+      expected = @expected_columns || %w[name]
+      strip_bom = ->(s) { s.delete_prefix("\uFEFF") }
+
+      header_matches_expected = lambda do |decoded|
+        header_line = decoded.lines.first.to_s
+        headers = _parse_csv_line_users(header_line)
+        normalized_headers = headers.map { |h| _normalize_user_csv_header_value(h) }.compact
+        (expected - normalized_headers).empty?
+      end
+
+      # 1) Prefer real UTF-8 if it is valid.
+      utf8 = raw.dup.force_encoding("UTF-8")
+      if utf8.valid_encoding?
+        decoded = strip_bom.call(utf8.encode("UTF-8"))
+        return decoded if header_matches_expected.call(decoded)
+      end
+
+      # 2) Try common encodings.
       candidates = [
-        -> { raw.encode("UTF-8") },
-        -> { raw.force_encoding("CP950").encode("UTF-8", invalid: :replace, undef: :replace, replace: "") },
-        -> { raw.force_encoding("Big5").encode("UTF-8", invalid: :replace, undef: :replace, replace: "") },
         -> { raw.force_encoding("UTF-16LE").encode("UTF-8", invalid: :replace, undef: :replace, replace: "") },
         -> { raw.force_encoding("UTF-16BE").encode("UTF-8", invalid: :replace, undef: :replace, replace: "") },
-        -> { raw.force_encoding("ISO-8859-1").encode("UTF-8", invalid: :replace, undef: :replace, replace: "") }
+        -> { raw.force_encoding("CP950").encode("UTF-8", invalid: :replace, undef: :replace, replace: "") },
+        -> { raw.force_encoding("Big5").encode("UTF-8", invalid: :replace, undef: :replace, replace: "") }
       ]
-
-      expected = @expected_columns || %w[name]
-      last_decoded = nil
 
       candidates.each do |decoder|
         begin
-          decoded = decoder.call
-          decoded = decoded.delete_prefix("\uFEFF") # strip UTF-8 BOM
-          last_decoded = decoded
-
-          header_line = decoded.lines.first.to_s
-          headers = _parse_csv_line_users(header_line)
-          normalized_headers = headers.map { |h| _normalize_user_csv_header_value(h) }.compact
-
-          # Only accept a decoding that yields expected columns in the header.
-          return decoded if (expected - normalized_headers).empty?
+          decoded = strip_bom.call(decoder.call)
+          return decoded if header_matches_expected.call(decoded)
         rescue Encoding::UndefinedConversionError, Encoding::InvalidByteSequenceError
           next
         end
       end
 
-      last_decoded || raw.force_encoding("UTF-8").encode("UTF-8", invalid: :replace, undef: :replace, replace: "")
+      # 3) Last resort: try UTF-8 with replacement, but don't keep ISO-8859-1/CP950 mojibake.
+      strip_bom.call(raw.force_encoding("UTF-8").encode("UTF-8", invalid: :replace, undef: :replace, replace: ""))
     end
 
     def _user_import_value(row, *keys)
