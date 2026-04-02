@@ -53,8 +53,12 @@
       <h2 class="font-semibold text-lg mb-4">
         預覽（共 <%= @imported_data.size %> 筆<%= "：" if @missing_columns.blank? %>
         <% if @missing_columns.blank? %>
-          <span class="text-green-600"><%= @new_books&.size || 0 %> 本新書</span>，
-          <span class="text-red-600"><%= @duplicates&.size || 0 %> 本重複</span>）
+          <% invalid_count = (@invalid_row_indices || []).size %>
+          <% duplicate_count = @duplicates&.size || 0 %>
+          <% new_count = @imported_data.size - invalid_count - duplicate_count %>
+          <span class="text-green-600"><%= new_count %> 本新書</span>，
+          <span class="text-yellow-700"><%= duplicate_count %> 本重複</span>，
+          <span class="text-red-600"><%= invalid_count %> 本不符合</span>）
         <% else %>
           — 請補齊缺少欄位後重新上傳，無法確認匯入）
         <% end %>
