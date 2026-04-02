@@ -7,17 +7,17 @@
   </div>
 
   <div class="bg-white rounded-lg shadow p-6 mb-6">
-    <h2 class="font-semibold text-lg mb-4">上傳 CSV 檔案</h2>
+    <h2 class="font-semibold text-lg mb-4">上傳 CSV 或 Excel 檔案</h2>
     <p class="text-gray-600 mb-4">
-      上傳包含以下欄位的 CSV 檔案。<strong>必填：</strong><code class="bg-gray-100 px-1 rounded">書名</code>、<code class="bg-gray-100 px-1 rounded">ISBN</code>、<code class="bg-gray-100 px-1 rounded">來源</code>；<strong>選填：</strong><code class="bg-gray-100 px-1 rounded">總數</code>（預設 1）、<code class="bg-gray-100 px-1 rounded">冊數</code>、<code class="bg-gray-100 px-1 rounded">備註</code>。<br>
+      上傳包含以下欄位的 CSV（UTF-8、Big5 等）或 Excel（.xlsx、.xls）檔案。<strong>必填：</strong><code class="bg-gray-100 px-1 rounded">書名</code>、<code class="bg-gray-100 px-1 rounded">ISBN</code>、<code class="bg-gray-100 px-1 rounded">來源</code>；<strong>選填：</strong><code class="bg-gray-100 px-1 rounded">總數</code>（預設 1）、<code class="bg-gray-100 px-1 rounded">冊數</code>、<code class="bg-gray-100 px-1 rounded">備註</code>。<br>
       來源可填：圖書館館藏、捐贈的書、班級的書；老師的書請填「姓名＋老師的書」（例如：王小明老師的書）。<br>
       系統會在下方匯入步驟中<strong>要求選擇「屆數」</strong>並套用到本次匯入的所有書籍。
     </p>
 
     <%= form_with url: import_books_path, method: :post, multipart: true, class: "space-y-4", data: { turbo: false } do |f| %>
       <div>
-        <label for="books_import_file" class="block text-sm font-medium text-gray-700 mb-2">選擇 CSV 檔案</label>
-        <input id="books_import_file" type="file" name="file" accept=".csv,text/csv" class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100" required>
+        <label for="books_import_file" class="block text-sm font-medium text-gray-700 mb-2">選擇 CSV 或 Excel 檔案</label>
+        <input id="books_import_file" type="file" name="file" accept=".csv,text/csv,.xlsx,.xls,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100" required>
       </div>
       <div>
         <%= f.submit "上傳並預覽", class: "inline-flex items-center rounded-md px-3.5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-medium cursor-pointer" %>
