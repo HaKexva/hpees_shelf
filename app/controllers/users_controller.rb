@@ -323,6 +323,19 @@ class UsersController < ApplicationController
       fields
     end
 
+    def _normalize_user_csv_header_value(value)
+      s = value.to_s.strip
+      return nil if s.blank?
+
+      case s
+      when "姓名" then "name"
+      when "學號" then "id_number"
+      when "座號" then "seat_number"
+      when "管理員" then "admin"
+      else s.downcase.presence
+      end
+    end
+
     # Try decoding CSV bytes into UTF-8 for both:
     # - Excel exports (Big5/CP950)
     # - Google Sheets exports (UTF-8, sometimes with BOM / sometimes UTF-16)
@@ -336,24 +349,47 @@ class UsersController < ApplicationController
         -> { raw.force_encoding("ISO-8859-1").encode("UTF-8", invalid: :replace, undef: :replace, replace: "") }
       ]
 
+      expected = @expected_columns || %w[name]
+      last_decoded = nil
+
       candidates.each do |decoder|
         begin
           decoded = decoder.call
           decoded = decoded.delete_prefix("\uFEFF") # strip UTF-8 BOM
-          return decoded
+          last_decoded = decoded
+
+          header_line = decoded.lines.first.to_s
+          headers = _parse_csv_line_users(header_line)
+          normalized_headers = headers.map { |h| _normalize_user_csv_header_value(h) }.compact
+
+          # Only accept a decoding that yields expected columns in the header.
+          return decoded if (expected - normalized_headers).empty?
         rescue Encoding::UndefinedConversionError, Encoding::InvalidByteSequenceError
           next
         end
       end
 
-      raw.force_encoding("UTF-8").encode("UTF-8", invalid: :replace, undef: :replace, replace: "")
+      last_decoded || raw.force_encoding("UTF-8").encode("UTF-8", invalid: :replace, undef: :replace, replace: "")
     end
 
     def _user_import_value(row, *keys)
+      targets = keys.map { |k| _normalize_user_csv_header_value(k) }.compact.uniq
+
       keys.each do |k|
-        v = row[k]
-        return v.to_s.strip.presence if v.present? && v.to_s.strip.present?
+        v = row[k] || row[k.to_s]
+        value_str = v.to_s.strip
+        return value_str.presence if value_str.present?
       end
+
+      row.each do |row_key, v|
+        normalized_key = _normalize_user_csv_header_value(row_key)
+        next if normalized_key.blank?
+        next unless targets.include?(normalized_key)
+
+        value_str = v.to_s.strip
+        return value_str.presence if value_str.present?
+      end
+
       nil
     end
 
