@@ -1,4 +1,6 @@
 class UsersController < ApplicationController
+  skip_before_action :verify_authenticity_token, only: [ :google_auth_callback ]
+
   before_action :set_user, only: %i[ show edit update destroy cancel_resignation ]
 
   # GET /users or /users.json — only active (non-resigned) users are shown; resigned users can still log in.
@@ -99,6 +101,12 @@ class UsersController < ApplicationController
     end
     @user.update!(resigned_at: nil)
     redirect_to edit_user_path(@user), notice: "已取消離職。", status: :see_other
+  end
+
+  # GET /google_auth_callback — OmniAuth middleware sets request.env["omniauth.auth"] (see config/initializers/omniauth.rb).
+  def google_auth_callback
+    auth = request.env["omniauth.auth"]
+    render json: { auth: auth.inspect, error: request.env["omniauth.error"].inspect }
   end
 
   # DELETE /users/1 or /users/1.json
