@@ -61,5 +61,7 @@ Rails.application.routes.draw do
   get "loan_history", to: "dashboard#loan_history", as: :loan_history
   get "validate_isbn", to: "dashboard#validate_isbn", as: :validate_isbn
   post "process_isbn", to: "dashboard#process_isbn", as: :process_isbn
-  get "google_auth_callback", to: "users#google_auth_callback", as: :google_auth_callback
+  get "login", to: "sessions#new", as: :login
+  get "google_auth_callback", to: "sessions#create", as: :google_auth_callback
+  delete "logout", to: "sessions#destroy", as: :logout
 end
