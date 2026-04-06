@@ -1,4 +1,7 @@
 class BooksController < ApplicationController
+  # 盤點表 PDF 排序（與列表「排序」選項一致：書名筆畫／來源／ISBN）
+  INVENTORY_SORT_KEYS = %w[title_strokes source isbn].freeze
+
   before_action :set_book, only: %i[ show edit update destroy return_to_library borrow return_shelf ]
 
   # GET /books or /books.json
@@ -11,7 +14,7 @@ class BooksController < ApplicationController
     @filter_q = params[:q].to_s.strip.presence
     @filter_source = params[:source].presence
     @filter_status = params[:status].presence
-    @inventory_sort = params[:inventory_sort].presence_in(Book::LIST_SORT_OPTIONS) || "isbn"
+    @inventory_sort = params[:inventory_sort].presence_in(INVENTORY_SORT_KEYS) || "isbn"
     @invalid_books = @books.select { |b| b.missing_required_fields.any? }
     @books_with_invalid_isbn = @books.select(&:invalid_isbn?)
     @any_library_books_to_return = Book.where(source: :owned_by_library).where.not(status: Book::STATUS_RETURNED_LIBRARY).exists?
@@ -66,8 +69,9 @@ class BooksController < ApplicationController
       return
     end
 
-    inventory_sort = params[:inventory_sort].presence_in(Book::LIST_SORT_OPTIONS) || "isbn"
-    books = filtered_books_scope.where(batch_year_id: batch_year.id).merge(Book.ordered_for_list(inventory_sort))
+    inventory_sort = params[:inventory_sort].presence_in(INVENTORY_SORT_KEYS) || "isbn"
+    books = filtered_books_scope.where(batch_year_id: batch_year.id)
+    books = _inventory_pdf_ordered_scope(books, inventory_sort)
 
     source_filter = params[:source].presence
     show_source_column = source_filter.blank?
@@ -536,6 +540,18 @@ class BooksController < ApplicationController
   end
 
   private
+    def _inventory_pdf_ordered_scope(books, inventory_sort)
+      if Book.respond_to?(:ordered_for_list)
+        books.merge(Book.ordered_for_list(inventory_sort))
+      else
+        case inventory_sort
+        when "source" then books.order(:source)
+        when "isbn" then books.order(:isbn)
+        else books.order(:title)
+        end
+      end
+    end
+
     def _books_list_query_params
       params.permit(:batch_year_id, :q, :source, :status, :sort, :inventory_sort).to_h.compact_blank
     end

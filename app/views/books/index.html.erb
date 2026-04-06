@@ -5,6 +5,7 @@
     <h1 class="font-bold text-2xl sm:text-4xl text-gray-900">書籍列表</h1>
     <div class="flex flex-wrap gap-2 items-center">
       <%= link_to "匯出 CSV", export_books_path(request.query_parameters), class: "inline-flex items-center rounded-md px-3.5 py-2.5 bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 font-medium" %>
+      <%= link_to "匯出盤點表", inventory_pdf_books_path({ batch_year_id: @filter_batch_year_id, q: @filter_q, source: @filter_source, status: @filter_status, inventory_sort: @inventory_sort }.compact_blank), class: "inline-flex items-center rounded-md px-3.5 py-2.5 bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 font-medium", title: (@filter_batch_year_id.blank? ? "請先於下方篩選選擇屆數" : nil) %>
       <%= link_to "匯入 CSV", import_books_path, class: "inline-flex items-center rounded-md px-3.5 py-2.5 bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 font-medium" %>
       <% if Book.show_return_to_library_button? && @any_library_books_to_return %>
         <%= link_to "歸還圖書館書籍", return_to_library_batch_books_path, class: "inline-flex items-center rounded-md px-3.5 py-2.5 bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 font-medium" %>
@@ -92,7 +93,19 @@
               ),
               { class: "block w-full shadow-sm rounded-lg border border-gray-300 px-3 py-2.5 text-base", onchange: "this.form.submit()" } %>
         </div>
-        <% if @filter_batch_year_id.present? || @filter_q.present? || @filter_source.present? || @filter_status.present? || @list_sort != "title_strokes" %>
+        <div class="min-w-0 flex-1 sm:flex-initial sm:w-44">
+          <label class="block text-sm font-medium text-gray-700 mb-2">盤點表排序</label>
+          <%= select_tag :inventory_sort, options_for_select(
+                [
+                  [ "書名（筆畫）", "title_strokes" ],
+                  [ "ISBN", "isbn" ],
+                  [ "來源", "source" ]
+                ],
+                @inventory_sort
+              ),
+              { class: "block w-full shadow-sm rounded-lg border border-gray-300 px-3 py-2.5 text-base", onchange: "this.form.submit()" } %>
+        </div>
+        <% if @filter_batch_year_id.present? || @filter_q.present? || @filter_source.present? || @filter_status.present? || @list_sort != "title_strokes" || @inventory_sort != "isbn" %>
           <span class="text-sm text-gray-500 self-center">（已套用篩選）</span>
         <% end %>
       </div>
@@ -125,6 +138,7 @@
       <%= hidden_field_tag :source, @filter_source if @filter_source.present? %>
       <%= hidden_field_tag :status, @filter_status if @filter_status.present? %>
       <%= hidden_field_tag :sort, @list_sort if @list_sort.present? %>
+      <%= hidden_field_tag :inventory_sort, @inventory_sort if @inventory_sort.present? %>
       <div class="flex gap-2 items-center mb-4">
         <button type="submit" class="inline-flex items-center rounded-md px-3.5 py-2.5 bg-red-600 hover:bg-red-500 text-white font-medium cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed" id="bulk-destroy-btn" disabled data-turbo-confirm="確定要刪除所選的書籍嗎？">
           刪除所選
