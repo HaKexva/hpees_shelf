@@ -119,7 +119,8 @@ class UsersController < ApplicationController
       batch_year_id: params[:batch_year_id].presence
     }.compact
     if ids.any?
-      count = User.where(id: ids).destroy_all.size
+      now = Time.current
+      count = User.where(id: ids).update_all(deleted_at: now, updated_at: now)
       redirect_to users_path(redirect_params), notice: "已刪除 #{count} 位人員。", status: :see_other
     else
       redirect_to users_path(redirect_params), alert: "請至少選擇一位人員。", status: :see_other
