@@ -29,7 +29,20 @@
           <label class="block text-sm font-medium text-gray-700 mb-2">屆數</label>
           <%= f.select :batch_year_id, options_from_collection_for_select(@batch_years, :id, :display_label_with_grade, @filter_batch_year_id), { include_blank: "全部屆數" }, { class: "block w-full shadow-sm rounded-lg border border-gray-300 px-3 py-2.5 text-base", onchange: "this.form.submit()" } %>
         </div>
-        <% if @filter_q_name.present? || @filter_q_seat_number.present? || @filter_q_id_number.present? || @filter_batch_year_id.present? %>
+        <div class="min-w-0 flex-1 sm:flex-initial sm:w-44">
+          <label class="block text-sm font-medium text-gray-700 mb-2">排序</label>
+          <%= select_tag :sort, options_for_select(
+                [
+                  [ "姓名（筆畫）", "name_strokes" ],
+                  [ "學號", "id_number" ],
+                  [ "座號", "seat_number" ]
+                ],
+                @sort || "name_strokes"
+              ),
+              class: "block w-full shadow-sm rounded-lg border border-gray-300 px-3 py-2.5 text-base",
+              onchange: "this.form.submit()" %>
+        </div>
+        <% if @filter_q_name.present? || @filter_q_seat_number.present? || @filter_q_id_number.present? || @filter_batch_year_id.present? || (@sort.present? && @sort != "name_strokes") %>
           <span class="text-sm text-gray-500 self-center">（已套用篩選）</span>
         <% end %>
       </div>
@@ -42,6 +55,7 @@
     <%= hidden_field_tag :q_seat_number, @filter_q_seat_number if @filter_q_seat_number.present? %>
     <%= hidden_field_tag :q_id_number, @filter_q_id_number if @filter_q_id_number.present? %>
     <%= hidden_field_tag :batch_year_id, @filter_batch_year_id if @filter_batch_year_id.present? %>
+    <%= hidden_field_tag :sort, @sort if @sort.present? %>
     <div class="hidden md:block">
     <div class="flex gap-2 items-center mb-4">
       <button type="submit" class="inline-flex items-center rounded-md px-3.5 py-2.5 bg-red-600 hover:bg-red-500 text-white font-medium cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed" id="bulk-destroy-btn" disabled data-turbo-confirm="確定要刪除所選的人員嗎？">

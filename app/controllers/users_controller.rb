@@ -3,7 +3,8 @@ class UsersController < ApplicationController
 
   # GET /users or /users.json — only active (non-resigned) users are shown; resigned users can still log in.
   def index
-    @users = filtered_users_scope.includes(:batch_year).order(:name)
+    @sort = User.list_sort_from_param(params[:sort])
+    @users = filtered_users_scope.includes(:batch_year).merge(User.ordered_for_list(@sort))
     @batch_years = BatchYear.by_number_desc
     @filter_q_name = params[:q_name].to_s.strip.presence
     @filter_q_seat_number = params[:q_seat_number].to_s.strip.presence
@@ -13,7 +14,8 @@ class UsersController < ApplicationController
 
   # GET /users/export — CSV for current list filters (same as index)
   def export
-    users = filtered_users_scope.includes(:batch_year).order(:id)
+    sort = User.list_sort_from_param(params[:sort])
+    users = filtered_users_scope.includes(:batch_year).merge(User.ordered_for_list(sort))
     bom = "\uFEFF"
     headers = %w[姓名 屆數 學號 座號 管理員]
     csv = +""
@@ -116,7 +118,8 @@ class UsersController < ApplicationController
       q_name: params[:q_name].presence,
       q_seat_number: params[:q_seat_number].presence,
       q_id_number: params[:q_id_number].presence,
-      batch_year_id: params[:batch_year_id].presence
+      batch_year_id: params[:batch_year_id].presence,
+      sort: params[:sort].presence
     }.compact
     if ids.any?
       now = Time.current

@@ -33,6 +33,60 @@ class User < ApplicationRecord
 
   scope :active, -> { where(resigned_at: nil) }
 
+  # GET /users ?sort= — 姓名 uses ICU Traditional Chinese when available (筆畫／部首慣例).
+  LIST_SORT_OPTIONS = %w[name_strokes id_number seat_number].freeze
+
+  def self.list_sort_from_param(raw)
+    s = raw.to_s
+    return "name_strokes" if s.blank?
+
+    s.presence_in(LIST_SORT_OPTIONS) || "name_strokes"
+  end
+
+  def self.ordered_for_list(sort)
+    case list_sort_from_param(sort)
+    when "id_number"
+      order(Arel.sql("#{quoted_table_name}.#{connection.quote_column_name("id_number")} ASC NULLS LAST"))
+    when "seat_number"
+      order(
+        Arel.sql(<<~SQL.squish)
+          (CASE
+            WHEN #{quoted_table_name}.#{connection.quote_column_name("seat_number")} ~ '^[0-9]+$'
+            THEN (#{quoted_table_name}.#{connection.quote_column_name("seat_number")})::integer
+            ELSE NULL
+          END) NULLS LAST,
+          #{quoted_table_name}.#{connection.quote_column_name("seat_number")} ASC NULLS LAST
+        SQL
+      )
+    else
+      ordered_by_traditional_name
+    end
+  end
+
+  def self.ordered_by_traditional_name
+    col = "#{quoted_table_name}.#{connection.quote_column_name("name")}"
+    if (c = first_available_traditional_name_collation)
+      order(Arel.sql("#{col} COLLATE #{connection.quote(c)} ASC NULLS LAST"))
+    else
+      order(:name)
+    end
+  end
+
+  def self.first_available_traditional_name_collation
+    @first_available_traditional_name_collation ||= begin
+      candidates = %w[zh-Hant-TW-x-icu zh-Hant-x-icu zh_TW.UTF-8 zh_TW]
+      candidates.find { |n| collation_available?(n) }
+    end
+  end
+
+  def self.collation_available?(name)
+    return false unless connection.adapter_name == "PostgreSQL"
+
+    connection.select_value(sanitize_sql_array([ "SELECT 1 FROM pg_collation WHERE collname = ? LIMIT 1", name ])).present?
+  rescue StandardError
+    false
+  end
+
   # Soft delete: row remains so circulation_records and FKs stay valid; excluded from default User scopes.
   def destroy
     return self if deleted_at.present?
