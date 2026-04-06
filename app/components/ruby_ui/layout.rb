@@ -54,9 +54,10 @@ module RubyUI
         div(class: "p-6") do
           h1(class: "text-lg font-semibold") { APP_NAME }
         end
-        div(class: "px-4 space-y-2") do
+        div(class: "flex-1 px-4 space-y-2") do
           render_nav_links
         end
+        render_sidebar_footer if view_context.current_user
       end
     end
 
@@ -78,9 +79,10 @@ module RubyUI
             SheetHeader do
               SheetTitle { "導覽選單" }
             end
-            div(class: "mt-4 flex flex-col gap-2") do
+            div(class: "mt-4 flex-1 flex flex-col gap-2") do
               render_nav_links
             end
+            render_sidebar_footer if view_context.current_user
           end
         end
       end
@@ -100,6 +102,22 @@ module RubyUI
       link_class += active ? "bg-accent text-accent-foreground" : "hover:bg-accent hover:text-accent-foreground"
       a(href: href, class: link_class) do
         block.call
+      end
+    end
+
+    def render_sidebar_footer
+      div(class: "px-4 py-4 border-t") do
+        div(class: "text-xs text-muted-foreground truncate mb-2") do
+          plain view_context.current_user.name
+        end
+        render view_context.button_to(
+          "登出",
+          view_context.logout_path,
+          method: :delete,
+          class: "w-full inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors " \
+                 "px-4 py-2 h-9 border border-input bg-background shadow-sm " \
+                 "hover:bg-accent hover:text-accent-foreground"
+        )
       end
     end
 
