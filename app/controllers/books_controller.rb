@@ -215,7 +215,7 @@ class BooksController < ApplicationController
       begin
         raw = file.read
         # Excel / Google Sheets：UTF-8（含 BOM）、UTF-16、Big5/CP950；用表頭檢查避免誤用編碼造成亂碼。
-        content = _decode_books_csv_to_utf8(raw)
+        content = _decode_csv_to_utf8_books(raw)
         @headers, rows = _parse_csv(content)
         @imported_data = rows.reject do |row|
           row.values.all? { |v| v.nil? || v.to_s.strip.empty? }
@@ -511,6 +511,61 @@ class BooksController < ApplicationController
       books
     end
 
+    def _normalize_book_csv_header_value(value)
+      s = value.to_s.strip
+      return nil if s.blank?
+
+      case s
+      when "書名" then "title"
+      when "總數" then "total"
+      when "冊數" then "volume"
+      when "備註" then "note"
+      when "國際標準書號" then "isbn"
+      when "來源" then "source"
+      when "登錄號" then "call_number"
+      else s.downcase.presence
+      end
+    end
+
+    def _decode_csv_to_utf8_books(raw)
+      required = @required_columns || %w[title isbn source]
+      strip_bom = ->(s) { s.delete_prefix("\uFEFF") }
+
+      header_matches_required = lambda do |decoded|
+        header_line = decoded.lines.first.to_s
+        headers = _parse_csv_line(header_line)
+        normalized = headers.map { |h| _normalize_book_csv_header_value(h) }.compact
+        (required - normalized).empty?
+      end
+
+      # 1) Prefer real UTF-8 if valid.
+      utf8 = raw.dup.force_encoding("UTF-8")
+      if utf8.valid_encoding?
+        decoded = strip_bom.call(utf8.encode("UTF-8"))
+        return decoded if header_matches_required.call(decoded)
+      end
+
+      # 2) Try common encodings for Excel/Sheets exports.
+      candidates = [
+        -> { raw.force_encoding("UTF-16LE").encode("UTF-8", invalid: :replace, undef: :replace, replace: "") },
+        -> { raw.force_encoding("UTF-16BE").encode("UTF-8", invalid: :replace, undef: :replace, replace: "") },
+        -> { raw.force_encoding("CP950").encode("UTF-8", invalid: :replace, undef: :replace, replace: "") },
+        -> { raw.force_encoding("Big5").encode("UTF-8", invalid: :replace, undef: :replace, replace: "") }
+      ]
+
+      candidates.each do |decoder|
+        begin
+          decoded = strip_bom.call(decoder.call)
+          return decoded if header_matches_required.call(decoded)
+        rescue Encoding::UndefinedConversionError, Encoding::InvalidByteSequenceError
+          next
+        end
+      end
+
+      # 3) Last resort: UTF-8 with replacement.
+      strip_bom.call(raw.force_encoding("UTF-8").encode("UTF-8", invalid: :replace, undef: :replace, replace: ""))
+    end
+
     def set_book
       @book = Book.find(params[:id])
     end
@@ -543,60 +598,6 @@ class BooksController < ApplicationController
         headers.each_with_index.to_h { |h, i| [ h, values[i] ] }
       end
       [ headers, rows ]
-    end
-
-    def _normalize_book_csv_header_value(h)
-      s = h&.to_s&.strip
-      return nil if s.blank?
-
-      h_d = s.downcase
-      case s
-      when "書名" then "title"
-      when "總數" then "total"
-      when "冊數" then "volume"
-      when "備註" then "note"
-      when "國際標準書號" then "isbn"
-      when "來源" then "source"
-      when "登錄號" then "call_number"
-      else h_d
-      end
-    end
-
-    # Decode CSV bytes to UTF-8 (Excel Big5/CP950, Google Sheets UTF-8/UTF-16); require first-line headers to match required columns.
-    def _decode_books_csv_to_utf8(raw)
-      required = @required_columns || %w[title isbn source]
-      strip_bom = ->(s) { s.delete_prefix("\uFEFF") }
-
-      header_matches_expected = lambda do |decoded|
-        header_line = decoded.lines.first.to_s
-        headers = _parse_csv_line(header_line)
-        normalized_headers = headers.map { |h| _normalize_book_csv_header_value(h) }.compact
-        (required - normalized_headers).empty?
-      end
-
-      utf8 = raw.dup.force_encoding("UTF-8")
-      if utf8.valid_encoding?
-        decoded = strip_bom.call(utf8.encode("UTF-8"))
-        return decoded if header_matches_expected.call(decoded)
-      end
-
-      candidates = [
-        -> { raw.force_encoding("UTF-16LE").encode("UTF-8", invalid: :replace, undef: :replace, replace: "") },
-        -> { raw.force_encoding("UTF-16BE").encode("UTF-8", invalid: :replace, undef: :replace, replace: "") },
-        -> { raw.force_encoding("CP950").encode("UTF-8", invalid: :replace, undef: :replace, replace: "") },
-        -> { raw.force_encoding("Big5").encode("UTF-8", invalid: :replace, undef: :replace, replace: "") }
-      ]
-
-      candidates.each do |decoder|
-        begin
-          decoded = strip_bom.call(decoder.call)
-          return decoded if header_matches_expected.call(decoded)
-        rescue Encoding::UndefinedConversionError, Encoding::InvalidByteSequenceError
-          next
-        end
-      end
-
-      strip_bom.call(raw.force_encoding("UTF-8").encode("UTF-8", invalid: :replace, undef: :replace, replace: ""))
     end
 
     def _parse_csv_line(line)
