@@ -210,13 +210,10 @@ class BooksController < ApplicationController
       message += " 已跳過 #{invalid_skipped_count} 筆不符合的資料。" if invalid_skipped_count > 0
       redirect_to books_path, notice: message, status: :see_other
     elsif params[:file].present?
-      # Preview uploaded file (parse CSV without gem to avoid load path issues)
+      # Preview uploaded file: parsing lives in BooksImport::UploadParser (CSV encoding vs Excel binary).
       file = params[:file]
       begin
-        raw = file.read
-        # Excel / Google Sheets：UTF-8（含 BOM）、UTF-16、Big5/CP950；用表頭檢查避免誤用編碼造成亂碼。
-        content = _decode_csv_to_utf8_books(raw)
-        @headers, rows = _parse_csv(content)
+        @headers, rows = BooksImport::UploadParser.call(file)
         @imported_data = rows.reject do |row|
           row.values.all? { |v| v.nil? || v.to_s.strip.empty? }
         end
@@ -585,50 +582,6 @@ class BooksController < ApplicationController
         :user_id,
         :call_number
       )
-    end
-
-    # Lightweight CSV parser (without the csv gem), returns [headers, rows], where rows is an Array of Hashes
-    def _parse_csv(content)
-      lines = content.split(/\r?\n/)
-      return [ [], [] ] if lines.empty?
-      headers = _parse_csv_line(lines[0])
-      rows = lines[1..].filter_map do |line|
-        next nil if line.strip.empty?
-        values = _parse_csv_line(line)
-        headers.each_with_index.to_h { |h, i| [ h, values[i] ] }
-      end
-      [ headers, rows ]
-    end
-
-    def _parse_csv_line(line)
-      fields = []
-      i = 0
-      while i < line.length
-        if line[i] == '"'
-          i += 1
-          field = +""
-          while i < line.length
-            if line[i] == '"'
-              if line[i + 1] == '"'
-                field << '"'
-                i += 2
-              else
-                i += 1
-                break
-              end
-            else
-              field << line[i]
-              i += 1
-            end
-          end
-          fields << field
-        else
-          end_idx = line.index(",", i) || line.length
-          fields << line[i...end_idx].to_s.strip
-          i = end_idx + 1
-        end
-      end
-      fields
     end
 
     # Read a value from an import row by column name, order-independent; supports both English and Chinese headers

@@ -88,3 +88,7 @@ gem "nokogiri", ">= 1.19.1"
 gem "rack", ">= 3.2.5"
 
 gem "omniauth-google-oauth2"
+
+gem "roo", "~> 2.10"
+
+gem "roo-xls", "~> 1.2"
