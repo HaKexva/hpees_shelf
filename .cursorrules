@@ -1,38 +1,5 @@
-# Project rules for Hpees Shelf
+# Hpees Shelf — Cursor
 
-## Development workflow (follow every time you do work)
+**Full agent instructions:** see **`AGENTS.md`** (Cursor project agent file — same role as **`CLAUDE.md`** in Claude Code).
 
-### When doing things (start of work)
-1. **Linear issue**
-   - Check if a Linear issue exists for this work.
-   - If there is no issue, create one in the HAK team with:
-     - **As a** (who wants to accomplish something)
-     - **I want to** (what they want to accomplish)
-     - **So that** (why they want to accomplish that thing)
-   - When creating a new Linear issue, remember to:
-     - **Assign** to ray120424@gmail.com
-     - **Add to** the **hpees_shelf** project
-2. **Branch**
-   - Create or switch to a branch for the work (e.g. use issue id or `hak-XX-description`).
-3. **PR**
-   - When ready, create a PR whose title starts with **`[HAK-XX]`** (Linear issue key).
-   - **Do only one thing per PR** — one change, one Linear issue.
-
-### When finish
-1. **Confirm with the user**
-   - Before merging, confirm with the user that the behavior and UI match the requirements.
-2. **Lint**
-   - Run `bundle exec rubocop` and make sure there are no new lint errors.
-3. **Merge & Linear**
-   - Merge the PR into `main`.
-   - Mark the Linear issue as Done in Linear.
-
-### Language
-- Use **English** for:
-  - PR title and description
-  - Commit messages
-  - Comments inside source files
-
-### Summary
-- One PR = one Linear issue = one change.
-- Always use branch, PR title `[HAK-XX] ...`, then merge to main and mark issue Done.
+**Git:** do not commit or push directly to **`main`**. Use a **branch** and **pull request**; merge via GitHub.
