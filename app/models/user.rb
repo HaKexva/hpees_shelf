@@ -49,7 +49,8 @@ class User < ApplicationRecord
 
     # Auto-provision superadmins who don't have a User record yet
     if user.nil? && is_superadmin
-      batch_year = BatchYear.order(:id).first
+      batch_year = BatchYear.order(:id).first ||
+        BatchYear.create!(batch_number: 1, grade_id: 1, name: "第1屆")
       user = create!(
         name: info["name"] || email.split("@").first,
         email: email,

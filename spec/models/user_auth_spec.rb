@@ -54,7 +54,7 @@ RSpec.describe User, ".find_by_google_auth" do
       end
     end
 
-    context "when no user record exists" do
+    context "when no user record exists but batch_years exist" do
       let!(:batch_year) { create(:batch_year) }
 
       it "auto-provisions a new admin user" do
@@ -63,6 +63,17 @@ RSpec.describe User, ".find_by_google_auth" do
         expect(user.email).to eq(email)
         expect(user.admin).to be true
         expect(user.google_uid).to eq("google-uid-123")
+      end
+    end
+
+    context "when no user record AND no batch_years exist" do
+      it "auto-provisions user and creates a batch_year" do
+        expect(BatchYear.count).to eq(0)
+        user = User.find_by_google_auth(auth_hash)
+        expect(user).to be_persisted
+        expect(user.admin).to be true
+        expect(user.batch_year).to be_present
+        expect(BatchYear.count).to eq(1)
       end
     end
   end
