@@ -75,6 +75,18 @@ RSpec.describe "Sessions", type: :request do
     end
   end
 
+  describe "logout button in sidebar" do
+    it "renders on authenticated pages" do
+      admin = create(:user, :admin, batch_year: batch_year)
+      login_as(admin)
+      get root_path
+      expect(response.body).to include('action="/logout"')
+      expect(response.body).to include('value="delete"')
+      expect(response.body).to include("登出")
+      expect(response.body).to include(admin.name)
+    end
+  end
+
   describe "require_login" do
     it "redirects unauthenticated users to login" do
       get root_path
