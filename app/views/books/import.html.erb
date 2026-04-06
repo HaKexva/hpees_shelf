@@ -9,9 +9,9 @@
   <div class="bg-white rounded-lg shadow p-6 mb-6">
     <h2 class="font-semibold text-lg mb-4">上傳 CSV 或 Excel 檔案</h2>
     <p class="text-gray-600 mb-4">
-      上傳包含以下欄位的 CSV（UTF-8、Big5 等）或 Excel（.xlsx、.xls）檔案。<strong>必填：</strong><code class="bg-gray-100 px-1 rounded">書名</code>、<code class="bg-gray-100 px-1 rounded">ISBN</code>、<code class="bg-gray-100 px-1 rounded">來源</code>；<strong>選填：</strong><code class="bg-gray-100 px-1 rounded">總數</code>（預設 1）、<code class="bg-gray-100 px-1 rounded">冊數</code>、<code class="bg-gray-100 px-1 rounded">備註</code>。<br>
+      上傳包含以下欄位的 CSV（UTF-8、Big5 等）或 Excel（.xlsx、.xls）檔案。<strong>必填：</strong><code class="bg-gray-100 px-1 rounded">書名</code>、<code class="bg-gray-100 px-1 rounded">ISBN</code>（須為 <strong>ISBN-13</strong> 共 13 碼且<strong>校驗碼正確</strong>，可含連字號）、<code class="bg-gray-100 px-1 rounded">來源</code>；<strong>選填：</strong><code class="bg-gray-100 px-1 rounded">總數</code>（預設 1）、<code class="bg-gray-100 px-1 rounded">冊數</code>、<code class="bg-gray-100 px-1 rounded">備註</code>。<br>
       來源可填：圖書館館藏、捐贈的書、班級的書；老師的書請填「姓名＋老師的書」（例如：王小明老師的書）。<br>
-      系統會在下方匯入步驟中<strong>要求選擇「屆數」</strong>並套用到本次匯入的所有書籍。
+      系統會在下方匯入步驟中<strong>要求選擇「屆數」</strong>並套用到本次匯入的所有書籍。<strong>不同屆數視為不同館藏</strong>，重複與否僅與<strong>所選屆數</strong>比對；請先選屆數並按「套用屆數更新預覽」後，才會顯示與資料庫重複的列。
     </p>
 
     <%= form_with url: import_books_path, method: :post, multipart: true, class: "space-y-4", data: { turbo: false } do |f| %>
@@ -42,10 +42,10 @@
       </div>
     <% end %>
 
-    <% if @duplicates.present? && @missing_columns.blank? %>
+    <% if @preview_batch_year_id.present? && @duplicates.present? && @missing_columns.blank? %>
       <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
-        <h3 class="font-semibold text-yellow-800 mb-2">發現 <%= @duplicates.size %> 本重複書籍</h3>
-        <p class="text-yellow-700 text-sm">以下書籍已存在於資料庫中（以黃色標示），請選擇處理方式。</p>
+        <h3 class="font-semibold text-yellow-800 mb-2">發現 <%= @duplicates.size %> 本重複書籍（所選屆數）</h3>
+        <p class="text-yellow-700 text-sm">以下書籍在所選屆數中已存在於資料庫（以黃色標示），請選擇處理方式。</p>
       </div>
     <% end %>
 
@@ -53,8 +53,18 @@
       <h2 class="font-semibold text-lg mb-4">
         預覽（共 <%= @imported_data.size %> 筆<%= "：" if @missing_columns.blank? %>
         <% if @missing_columns.blank? %>
-          <span class="text-green-600"><%= @new_books&.size || 0 %> 本新書</span>，
-          <span class="text-red-600"><%= @duplicates&.size || 0 %> 本重複</span>）
+          <% preview_ready = @preview_batch_year_id.present? %>
+          <% invalid_count = (@invalid_row_indices || []).size %>
+          <% duplicate_count = preview_ready ? (@duplicates&.size || 0) : nil %>
+          <% new_count = preview_ready ? (@imported_data.size - invalid_count - duplicate_count) : nil %>
+          <% if preview_ready %>
+            <span class="text-green-600"><%= new_count %> 本新書</span>，
+            <span class="text-yellow-700"><%= duplicate_count %> 本重複</span>，
+            <span class="text-red-600"><%= invalid_count %> 本不符合</span>）
+          <% else %>
+            <span class="text-gray-600">請先選擇屆數並按「套用屆數更新預覽」，才會顯示新書／重複筆數。</span>
+            <span class="text-red-600">（<%= invalid_count %> 本不符合）</span>）
+          <% end %>
         <% else %>
           — 請補齊缺少欄位後重新上傳，無法確認匯入）
         <% end %>
@@ -109,25 +119,43 @@
         </div>
         <p class="text-gray-600 text-sm">請補齊缺少欄位後重新上傳 CSV，即可進行確認匯入。</p>
       <% else %>
+        <% preview_ready = @preview_batch_year_id.present? %>
+        <% duplicate_indices = preview_ready ? (@duplicates&.map { |d| d[:index] } || []) : [] %>
         <%= form_with url: import_books_path, method: :post, data: { turbo: false }, id: "import-form" do |f| %>
           <input type="hidden" name="confirm" value="true">
           <%= hidden_field_tag :import_data, Base64.strict_encode64(@imported_data.to_json) %>
 
-          <% if @duplicates.present? %>
+          <div class="mb-4">
+            <label class="block text-sm font-medium text-gray-700 mb-2">屆數（必填，套用至所有匯入的書籍）</label>
+            <%= select_tag :batch_year_id, options_from_collection_for_select(BatchYear.class_batches_by_number_desc, :id, :display_label_with_grade, params[:batch_year_id]), { include_blank: "請選擇屆數", required: true, class: "block w-full max-w-md shadow-sm rounded-md border border-gray-300 px-3 py-2" } %>
+          </div>
+
+          <div class="mb-4">
+            <%= button_tag "套用屆數更新預覽", type: "submit", name: "refresh_preview", value: "true", class: "inline-flex items-center rounded-md px-3.5 py-2.5 bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 font-medium cursor-pointer" %>
+            <p class="mt-2 text-xs text-gray-600">選擇屆數後按此，才會比對該屆資料庫並標示重複（不同屆數為不同書籍）。</p>
+          </div>
+
+          <% invalid_count = (@invalid_row_indices || []).size %>
+          <% if invalid_count > 0 %>
+            <div class="mb-4">
+              <%= button_tag "下載不符合清單 CSV", type: "submit", name: "export_invalid", value: "true", class: "inline-flex items-center rounded-md px-3.5 py-2.5 bg-red-600 hover:bg-red-500 text-white font-medium cursor-pointer" %>
+              <p class="mt-2 text-xs text-gray-600">會匯出「不符合」的資料列（缺書名／ISBN／來源，或 ISBN 非有效 ISBN-13）；缺欄位將填入「請填寫」。</p>
+            </div>
+          <% end %>
+
+          <% if preview_ready && @duplicates.present? %>
             <input type="hidden" name="duplicate_action" value="select">
             <p class="mb-4 p-4 bg-yellow-50 rounded-md border border-yellow-200 text-sm text-yellow-800">
               左側「保留」欄位：勾選後該書<strong>總數加一</strong>（不建立新書）。未勾選的重複書籍將被跳過。可使用標題核取方塊全選或取消全選。
             </p>
           <% end %>
 
-          <% duplicate_indices = @duplicates&.map { |d| d[:index] } || [] %>
-
           <!-- 桌機版：表格 -->
           <div class="overflow-x-auto mb-4 hidden md:block">
             <table class="min-w-full divide-y divide-gray-200">
               <thead class="bg-gray-50">
                 <tr>
-                <% if @duplicates.present? %>
+                <% if preview_ready && @duplicates.present? %>
                   <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-12 sticky left-0 bg-gray-50 z-10 border-r border-gray-200">
                     <span class="block mb-1">保留</span>
                     <input type="checkbox" id="select-all-duplicates" onchange="toggleAllDuplicates(this.checked)" class="rounded" title="全選/取消重複書籍" aria-label="全選或取消所有重複書籍">
@@ -142,9 +170,9 @@
               </thead>
               <tbody class="bg-white divide-y divide-gray-200">
                 <% @imported_data.each_with_index do |row, index| %>
-                  <% is_duplicate = duplicate_indices.include?(index) %>
+                  <% is_duplicate = preview_ready && duplicate_indices.include?(index) %>
                   <tr class="<%= is_duplicate ? 'bg-yellow-50' : 'hover:bg-gray-50' %>">
-                    <% if @duplicates.present? %>
+                    <% if preview_ready && @duplicates.present? %>
                       <td class="px-4 py-2 text-sm w-12 sticky left-0 z-10 border-r border-gray-200 align-middle <%= is_duplicate ? 'bg-yellow-50' : 'bg-white' %>">
                         <% if is_duplicate %>
                           <input type="checkbox" name="selected_duplicates[]" value="<%= index %>" class="duplicate-checkbox rounded" title="勾選以保留匯入" aria-label="保留重複書籍第 <%= index + 1 %> 筆">
@@ -154,6 +182,8 @@
                     <td class="px-4 py-2 text-sm">
                       <% if (@invalid_row_indices || []).include?(index) %>
                         <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">不符合</span>
+                      <% elsif !preview_ready %>
+                        <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-700">待選屆數</span>
                       <% elsif is_duplicate %>
                         <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">重複</span>
                       <% else %>
@@ -161,7 +191,17 @@
                       <% end %>
                     </td>
                     <% @headers.each do |header| %>
-                      <td class="px-4 py-2 text-sm <%= is_duplicate ? 'text-yellow-700' : 'text-gray-900' %>"><%= import_cell_display(header, row[header]) %></td>
+                      <% required_header =
+                           case header.to_s.strip
+                           when "書名", "title", "Title" then true
+                           when "ISBN", "isbn", "國際標準書號" then true
+                           when "來源", "source", "Source" then true
+                           else false
+                           end %>
+                      <% isbn_header = %w[ISBN isbn 國際標準書號].include?(header.to_s.strip) %>
+                      <% missing_required = (@invalid_row_indices || []).include?(index) && required_header && row[header].to_s.strip.blank? %>
+                      <% isbn_checksum_invalid = (@invalid_row_indices || []).include?(index) && isbn_header && row[header].to_s.strip.present? && !Book.valid_isbn13?(row[header]) %>
+                      <td class="px-4 py-2 text-sm <%= (missing_required || isbn_checksum_invalid) ? 'bg-red-50 text-red-700' : (is_duplicate ? 'text-yellow-700' : 'text-gray-900') %>"><%= import_cell_display(header, row[header]) %></td>
                     <% end %>
                     <td class="px-4 py-2 text-sm <%= is_duplicate ? 'text-yellow-700' : 'text-gray-900' %>"><%= import_cell_display("登錄號", row["登錄號"] || row["call_number"]) %></td>
                   </tr>
@@ -173,19 +213,21 @@
           <!-- 手機版：卡片 -->
           <div class="md:hidden space-y-4 mb-4">
             <% @imported_data.each_with_index do |row, index| %>
-              <% is_duplicate = duplicate_indices.include?(index) %>
+              <% is_duplicate = preview_ready && duplicate_indices.include?(index) %>
               <div class="<%= is_duplicate ? 'bg-yellow-50 border-yellow-200' : 'bg-white border-gray-200' %> rounded-2xl border p-4 shadow-md">
                 <div class="flex items-start justify-between gap-2 mb-2">
                   <div>
                     <% if (@invalid_row_indices || []).include?(index) %>
                       <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">不符合</span>
+                    <% elsif !preview_ready %>
+                      <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-700">待選屆數</span>
                     <% elsif is_duplicate %>
                       <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">重複</span>
                     <% else %>
                       <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">新增</span>
                     <% end %>
                   </div>
-                  <% if @duplicates.present? && is_duplicate %>
+                  <% if preview_ready && @duplicates.present? && is_duplicate %>
                     <label class="inline-flex items-center gap-1 text-xs text-gray-700">
                       <input type="checkbox" name="selected_duplicates[]" value="<%= index %>" class="duplicate-checkbox rounded" title="勾選以保留匯入">
                       保留
@@ -196,7 +238,17 @@
                   <% @headers.each do |header| %>
                     <div class="flex gap-2">
                       <span class="text-gray-400 shrink-0"><%= header %></span>
-                      <span class="flex-1 break-all <%= is_duplicate ? 'text-yellow-700' : 'text-gray-900' %>"><%= import_cell_display(header, row[header]) %></span>
+                      <% required_header =
+                           case header.to_s.strip
+                           when "書名", "title", "Title" then true
+                           when "ISBN", "isbn", "國際標準書號" then true
+                           when "來源", "source", "Source" then true
+                           else false
+                           end %>
+                      <% isbn_header = %w[ISBN isbn 國際標準書號].include?(header.to_s.strip) %>
+                      <% missing_required = (@invalid_row_indices || []).include?(index) && required_header && row[header].to_s.strip.blank? %>
+                      <% isbn_checksum_invalid = (@invalid_row_indices || []).include?(index) && isbn_header && row[header].to_s.strip.present? && !Book.valid_isbn13?(row[header]) %>
+                      <span class="flex-1 break-all <%= (missing_required || isbn_checksum_invalid) ? 'bg-red-50 text-red-700' : (is_duplicate ? 'text-yellow-700' : 'text-gray-900') %>"><%= import_cell_display(header, row[header]) %></span>
                     </div>
                   <% end %>
                   <div class="flex gap-2">
@@ -206,11 +258,6 @@
                 </div>
               </div>
             <% end %>
-          </div>
-          
-          <div class="mb-4">
-            <label class="block text-sm font-medium text-gray-700 mb-2">屆數（必填，套用至所有匯入的書籍）</label>
-            <%= select_tag :batch_year_id, options_from_collection_for_select(BatchYear.class_batches_by_number_desc, :id, :display_label_with_grade), { include_blank: "請選擇屆數", required: true, class: "block w-48 shadow-sm rounded-md border border-gray-300 px-3 py-2" } %>
           </div>
 
           <div class="flex gap-2 items-center">
