@@ -66,7 +66,8 @@ class User < ApplicationRecord
   def self.ordered_by_traditional_name
     col = "#{quoted_table_name}.#{connection.quote_column_name("name")}"
     if (c = first_available_traditional_name_collation)
-      order(Arel.sql("#{col} COLLATE #{connection.quote(c)} ASC NULLS LAST"))
+      # COLLATE takes a SQL identifier (double-quoted), not a string literal (single quotes).
+      order(Arel.sql("#{col} COLLATE #{connection.quote_column_name(c)} ASC NULLS LAST"))
     else
       order(:name)
     end
