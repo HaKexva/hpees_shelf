@@ -16,4 +16,11 @@ class ApplicationController < ActionController::Base
   def current_user_admin?
     current_user&.admin?
   end
+
+  private
+    def _csv_escape(value)
+      s = value.to_s
+      return "\"#{s.gsub('"', '""')}\"" if s.include?(",") || s.include?("\"") || s.include?("\n") || s.include?("\r")
+      s
+    end
 end
