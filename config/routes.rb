@@ -26,6 +26,7 @@ Rails.application.routes.draw do
     collection do
       get :import
       post :import
+      get :export
       post :borrow_by_isbn
       get :return_to_library_batch
       post :apply_return_to_library_batch
@@ -46,6 +47,7 @@ Rails.application.routes.draw do
     collection do
       get :import
       post :import
+      get :export
       delete :bulk_destroy
     end
   end

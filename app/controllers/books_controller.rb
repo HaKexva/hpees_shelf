@@ -4,19 +4,7 @@ class BooksController < ApplicationController
   # GET /books or /books.json
   def index
     BatchYear.ensure_office_exists!
-    @books = Book.where.not(title: [ nil, "" ]).includes(:batch_year, :borrowers)
-    # Default: hide "歸還圖書館" unless status filter is applied
-    if params[:status].present?
-      @books = @books.where(status: params[:status])
-    else
-      @books = @books.where.not(status: Book::STATUS_RETURNED_LIBRARY)
-    end
-    @books = @books.where(source: params[:source]) if params[:source].present?
-    @books = @books.where(batch_year_id: params[:batch_year_id]) if params[:batch_year_id].present?
-    if params[:q].to_s.strip.present?
-      pattern = "%#{Book.sanitize_sql_like(params[:q].strip)}%"
-      @books = @books.where("title LIKE ?", pattern)
-    end
+    @books = filtered_books_scope.includes(:batch_year, :borrowers)
     @batch_years = BatchYear.by_number_desc
     @filter_batch_year_id = params[:batch_year_id]
     @filter_q = params[:q].to_s.strip.presence
@@ -31,6 +19,33 @@ class BooksController < ApplicationController
                          .overdue_as_missing
                          .includes(:batch_year, :borrowers)
                          .order(borrowed_at: :asc)
+  end
+
+  # GET /books/export — CSV for current list filters (same as index)
+  def export
+    BatchYear.ensure_office_exists!
+    books = filtered_books_scope.includes(:batch_year).order(:id)
+    bom = "\uFEFF"
+    headers = %w[書名 ISBN 屆數 來源 登錄號 總數 冊數 備註 狀態]
+    csv = +""
+    csv << bom
+    csv << headers.map { |h| _csv_escape(h) }.join(",") << "\n"
+    books.find_each do |book|
+      row = [
+        book.title,
+        helpers.format_isbn13(book.isbn),
+        book.batch_year&.display_label_with_grade.to_s,
+        book.source.present? ? I18n.t("activerecord.enums.book.source.#{book.source}") : "",
+        book.call_number.to_s,
+        book.total.to_s,
+        book.volume.to_s,
+        book.note.to_s,
+        book.display_status
+      ]
+      csv << row.map { |c| _csv_escape(c) }.join(",") << "\n"
+    end
+    filename = "books_export_#{Time.zone.now.strftime('%Y%m%d_%H%M')}.csv"
+    send_data csv, filename: filename, type: "text/csv; charset=utf-8"
   end
 
   # GET /books/import
@@ -53,7 +68,47 @@ class BooksController < ApplicationController
 
     return unless request.post?
 
-    if params[:confirm] == "true" && params[:import_data].present?
+    if params[:export_invalid] == "true" && params[:import_data].present?
+      require "json"
+      require "base64"
+      import_data = JSON.parse(Base64.strict_decode64(params[:import_data]))
+
+      invalid_rows = []
+      import_data.each do |row|
+        title = _import_row_value(row, "title", "Title", "書名")
+        isbn = _import_row_value(row, "isbn", "ISBN", "國際標準書號")
+        source = _import_row_value(row, "source", "Source", "來源")
+        next unless _import_book_row_invalid?(row)
+
+        invalid_rows << {
+          "書名" => title.presence || "請填寫",
+          "ISBN" => isbn.presence || "請填寫",
+          "來源" => source.presence || "請填寫",
+          "總數" => _import_row_value(row, "total", "Total", "總數").to_s.strip.presence,
+          "冊數" => _import_row_value(row, "volume", "Volume", "冊數").to_s.strip.presence,
+          "備註" => _import_row_value(row, "note", "Note", "備註").to_s.strip.presence,
+          "登錄號" => _import_row_value(row, "call_number", "登錄號").to_s.strip.presence
+        }
+      end
+
+      headers = %w[書名 ISBN 來源 總數 冊數 備註 登錄號]
+      bom = "\uFEFF"
+      csv = +""
+      csv << bom
+      csv << headers.map { |h| _csv_escape(h) }.join(",") << "\n"
+      invalid_rows.each do |r|
+        csv << headers.map { |h| _csv_escape(r[h]) }.join(",") << "\n"
+      end
+
+      filename = "books_import_invalid_#{Time.zone.now.strftime('%Y%m%d_%H%M')}.csv"
+      send_data csv, filename: filename, type: "text/csv; charset=utf-8"
+    elsif params[:refresh_preview] == "true" && params[:import_data].present?
+      require "json"
+      require "base64"
+      import_data = JSON.parse(Base64.strict_decode64(params[:import_data]))
+      _restore_import_preview(import_data, params[:batch_year_id].presence&.to_i)
+      render :import
+    elsif params[:confirm] == "true" && params[:import_data].present?
       # Confirm import from hidden field data (Base64 encoded JSON)
       require "json"
       require "base64"
@@ -61,7 +116,7 @@ class BooksController < ApplicationController
 
       selected_batch_year_id = params[:batch_year_id].presence&.to_i
       if selected_batch_year_id.blank? || selected_batch_year_id < 1
-        _restore_import_preview(import_data)
+        _restore_import_preview(import_data, params[:batch_year_id].presence&.to_i)
         @batch_years = BatchYear.by_number_desc
         flash.now[:alert] = "請選擇屆數。"
         render :import, status: :unprocessable_entity
@@ -76,15 +131,13 @@ class BooksController < ApplicationController
       batch_year = BatchYear.find_by(id: selected_batch_year_id)
 
       import_data.each_with_index do |row, index|
-        title = _import_row_value(row, "title", "Title", "書名")
-        isbn = _import_row_value(row, "isbn", "ISBN", "國際標準書號")
-
-        # Skip invalid rows (only this row skipped; others still import)
-        if title.blank? || isbn.blank?
+        if _import_book_row_invalid?(row)
           invalid_skipped_count += 1
           next
         end
 
+        title = _import_row_value(row, "title", "Title", "書名")
+        isbn = _import_row_value(row, "isbn", "ISBN", "國際標準書號")
         source_raw = _import_row_value(row, "source", "Source", "來源")
         source_key = _normalize_import_source(source_raw)
         total_raw = _import_row_value(row, "total", "Total", "總數")
@@ -123,8 +176,8 @@ class BooksController < ApplicationController
           end
         end
 
-        # Duplicate only when title, isbn, source (and for library: call_number) all match; any difference = independent book
-        existing = _import_find_existing(row, title, isbn, source_key)
+        # Duplicate only when same batch_year and title, isbn, source (and for library: call_number) all match
+        existing = _import_find_existing(row, title, isbn, source_key, selected_batch_year_id)
         is_duplicate = existing.present?
 
         if is_duplicate
@@ -161,6 +214,7 @@ class BooksController < ApplicationController
       file = params[:file]
       begin
         raw = file.read
+        # Excel / Google Sheets：UTF-8（含 BOM）、UTF-16、Big5/CP950；用表頭檢查避免誤用編碼造成亂碼。
         content = _decode_csv_to_utf8_books(raw)
         @headers, rows = _parse_csv(content)
         @imported_data = rows.reject do |row|
@@ -173,44 +227,14 @@ class BooksController < ApplicationController
         @missing_columns = @required_columns - normalized_headers
         @extra_columns = normalized_headers.compact - @expected_columns
 
-        # Check if required columns exist (title or its aliases)
-        has_title_column = normalized_headers.include?("title")
-        has_isbn_column = normalized_headers.include?("isbn")
-
         # When headers are valid: validate each row against import format (title required); invalid rows show "不符合" in the preview status column
         @invalid_row_indices = []
         @imported_data.each_with_index do |row, index|
-          title = _import_row_value(row, "title", "Title", "書名")
-          isbn = _import_row_value(row, "isbn", "ISBN", "國際標準書號")
-          source = _import_row_value(row, "source", "Source", "來源")
-          @invalid_row_indices << index if title.blank? || isbn.blank? || source.blank?
+          @invalid_row_indices << index if _import_book_row_invalid?(row)
         end
 
-        # Only check for duplicates if required columns exist (duplicate = same title, isbn, source, and for library: call_number)
-        @duplicates = []
-        @new_books = []
-        if has_title_column && has_isbn_column
-          @imported_data.each_with_index do |row, index|
-            title = _import_row_value(row, "title", "Title", "書名")
-            isbn = _import_row_value(row, "isbn", "ISBN", "國際標準書號")
-            source_raw = _import_row_value(row, "source", "Source", "來源")
-            source_key = _normalize_import_source(source_raw)
-
-            next if title.blank?
-
-            existing = _import_find_existing(row, title, isbn, source_key)
-            if existing
-              @duplicates << { index: index, row: row, existing: existing }
-            else
-              @new_books << { index: index, row: row }
-            end
-          end
-        else
-          # No duplicate check if columns don't match
-          @imported_data.each_with_index do |row, index|
-            @new_books << { index: index, row: row }
-          end
-        end
+        # DB duplicate preview only after user selects 屆數 and clicks「套用屆數更新預覽」(same batch_year = same book for deduping)
+        _rebuild_book_import_duplicate_preview!(nil)
 
         @batch_years = BatchYear.by_number_desc
         render :import
@@ -471,6 +495,22 @@ class BooksController < ApplicationController
   end
 
   private
+    def filtered_books_scope
+      books = Book.where.not(title: [ nil, "" ])
+      if params[:status].present?
+        books = books.where(status: params[:status])
+      else
+        books = books.where.not(status: Book::STATUS_RETURNED_LIBRARY)
+      end
+      books = books.where(source: params[:source]) if params[:source].present?
+      books = books.where(batch_year_id: params[:batch_year_id]) if params[:batch_year_id].present?
+      if params[:q].to_s.strip.present?
+        pattern = "%#{Book.sanitize_sql_like(params[:q].strip)}%"
+        books = books.where("title LIKE ?", pattern)
+      end
+      books
+    end
+
     def _normalize_book_csv_header_value(value)
       s = value.to_s.strip
       return nil if s.blank?
@@ -525,6 +565,7 @@ class BooksController < ApplicationController
       # 3) Last resort: UTF-8 with replacement.
       strip_bom.call(raw.force_encoding("UTF-8").encode("UTF-8", invalid: :replace, undef: :replace, replace: ""))
     end
+
     def set_book
       @book = Book.find(params[:id])
     end
@@ -599,6 +640,14 @@ class BooksController < ApplicationController
       nil
     end
 
+    # Same rules as import preview: required title / ISBN / source, and ISBN must be valid ISBN-13 (checksum).
+    def _import_book_row_invalid?(row)
+      title = _import_row_value(row, "title", "Title", "書名")
+      isbn = _import_row_value(row, "isbn", "ISBN", "國際標準書號")
+      source = _import_row_value(row, "source", "Source", "來源")
+      title.blank? || source.blank? || isbn.blank? || !Book.valid_isbn13?(isbn)
+    end
+
     # Map CSV source value (Chinese or English) to Book source enum key; default owned_by_library if blank/unknown
     # For 老師的書: accepts "老師的書" or "XX老師的書" (e.g. 文榛老師的書, Momo老師的書)
     def _normalize_import_source(raw)
@@ -621,10 +670,11 @@ class BooksController < ApplicationController
       raw.to_s.strip.sub(/老師的書\z/, "").strip.presence
     end
 
-    # Find existing book that is considered "duplicate": same title, isbn, source; for library also same call_number.
-    # Any difference (e.g. different source or call_number) = independent book, returns nil.
-    def _import_find_existing(row, title, isbn, source_key)
-      scope = Book.where(title: title, isbn: isbn, source: source_key)
+    # Find existing book in the same 屆數: same batch_year, title, isbn, source; for library also same call_number.
+    def _import_find_existing(row, title, isbn, source_key, batch_year_id)
+      return nil if batch_year_id.blank?
+
+      scope = Book.where(title: title, isbn: isbn, source: source_key, batch_year_id: batch_year_id)
       if source_key == "owned_by_library"
         call_num = _import_row_value(row, "call_number", "登錄號")
         scope = scope.where(call_number: call_num.to_s.strip.presence)
@@ -632,46 +682,31 @@ class BooksController < ApplicationController
       scope.first
     end
 
-    def _restore_import_preview(import_data)
-      @imported_data = import_data
-      @headers = import_data.first&.keys || []
+    # Rebuild @duplicates / @new_books for preview; pass nil until user selects 屆數 and refreshes.
+    def _rebuild_book_import_duplicate_preview!(batch_year_id)
+      @preview_batch_year_id = batch_year_id
       headers_stripped = @headers.map { |h| h&.to_s&.strip }
-      normalized_headers = headers_stripped.map do |h|
-        h_d = h&.downcase
-        case h
-        when "書名" then "title"
-        when "總數" then "total"
-        when "冊數" then "volume"
-        when "備註" then "note"
-        when "國際標準書號" then "isbn"
-        when "來源" then "source"
-        when "登錄號" then "call_number"
-        else h_d
-        end
-      end.compact
-      @missing_columns = @required_columns - normalized_headers
-      @extra_columns = normalized_headers - @expected_columns
+      normalized_headers = headers_stripped.map { |h| _normalize_book_csv_header_value(h) }.compact
       has_title_column = normalized_headers.include?("title")
       has_isbn_column = normalized_headers.include?("isbn")
 
-      @invalid_row_indices = []
-      @imported_data.each_with_index do |row, index|
-        title = _import_row_value(row, "title", "Title", "書名")
-        isbn = _import_row_value(row, "isbn", "ISBN", "國際標準書號")
-        source = _import_row_value(row, "source", "Source", "來源")
-        @invalid_row_indices << index if title.blank? || isbn.blank? || source.blank?
-      end
-
       @duplicates = []
       @new_books = []
+      if batch_year_id.blank? || batch_year_id.to_i < 1
+        return
+      end
+
+      bid = batch_year_id.to_i
       if has_title_column && has_isbn_column
         @imported_data.each_with_index do |row, index|
+          next if (@invalid_row_indices || []).include?(index)
+
           title = _import_row_value(row, "title", "Title", "書名")
           isbn = _import_row_value(row, "isbn", "ISBN", "國際標準書號")
           source_raw = _import_row_value(row, "source", "Source", "來源")
           source_key = _normalize_import_source(source_raw)
           next if title.blank?
-          existing = _import_find_existing(row, title, isbn, source_key)
+          existing = _import_find_existing(row, title, isbn, source_key, bid)
           if existing
             @duplicates << { index: index, row: row, existing: existing }
           else
@@ -683,5 +718,22 @@ class BooksController < ApplicationController
           @new_books << { index: index, row: row }
         end
       end
+    end
+
+    def _restore_import_preview(import_data, batch_year_id = nil)
+      @imported_data = import_data
+      @headers = import_data.first&.keys || []
+      headers_stripped = @headers.map { |h| h&.to_s&.strip }
+      normalized_headers = headers_stripped.map { |h| _normalize_book_csv_header_value(h) }.compact
+      @missing_columns = @required_columns - normalized_headers
+      @extra_columns = normalized_headers - @expected_columns
+
+      @invalid_row_indices = []
+      @imported_data.each_with_index do |row, index|
+        @invalid_row_indices << index if _import_book_row_invalid?(row)
+      end
+
+      _rebuild_book_import_duplicate_preview!(batch_year_id)
+      @batch_years = BatchYear.by_number_desc
     end
 end
