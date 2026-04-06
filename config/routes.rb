@@ -27,6 +27,7 @@ Rails.application.routes.draw do
       get :import
       post :import
       get :export
+      get :inventory_pdf
       post :borrow_by_isbn
       get :return_to_library_batch
       post :apply_return_to_library_batch
