@@ -75,15 +75,26 @@ RSpec.describe "Sessions", type: :request do
     end
   end
 
-  describe "logout button in sidebar" do
-    it "renders on authenticated pages" do
+  describe "sidebar" do
+    it "shows logout button and admin nav when logged in" do
       admin = create(:user, :admin, batch_year: batch_year)
       login_as(admin)
       get root_path
       expect(response.body).to include('action="/logout"')
-      expect(response.body).to include('value="delete"')
       expect(response.body).to include("登出")
       expect(response.body).to include(admin.name)
+      expect(response.body).to include("書籍管理")
+      expect(response.body).to include("屆數管理")
+      expect(response.body).to include("人員管理")
+    end
+
+    it "shows only borrow/return nav when logged out" do
+      get login_path
+      expect(response.body).to include("借還書")
+      expect(response.body).not_to include("書籍管理")
+      expect(response.body).not_to include("屆數管理")
+      expect(response.body).not_to include("人員管理")
+      expect(response.body).not_to include("登出")
     end
   end
 

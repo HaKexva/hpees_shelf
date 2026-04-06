@@ -91,9 +91,11 @@ module RubyUI
     # Shared navigation links to avoid duplication
     def render_nav_links
       nav_link(href: root_path) { "借還書" }
-      nav_link(href: books_path) { "書籍管理" }
-      nav_link(href: batch_years_path) { "屆數管理" }
-      nav_link(href: users_path) { "人員管理" }
+      if view_context.current_user
+        nav_link(href: books_path) { "書籍管理" }
+        nav_link(href: batch_years_path) { "屆數管理" }
+        nav_link(href: users_path) { "人員管理" }
+      end
     end
 
     def nav_link(href:, &block)
