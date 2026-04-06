@@ -1,6 +1,10 @@
 require "rails_helper"
 
 RSpec.describe "Books import preview", type: :request do
+  let(:batch_year) { create(:batch_year) }
+
+  before { login_as(create(:user, :admin, batch_year: batch_year)) }
+
   describe "POST /books/import" do
     it "parses UTF-8 CSV without corrupting Chinese text" do
       post import_books_path, params: {

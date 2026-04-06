@@ -19,7 +19,7 @@ class ApplicationController < ActionController::Base
 
   def require_login
     unless current_user
-      redirect_to login_path, alert: "請先登入。"
+      redirect_to login_path
     end
   end
 

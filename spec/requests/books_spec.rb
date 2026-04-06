@@ -4,6 +4,8 @@ RSpec.describe "Books", type: :request do
   let(:batch_year) { create(:batch_year) }
   let(:book) { create(:book, batch_year: batch_year) }
 
+  before { login_as(create(:user, :admin, batch_year: batch_year)) }
+
   describe "GET /books" do
     it "returns success" do
       get books_url
