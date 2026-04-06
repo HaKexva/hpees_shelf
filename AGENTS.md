@@ -10,6 +10,22 @@ This file is the **Cursor project agent config** (same role as **`CLAUDE.md`** i
 
 If the user explicitly asks to bypass this (e.g. hotfix), confirm before doing it.
 
+## Linear issue vs GitHub PR number (do not confuse)
+
+These are **different** numbering systems:
+
+| Meaning | Examples | What it is |
+|--------|----------|------------|
+| **Linear issue** | `HAK-101`, branch `hak-101-…`, “merge **hak-101**” | Issue id in Linear; branch names usually mirror **`hak-XX`**. |
+| **GitHub pull request** | **PR #100**, **#101**, “merge **#101**” | GitHub’s **PR** sequence for this repo. **Not** the same digit as the Linear issue. |
+
+**Rules:**
+
+- **`HAK-XX` / `hak-XX`** → always the **Linear issue** (or branch tied to that issue).
+- **`#NN` / PR #NN** → always the **GitHub pull request** number.
+- **Never assume** `PR #100` equals **HAK-100** or **hak-100** — verify which issue/PR the user means.
+- When the user says “merge **hak-103**,” merge work for **Linear HAK-103**, not “PR #103” unless they explicitly say **#103**.
+
 ## Development workflow
 
 ### When starting work
