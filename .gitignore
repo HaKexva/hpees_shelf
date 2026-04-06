@@ -77,3 +77,6 @@ yarn-debug.log*
 
 /.cursorrules
 /CONTRIBUTING.md
+
+# Local snapshots from bin/save_merge_conflicts (optional: remove this line to commit snapshots)
+/.merge-conflict-snapshots/

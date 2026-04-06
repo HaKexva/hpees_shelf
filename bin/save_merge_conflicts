@@ -1,0 +1,52 @@
+#!/usr/bin/env bash
+# Save the current merge or rebase conflict state (files with <<<<<<< markers + metadata).
+# Run from repo root while a merge/rebase is paused on conflicts.
+# Output: .merge-conflict-snapshots/YYYYMMDD_HHMMSS/
+set -eu
+
+cd "$(dirname "$0")/.."
+
+if [[ ! -f .git/MERGE_HEAD && ! -d .git/rebase-merge && ! -d .git/rebase-apply ]]; then
+  echo "No merge or rebase in progress (no conflicts to save)." >&2
+  echo "Start: git merge <branch>  or  git rebase <branch>, then run this while conflicts exist." >&2
+  exit 1
+fi
+
+stamp=$(date +%Y%m%d_%H%M%S)
+out=".merge-conflict-snapshots/${stamp}"
+mkdir -p "$out"
+
+{
+  echo "=== date ==="
+  date
+  echo
+  echo "=== git status ==="
+  git status
+  echo
+  echo "=== unmerged files (U) ==="
+  git diff --name-only --diff-filter=U || true
+} > "${out}/STATUS.txt"
+
+git diff --name-only --diff-filter=U | while IFS= read -r f || [[ -n "$f" ]]; do
+  [[ -z "$f" ]] && continue
+  mkdir -p "${out}/worktree/$(dirname "$f")"
+  cp "$f" "${out}/worktree/$f"
+done
+
+mkdir -p "${out}/stages"
+git diff --name-only --diff-filter=U | while IFS= read -r f || [[ -n "$f" ]]; do
+  [[ -z "$f" ]] && continue
+  safe=$(echo "$f" | tr '/' '_')
+  git show ":1:$f" > "${out}/stages/${safe}.base" 2>/dev/null || rm -f "${out}/stages/${safe}.base"
+  git show ":2:$f" > "${out}/stages/${safe}.ours" 2>/dev/null || rm -f "${out}/stages/${safe}.ours"
+  git show ":3:$f" > "${out}/stages/${safe}.theirs" 2>/dev/null || rm -f "${out}/stages/${safe}.theirs"
+done
+
+if [[ -f .git/MERGE_HEAD ]]; then
+  cp .git/MERGE_HEAD "${out}/MERGE_HEAD.txt"
+fi
+
+echo "Saved conflict snapshot to ${out}/"
+echo "  STATUS.txt — status + unmerged paths"
+echo "  worktree/   — files as on disk (with conflict markers)"
+echo "  stages/     — base / ours / theirs blobs when present"
