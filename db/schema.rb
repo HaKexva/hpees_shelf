@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_04_02_120000) do
+ActiveRecord::Schema[8.1].define(version: 2026_04_06_121300) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -139,6 +139,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_02_120000) do
     t.boolean "admin", default: false, null: false
     t.integer "batch_year_id"
     t.datetime "created_at", null: false
+    t.datetime "deleted_at"
     t.string "email"
     t.integer "grade_id"
     t.string "id_number"
@@ -147,6 +148,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_02_120000) do
     t.datetime "resigned_at"
     t.string "seat_number"
     t.datetime "updated_at", null: false
+    t.index ["deleted_at"], name: "index_users_on_deleted_at"
   end
 
   create_table "users_batch_years", force: :cascade do |t|

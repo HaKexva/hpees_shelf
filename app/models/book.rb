@@ -6,12 +6,12 @@ class Book < ApplicationRecord
   scope :only_deleted, -> { unscope(where: :deleted_at).where.not(deleted_at: nil) }
 
   belongs_to :batch_year
-  belongs_to :user, optional: true # current borrower (single-copy) or teacher (owned_by_teacher)
+  belongs_to :user, -> { merge(User.with_deleted) }, optional: true # current borrower (single-copy) or teacher (owned_by_teacher)
   # Soft delete keeps the row; circulation_records remain linked (no dependent: :destroy).
   has_many :circulation_records, inverse_of: :book
   has_many :loan_records, -> { where(returned_at: nil) }, class_name: "CirculationRecord"
   # When total > 1, borrowers are has_many (one circulation_record per copy lent).
-  has_many :borrowers, through: :loan_records, source: :user
+  has_many :borrowers, -> { merge(User.with_deleted) }, through: :loan_records, source: :user
 
   validates :batch_year_id, presence: true
   validates :title, presence: true

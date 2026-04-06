@@ -3,25 +3,34 @@ class UsersController < ApplicationController
 
   # GET /users or /users.json — only active (non-resigned) users are shown; resigned users can still log in.
   def index
-    @users = User.active.includes(:batch_year).order(:name)
-    @users = @users.where(batch_year_id: params[:batch_year_id]) if params[:batch_year_id].present?
-    if params[:q_name].to_s.strip.present?
-      pattern = "%#{User.sanitize_sql_like(params[:q_name].strip)}%"
-      @users = @users.where("name LIKE :p", p: pattern)
-    end
-    if params[:q_seat_number].to_s.strip.present?
-      pattern = "%#{User.sanitize_sql_like(params[:q_seat_number].strip)}%"
-      @users = @users.where("seat_number LIKE :p", p: pattern)
-    end
-    if params[:q_id_number].to_s.strip.present?
-      pattern = "%#{User.sanitize_sql_like(params[:q_id_number].strip)}%"
-      @users = @users.where("id_number LIKE :p", p: pattern)
-    end
+    @users = filtered_users_scope.includes(:batch_year).order(:name)
     @batch_years = BatchYear.by_number_desc
     @filter_q_name = params[:q_name].to_s.strip.presence
     @filter_q_seat_number = params[:q_seat_number].to_s.strip.presence
     @filter_q_id_number = params[:q_id_number].to_s.strip.presence
     @filter_batch_year_id = params[:batch_year_id].presence
+  end
+
+  # GET /users/export — CSV for current list filters (same as index)
+  def export
+    users = filtered_users_scope.includes(:batch_year).order(:id)
+    bom = "\uFEFF"
+    headers = %w[姓名 屆數 學號 座號 管理員]
+    csv = +""
+    csv << bom
+    csv << headers.map { |h| _csv_escape(h) }.join(",") << "\n"
+    users.find_each do |user|
+      row = [
+        user.name,
+        user.batch_year&.display_label_with_grade.to_s,
+        user.admin ? "—" : (user.id_number || ""),
+        user.admin ? "—" : (user.seat_number || ""),
+        user.admin ? "是" : "否"
+      ]
+      csv << row.map { |c| _csv_escape(c) }.join(",") << "\n"
+    end
+    filename = "users_export_#{Time.zone.now.strftime('%Y%m%d_%H%M')}.csv"
+    send_data csv, filename: filename, type: "text/csv; charset=utf-8"
   end
 
   # GET /users/1 — redirect to edit (no separate show page)
@@ -131,12 +140,45 @@ class UsersController < ApplicationController
 
     return unless request.post?
 
-    if params[:confirm] == "true" && params[:import_data].present?
+    if params[:export_invalid] == "true" && params[:import_data].present?
+      require "json"
+      require "base64"
+      import_data = JSON.parse(Base64.strict_decode64(params[:import_data]))
+
+      invalid_rows = []
+      import_data.each do |row|
+        name = _user_import_value(row, "name", "姓名")
+        next unless name.blank?
+
+        invalid_rows << {
+          "姓名" => name.presence || "請填寫",
+          "學號" => _user_import_value(row, "id_number", "學號").to_s.strip.presence,
+          "座號" => _user_import_value(row, "seat_number", "座號").to_s.strip.presence
+        }
+      end
+
+      headers = %w[姓名 學號 座號]
+      bom = "\uFEFF"
+      csv = +""
+      csv << bom
+      csv << headers.map { |h| _csv_escape(h) }.join(",") << "\n"
+      invalid_rows.each do |r|
+        csv << headers.map { |h| _csv_escape(r[h]) }.join(",") << "\n"
+      end
+
+      filename = "users_import_invalid_#{Time.zone.now.strftime('%Y%m%d_%H%M')}.csv"
+      send_data csv, filename: filename, type: "text/csv; charset=utf-8"
+    elsif params[:refresh_preview] == "true" && params[:import_data].present?
+      import_data = JSON.parse(Base64.strict_decode64(params[:import_data]))
+      selected_batch_year_id = params[:batch_year_id].presence&.to_i
+      _restore_import_preview_users(import_data, selected_batch_year_id)
+      render :import
+    elsif params[:confirm] == "true" && params[:import_data].present?
       import_data = JSON.parse(Base64.strict_decode64(params[:import_data]))
 
       selected_batch_year_id = params[:batch_year_id].presence&.to_i
       if selected_batch_year_id.blank? || selected_batch_year_id < 1
-        _restore_import_preview_users(import_data)
+        _restore_import_preview_users(import_data, params[:batch_year_id].presence&.to_i)
         @batch_years = BatchYear.by_number_desc
         flash.now[:alert] = "請選擇屆數。"
         render :import, status: :unprocessable_entity
@@ -145,6 +187,7 @@ class UsersController < ApplicationController
 
       imported_count = 0
       skipped_count = 0
+      invalid_skipped_count = 0
       failed_count = 0
       failed_examples = []
       duplicate_action = params[:duplicate_action] || "skip"
@@ -153,7 +196,10 @@ class UsersController < ApplicationController
 
       import_data.each_with_index do |row, index|
         name = _user_import_value(row, "name", "姓名")
-        next if name.blank?
+        if name.blank?
+          invalid_skipped_count += 1
+          next
+        end
 
         id_number = _user_import_value(row, "id_number", "學號")
         user_attrs = {
@@ -193,16 +239,12 @@ class UsersController < ApplicationController
 
       message = "成功匯入 #{imported_count} 位人員。"
       message += " 已跳過 #{skipped_count} 位重複人員。" if skipped_count > 0
+      message += " 已跳過 #{invalid_skipped_count} 筆不符合的資料（缺姓名）。" if invalid_skipped_count > 0
       if failed_count > 0
         message += " 另有 #{failed_count} 位匯入失敗（資料格式不符或缺欄位）。"
         message += " 例：#{failed_examples.join('；')}" if failed_examples.any?
       end
       redirect_to users_path, notice: message, status: :see_other
-    elsif params[:import_data].present?
-      import_data = JSON.parse(Base64.strict_decode64(params[:import_data]))
-      _restore_import_preview_users(import_data)
-      selected_batch_year_id = params[:batch_year_id].presence&.to_i
-      _compute_import_duplicates_users!(selected_batch_year_id)
     elsif params[:file].present?
       file = params[:file]
       begin
@@ -228,7 +270,8 @@ class UsersController < ApplicationController
           name = _user_import_value(row, "name", "姓名")
           @invalid_row_indices << index if name.blank?
         end
-        _compute_import_duplicates_users!
+        @preview_batch_year_id = nil
+        _compute_import_duplicates_users!(nil)
 
         @new_users = []
         if normalized_headers.include?("name")
@@ -245,6 +288,24 @@ class UsersController < ApplicationController
   end
 
   private
+    def filtered_users_scope
+      users = User.active
+      users = users.where(batch_year_id: params[:batch_year_id]) if params[:batch_year_id].present?
+      if params[:q_name].to_s.strip.present?
+        pattern = "%#{User.sanitize_sql_like(params[:q_name].strip)}%"
+        users = users.where("name LIKE :p", p: pattern)
+      end
+      if params[:q_seat_number].to_s.strip.present?
+        pattern = "%#{User.sanitize_sql_like(params[:q_seat_number].strip)}%"
+        users = users.where("seat_number LIKE :p", p: pattern)
+      end
+      if params[:q_id_number].to_s.strip.present?
+        pattern = "%#{User.sanitize_sql_like(params[:q_id_number].strip)}%"
+        users = users.where("id_number LIKE :p", p: pattern)
+      end
+      users
+    end
+
     def _ensure_admin_batch_year(attrs)
       return unless attrs[:admin].to_s == "1" || attrs["admin"].to_s == "1"
       return if attrs[:batch_year_id].present? || attrs["batch_year_id"].present?
@@ -399,7 +460,7 @@ class UsersController < ApplicationController
       nil
     end
 
-    def _restore_import_preview_users(import_data)
+    def _restore_import_preview_users(import_data, duplicate_batch_year_id = nil)
       @imported_data = import_data
       @headers = import_data.first&.keys || []
       headers_stripped = @headers.map { |h| h&.to_s&.strip }
@@ -418,7 +479,8 @@ class UsersController < ApplicationController
         name = _user_import_value(row, "name", "姓名")
         @invalid_row_indices << index if name.blank?
       end
-      _compute_import_duplicates_users!
+      @preview_batch_year_id = duplicate_batch_year_id
+      _compute_import_duplicates_users!(duplicate_batch_year_id)
       @duplicates = []
       @new_users = []
       @imported_data.each_with_index do |row, index|
@@ -427,8 +489,12 @@ class UsersController < ApplicationController
       @batch_years = BatchYear.by_number_desc
     end
 
-    # Preview-only: duplicates inside CSV, and (optionally) duplicates vs existing users in DB for the selected batch year.
+    # Preview-only: after 屆數 is chosen, duplicates in file and vs DB for that batch (different 屆 = different person for same name/id).
     def _compute_import_duplicates_users!(selected_batch_year_id = nil)
+      @duplicate_row_indices = []
+      @existing_duplicate_row_indices = []
+      return if selected_batch_year_id.blank? || selected_batch_year_id.to_i < 1
+
       keys = @imported_data.map do |row|
         [
           _user_import_value(row, "name", "姓名"),
@@ -436,9 +502,6 @@ class UsersController < ApplicationController
         ]
       end
       key_counts = keys.tally
-
-      @duplicate_row_indices = []
-      @existing_duplicate_row_indices = []
 
       @imported_data.each_with_index do |_row, index|
         next if (@invalid_row_indices || []).include?(index)
@@ -448,9 +511,7 @@ class UsersController < ApplicationController
         key = [ name, id_number ]
         @duplicate_row_indices << index if key_counts[key].to_i > 1
 
-        if selected_batch_year_id.present? && selected_batch_year_id.to_i > 0
-          @existing_duplicate_row_indices << index if User.exists?(name: name, id_number: id_number, batch_year_id: selected_batch_year_id.to_i)
-        end
+        @existing_duplicate_row_indices << index if User.exists?(name: name, id_number: id_number, batch_year_id: selected_batch_year_id.to_i)
       end
     end
 end

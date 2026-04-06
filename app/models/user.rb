@@ -1,4 +1,10 @@
 class User < ApplicationRecord
+  default_scope { where(deleted_at: nil) }
+
+  # Unscoped relation for associations that must resolve soft-deleted users (e.g. circulation history).
+  scope :with_deleted, -> { unscope(where: :deleted_at) }
+  scope :only_deleted, -> { unscope(where: :deleted_at).where.not(deleted_at: nil) }
+
   # Primary batch_year: every user (student or admin) still belongs to one main batch_year
   belongs_to :batch_year
 
@@ -26,6 +32,17 @@ class User < ApplicationRecord
             }
 
   scope :active, -> { where(resigned_at: nil) }
+
+  # Soft delete: row remains so circulation_records and FKs stay valid; excluded from default User scopes.
+  def destroy
+    return self if deleted_at.present?
+
+    transaction do
+      update_columns(deleted_at: Time.current, updated_at: Time.current)
+    end
+    @destroyed = true
+    self
+  end
 
   def resigned?
     resigned_at.present?
