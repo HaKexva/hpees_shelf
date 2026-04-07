@@ -30,11 +30,20 @@ module Books
         else
           data = build_table_data
           table_width = pdf.bounds.width
-          pdf.table(data, header: true, width: table_width) do
-            cells.style(size: 9, padding: [ 5, 6 ], valign: :center)
+          pdf.table(
+            data,
+            header: true,
+            width: table_width,
+            cell_style: {
+              size: 9,
+              padding: [ 5, 6 ],
+              valign: :center,
+              overflow: :shrink_to_fit,
+              min_font_size: 7
+            }
+          ) do
             row(0).background_color = "EEEEEE"
             cells.border_width = 0.5
-            column(0).style(overflow: :shrink_to_fit, min_font_size: 7)
           end
         end
       end.render
