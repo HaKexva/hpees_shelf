@@ -358,70 +358,91 @@
 
   <script>
     (function() {
-      var dlg = document.getElementById('inventory-dialog');
-      var openBtn = document.querySelector('[data-open-inventory-dialog]');
-      var closeBtns = document.querySelectorAll('[data-close-inventory-dialog]');
-      var inventorySourceSelect = document.querySelector('[data-inventory-source-select]');
-      var inventorySortSelect = document.querySelector('[data-inventory-sort-select]');
+      function initBooksIndex() {
+        var dlg = document.getElementById('inventory-dialog');
+        var openBtn = document.querySelector('[data-open-inventory-dialog]');
+        var closeBtns = document.querySelectorAll('[data-close-inventory-dialog]');
+        var inventorySourceSelect = document.querySelector('[data-inventory-source-select]');
+        var inventorySortSelect = document.querySelector('[data-inventory-sort-select]');
 
-      function openDialog() {
-        if (!dlg) return;
-        if (typeof dlg.showModal === 'function') dlg.showModal();
-      }
+        function openDialog() {
+          if (!dlg) return;
+          if (typeof dlg.showModal === 'function') dlg.showModal();
+        }
 
-      function closeDialog() {
-        if (!dlg) return;
-        if (typeof dlg.close === 'function') dlg.close();
-      }
+        function closeDialog() {
+          if (!dlg) return;
+          if (typeof dlg.close === 'function') dlg.close();
+        }
 
-      if (openBtn) openBtn.addEventListener('click', openDialog);
-      closeBtns.forEach(function(btn) { btn.addEventListener('click', closeDialog); });
-      if (dlg) dlg.addEventListener('click', function(e) {
-        if (e.target === dlg) closeDialog();
-      });
-
-      function inventorySourceIsSpecific(v) {
-        if (!v) return false;
-        return v !== 'all' && v !== 'teachers_all';
-      }
-
-      function syncInventorySortOptions() {
-        if (!inventorySourceSelect || !inventorySortSelect) return;
-        var specific = inventorySourceIsSpecific(inventorySourceSelect.value);
-        var opts = inventorySortSelect.querySelectorAll('option');
-        opts.forEach(function(opt) {
-          if (opt.value === 'source') {
-            opt.disabled = specific;
-            opt.hidden = specific;
-          }
+        if (openBtn && !openBtn.dataset.boundInventoryDialog) {
+          openBtn.addEventListener('click', openDialog);
+          openBtn.dataset.boundInventoryDialog = 'true';
+        }
+        closeBtns.forEach(function(btn) {
+          if (btn.dataset.boundInventoryDialog) return;
+          btn.addEventListener('click', closeDialog);
+          btn.dataset.boundInventoryDialog = 'true';
         });
-        if (specific && inventorySortSelect.value === 'source') inventorySortSelect.value = 'isbn';
-      }
+        if (dlg && !dlg.dataset.boundInventoryDialog) {
+          dlg.addEventListener('click', function(e) {
+            if (e.target === dlg) closeDialog();
+          });
+          dlg.dataset.boundInventoryDialog = 'true';
+        }
 
-      if (inventorySourceSelect) inventorySourceSelect.addEventListener('change', syncInventorySortOptions);
-      syncInventorySortOptions();
+        function inventorySourceIsSpecific(v) {
+          if (!v) return false;
+          return v !== 'all' && v !== 'teachers_all';
+        }
 
-      var form = document.getElementById('bulk-destroy-books-form');
-      if (!form) return;
-      var checkboxes = form.querySelectorAll('.book-checkbox');
-      var selectAll = document.getElementById('select-all-books');
-      var btn = document.getElementById('bulk-destroy-btn');
-      var countEl = document.getElementById('bulk-destroy-count');
+        function syncInventorySortOptions() {
+          if (!inventorySourceSelect || !inventorySortSelect) return;
+          var specific = inventorySourceIsSpecific(inventorySourceSelect.value);
+          var opts = inventorySortSelect.querySelectorAll('option');
+          opts.forEach(function(opt) {
+            if (opt.value === 'source') {
+              opt.disabled = specific;
+              opt.hidden = specific;
+            }
+          });
+          if (specific && inventorySortSelect.value === 'source') inventorySortSelect.value = 'isbn';
+        }
 
-      function updateState() {
-        var n = form.querySelectorAll('.book-checkbox:checked').length;
-        btn.disabled = n === 0;
-        countEl.textContent = '已選 ' + n + ' 本';
-        if (selectAll) selectAll.checked = n > 0 && n === checkboxes.length;
-        if (selectAll) selectAll.indeterminate = n > 0 && n < checkboxes.length;
-      }
+        if (inventorySourceSelect && !inventorySourceSelect.dataset.boundInventorySortSync) {
+          inventorySourceSelect.addEventListener('change', syncInventorySortOptions);
+          inventorySourceSelect.dataset.boundInventorySortSync = 'true';
+        }
+        syncInventorySortOptions();
 
-      checkboxes.forEach(function(cb) { cb.addEventListener('change', updateState); });
-      if (selectAll) selectAll.addEventListener('change', function() {
-        checkboxes.forEach(function(cb) { cb.checked = selectAll.checked; });
+        var form = document.getElementById('bulk-destroy-books-form');
+        if (!form) return;
+        if (form.dataset.boundBulkDestroy) return;
+        form.dataset.boundBulkDestroy = 'true';
+
+        var checkboxes = form.querySelectorAll('.book-checkbox');
+        var selectAll = document.getElementById('select-all-books');
+        var btn = document.getElementById('bulk-destroy-btn');
+        var countEl = document.getElementById('bulk-destroy-count');
+
+        function updateState() {
+          var n = form.querySelectorAll('.book-checkbox:checked').length;
+          btn.disabled = n === 0;
+          countEl.textContent = '已選 ' + n + ' 本';
+          if (selectAll) selectAll.checked = n > 0 && n === checkboxes.length;
+          if (selectAll) selectAll.indeterminate = n > 0 && n < checkboxes.length;
+        }
+
+        checkboxes.forEach(function(cb) { cb.addEventListener('change', updateState); });
+        if (selectAll) selectAll.addEventListener('change', function() {
+          checkboxes.forEach(function(cb) { cb.checked = selectAll.checked; });
+          updateState();
+        });
         updateState();
-      });
-      updateState();
+      }
+
+      document.addEventListener('turbo:load', initBooksIndex);
+      document.addEventListener('DOMContentLoaded', initBooksIndex);
     })();
 
   </script>
