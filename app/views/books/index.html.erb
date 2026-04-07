@@ -1,11 +1,11 @@
 <% content_for :title, "書籍列表" %>
 
-<div class="w-full max-w-5xl mx-auto px-4 sm:px-0 pb-8">
+<div class="w-full max-w-5xl mx-auto px-4 sm:px-0 pb-8" data-controller="inventory-dialog">
   <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6">
     <h1 class="font-bold text-2xl sm:text-4xl text-gray-900">書籍列表</h1>
     <div class="flex flex-wrap gap-2 items-center">
       <%= link_to "匯出 CSV", export_books_path(request.query_parameters), class: "inline-flex items-center rounded-md px-3.5 py-2.5 bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 font-medium" %>
-      <button type="button" class="inline-flex items-center rounded-md px-3.5 py-2.5 bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 font-medium" data-open-inventory-dialog>
+      <button type="button" class="inline-flex items-center rounded-md px-3.5 py-2.5 bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 font-medium" data-action="click->inventory-dialog#open">
         匯出盤點表
       </button>
       <%= link_to "匯入 CSV", import_books_path, class: "inline-flex items-center rounded-md px-3.5 py-2.5 bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 font-medium" %>
@@ -16,11 +16,11 @@
     </div>
   </div>
 
-  <dialog id="inventory-dialog" class="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 m-0 rounded-2xl p-0 w-[min(92vw,540px)] backdrop:bg-black/40">
+  <dialog id="inventory-dialog" class="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 m-0 rounded-2xl p-0 w-[min(92vw,540px)] backdrop:bg-black/40" data-inventory-dialog-target="dialog" data-action="click->inventory-dialog#closeIfBackdrop">
     <div class="bg-white rounded-2xl overflow-hidden border border-gray-200 shadow-xl">
       <div class="flex items-center justify-between px-5 py-4 border-b border-gray-100">
         <h2 class="text-lg font-semibold text-gray-900">匯出盤點表</h2>
-        <button type="button" class="inline-flex items-center justify-center w-9 h-9 rounded-full hover:bg-gray-100 text-gray-600" data-close-inventory-dialog aria-label="關閉">
+        <button type="button" class="inline-flex items-center justify-center w-9 h-9 rounded-full hover:bg-gray-100 text-gray-600" data-action="click->inventory-dialog#close" aria-label="關閉">
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
           </svg>
@@ -56,7 +56,7 @@
                              ),
                              class: "block w-full shadow-sm rounded-lg border border-gray-300 px-3 py-2.5 text-base",
                              required: true,
-                             data: { inventory_source_select: true } %>
+                             data: { inventory_dialog_target: "sourceSelect", action: "change->inventory-dialog#syncSortOptions" } %>
               <p class="mt-2 text-xs text-gray-500">選擇「特定來源」或「指定老師」，盤點表將不顯示「來源」欄位。</p>
             </div>
 
@@ -72,12 +72,12 @@
                                @inventory_sort
                              ),
                              class: "block w-full shadow-sm rounded-lg border border-gray-300 px-3 py-2.5 text-base",
-                             data: { inventory_sort_select: true } %>
+                             data: { inventory_dialog_target: "sortSelect" } %>
             </div>
           </div>
 
           <div class="mt-6 flex items-center justify-end gap-2">
-            <button type="button" class="inline-flex items-center rounded-md px-3.5 py-2.5 bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 font-medium" data-close-inventory-dialog>
+            <button type="button" class="inline-flex items-center rounded-md px-3.5 py-2.5 bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 font-medium" data-action="click->inventory-dialog#close">
               取消
             </button>
             <button type="submit" class="inline-flex items-center rounded-md px-3.5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-medium">
@@ -358,91 +358,30 @@
 
   <script>
     (function() {
-      function initBooksIndex() {
-        var dlg = document.getElementById('inventory-dialog');
-        var openBtn = document.querySelector('[data-open-inventory-dialog]');
-        var closeBtns = document.querySelectorAll('[data-close-inventory-dialog]');
-        var inventorySourceSelect = document.querySelector('[data-inventory-source-select]');
-        var inventorySortSelect = document.querySelector('[data-inventory-sort-select]');
+      var form = document.getElementById('bulk-destroy-books-form');
+      if (!form) return;
+      if (form.dataset.boundBulkDestroy) return;
+      form.dataset.boundBulkDestroy = 'true';
 
-        function openDialog() {
-          if (!dlg) return;
-          if (typeof dlg.showModal === 'function') dlg.showModal();
-        }
+      var checkboxes = form.querySelectorAll('.book-checkbox');
+      var selectAll = document.getElementById('select-all-books');
+      var btn = document.getElementById('bulk-destroy-btn');
+      var countEl = document.getElementById('bulk-destroy-count');
 
-        function closeDialog() {
-          if (!dlg) return;
-          if (typeof dlg.close === 'function') dlg.close();
-        }
-
-        if (openBtn && !openBtn.dataset.boundInventoryDialog) {
-          openBtn.addEventListener('click', openDialog);
-          openBtn.dataset.boundInventoryDialog = 'true';
-        }
-        closeBtns.forEach(function(btn) {
-          if (btn.dataset.boundInventoryDialog) return;
-          btn.addEventListener('click', closeDialog);
-          btn.dataset.boundInventoryDialog = 'true';
-        });
-        if (dlg && !dlg.dataset.boundInventoryDialog) {
-          dlg.addEventListener('click', function(e) {
-            if (e.target === dlg) closeDialog();
-          });
-          dlg.dataset.boundInventoryDialog = 'true';
-        }
-
-        function inventorySourceIsSpecific(v) {
-          if (!v) return false;
-          return v !== 'all' && v !== 'teachers_all';
-        }
-
-        function syncInventorySortOptions() {
-          if (!inventorySourceSelect || !inventorySortSelect) return;
-          var specific = inventorySourceIsSpecific(inventorySourceSelect.value);
-          var opts = inventorySortSelect.querySelectorAll('option');
-          opts.forEach(function(opt) {
-            if (opt.value === 'source') {
-              opt.disabled = specific;
-              opt.hidden = specific;
-            }
-          });
-          if (specific && inventorySortSelect.value === 'source') inventorySortSelect.value = 'isbn';
-        }
-
-        if (inventorySourceSelect && !inventorySourceSelect.dataset.boundInventorySortSync) {
-          inventorySourceSelect.addEventListener('change', syncInventorySortOptions);
-          inventorySourceSelect.dataset.boundInventorySortSync = 'true';
-        }
-        syncInventorySortOptions();
-
-        var form = document.getElementById('bulk-destroy-books-form');
-        if (!form) return;
-        if (form.dataset.boundBulkDestroy) return;
-        form.dataset.boundBulkDestroy = 'true';
-
-        var checkboxes = form.querySelectorAll('.book-checkbox');
-        var selectAll = document.getElementById('select-all-books');
-        var btn = document.getElementById('bulk-destroy-btn');
-        var countEl = document.getElementById('bulk-destroy-count');
-
-        function updateState() {
-          var n = form.querySelectorAll('.book-checkbox:checked').length;
-          btn.disabled = n === 0;
-          countEl.textContent = '已選 ' + n + ' 本';
-          if (selectAll) selectAll.checked = n > 0 && n === checkboxes.length;
-          if (selectAll) selectAll.indeterminate = n > 0 && n < checkboxes.length;
-        }
-
-        checkboxes.forEach(function(cb) { cb.addEventListener('change', updateState); });
-        if (selectAll) selectAll.addEventListener('change', function() {
-          checkboxes.forEach(function(cb) { cb.checked = selectAll.checked; });
-          updateState();
-        });
-        updateState();
+      function updateState() {
+        var n = form.querySelectorAll('.book-checkbox:checked').length;
+        btn.disabled = n === 0;
+        countEl.textContent = '已選 ' + n + ' 本';
+        if (selectAll) selectAll.checked = n > 0 && n === checkboxes.length;
+        if (selectAll) selectAll.indeterminate = n > 0 && n < checkboxes.length;
       }
 
-      document.addEventListener('turbo:load', initBooksIndex);
-      document.addEventListener('DOMContentLoaded', initBooksIndex);
+      checkboxes.forEach(function(cb) { cb.addEventListener('change', updateState); });
+      if (selectAll) selectAll.addEventListener('change', function() {
+        checkboxes.forEach(function(cb) { cb.checked = selectAll.checked; });
+        updateState();
+      });
+      updateState();
     })();
 
   </script>
