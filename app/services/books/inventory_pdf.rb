@@ -61,7 +61,14 @@ module Books
           book.isbn.to_s.gsub(/\D/, ""),
           book.total.to_s
         ]
-        row << I18n.t("activerecord.enums.book.source.#{book.source}") if @show_source_column
+        if @show_source_column
+          if book.source.to_s == "owned_by_teacher"
+            teacher_name = book.user&.name.to_s.strip
+            row << (teacher_name.present? ? "#{teacher_name}老師的書" : I18n.t("activerecord.enums.book.source.owned_by_teacher"))
+          else
+            row << I18n.t("activerecord.enums.book.source.#{book.source}")
+          end
+        end
         row
       end
       [ headers ] + rows

@@ -81,6 +81,7 @@ class BooksController < ApplicationController
     books = _inventory_pdf_filtered_scope(batch_year.id)
     books, source_title_suffix, specific_source = _apply_inventory_source_filter(books, inventory_source)
     books = _inventory_pdf_ordered_scope(books, inventory_sort)
+    books = books.includes(:user)
 
     # If user chose a specific source (not 全部 / not 所有老師的書), omit the source column.
     show_source_column = !specific_source
