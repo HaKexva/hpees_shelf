@@ -5,7 +5,9 @@
     <h1 class="font-bold text-2xl sm:text-4xl text-gray-900">書籍列表</h1>
     <div class="flex flex-wrap gap-2 items-center">
       <%= link_to "匯出 CSV", export_books_path(request.query_parameters), class: "inline-flex items-center rounded-md px-3.5 py-2.5 bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 font-medium" %>
-      <%= link_to "匯出盤點表", inventory_pdf_books_path({ batch_year_id: @filter_batch_year_id, q: @filter_q, source: @filter_source, status: @filter_status, inventory_sort: @inventory_sort }.compact_blank), class: "inline-flex items-center rounded-md px-3.5 py-2.5 bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 font-medium", title: (@filter_batch_year_id.blank? ? "請先於下方篩選選擇屆數" : nil) %>
+      <button type="button" class="inline-flex items-center rounded-md px-3.5 py-2.5 bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 font-medium" data-open-inventory-dialog>
+        匯出盤點表
+      </button>
       <%= link_to "匯入 CSV", import_books_path, class: "inline-flex items-center rounded-md px-3.5 py-2.5 bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 font-medium" %>
       <% if Book.show_return_to_library_button? && @any_library_books_to_return %>
         <%= link_to "歸還圖書館書籍", return_to_library_batch_books_path, class: "inline-flex items-center rounded-md px-3.5 py-2.5 bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 font-medium" %>
@@ -13,6 +15,68 @@
       <%= link_to "新增書籍", new_book_path, class: "inline-flex items-center rounded-md px-3.5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-medium" %>
     </div>
   </div>
+
+  <dialog id="inventory-dialog" class="rounded-2xl p-0 w-[min(92vw,540px)] backdrop:bg-black/40">
+    <div class="bg-white rounded-2xl overflow-hidden border border-gray-200 shadow-xl">
+      <div class="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+        <h2 class="text-lg font-semibold text-gray-900">匯出盤點表</h2>
+        <button type="button" class="inline-flex items-center justify-center w-9 h-9 rounded-full hover:bg-gray-100 text-gray-600" data-close-inventory-dialog aria-label="關閉">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+
+      <div class="px-5 py-5">
+        <%= form_with url: inventory_pdf_books_path, method: :get, local: true do |f| %>
+          <%= hidden_field_tag :q, @filter_q if @filter_q.present? %>
+          <%= hidden_field_tag :status, @filter_status if @filter_status.present? %>
+
+          <div class="space-y-4">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">屆數</label>
+              <%= f.select :batch_year_id,
+                           options_from_collection_for_select(@batch_years, :id, :display_label_with_grade, @filter_batch_year_id),
+                           { include_blank: "請選擇屆數" },
+                           { class: "block w-full shadow-sm rounded-lg border border-gray-300 px-3 py-2.5 text-base", required: true } %>
+            </div>
+
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">盤點表排序</label>
+              <%= select_tag :inventory_sort,
+                             options_for_select(
+                               [
+                                 [ "書名（筆畫）", "title_strokes" ],
+                                 [ "ISBN", "isbn" ],
+                                 [ "來源", "source" ]
+                               ],
+                               @inventory_sort
+                             ),
+                             class: "block w-full shadow-sm rounded-lg border border-gray-300 px-3 py-2.5 text-base" %>
+            </div>
+
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">來源（選填）</label>
+              <%= select_tag :source,
+                             options_for_select(Book.sources.keys.map { |k| [t("activerecord.enums.book.source.#{k}"), k] }, @filter_source),
+                             include_blank: "全部來源",
+                             class: "block w-full shadow-sm rounded-lg border border-gray-300 px-3 py-2.5 text-base" %>
+              <p class="mt-2 text-xs text-gray-500">若選擇特定來源，盤點表將不顯示「來源」欄位。</p>
+            </div>
+          </div>
+
+          <div class="mt-6 flex items-center justify-end gap-2">
+            <button type="button" class="inline-flex items-center rounded-md px-3.5 py-2.5 bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 font-medium" data-close-inventory-dialog>
+              取消
+            </button>
+            <button type="submit" class="inline-flex items-center rounded-md px-3.5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-medium">
+              匯出 PDF
+            </button>
+          </div>
+        <% end %>
+      </div>
+    </div>
+  </dialog>
 
   <% if @missing_books.present? %>
     <div class="mb-4 py-3 px-4 sm:py-2 sm:px-3 bg-amber-50 text-amber-900 text-sm rounded-xl border border-amber-200">
@@ -296,6 +360,26 @@
 
   <script>
     (function() {
+      var dlg = document.getElementById('inventory-dialog');
+      var openBtn = document.querySelector('[data-open-inventory-dialog]');
+      var closeBtns = document.querySelectorAll('[data-close-inventory-dialog]');
+
+      function openDialog() {
+        if (!dlg) return;
+        if (typeof dlg.showModal === 'function') dlg.showModal();
+      }
+
+      function closeDialog() {
+        if (!dlg) return;
+        if (typeof dlg.close === 'function') dlg.close();
+      }
+
+      if (openBtn) openBtn.addEventListener('click', openDialog);
+      closeBtns.forEach(function(btn) { btn.addEventListener('click', closeDialog); });
+      if (dlg) dlg.addEventListener('click', function(e) {
+        if (e.target === dlg) closeDialog();
+      });
+
       var form = document.getElementById('bulk-destroy-books-form');
       if (!form) return;
       var checkboxes = form.querySelectorAll('.book-checkbox');
