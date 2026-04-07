@@ -15,6 +15,8 @@ class BooksController < ApplicationController
     @filter_source = params[:source].presence
     @filter_status = params[:status].presence
     @inventory_sort = params[:inventory_sort].presence_in(INVENTORY_SORT_KEYS) || "isbn"
+    teacher_ids = Book.where(source: :owned_by_teacher).where.not(user_id: nil).distinct.pluck(:user_id)
+    @inventory_teacher_users = User.with_deleted.where(id: teacher_ids).order(:name)
     @invalid_books = @books.select { |b| b.missing_required_fields.any? }
     @books_with_invalid_isbn = @books.select(&:invalid_isbn?)
     @any_library_books_to_return = Book.where(source: :owned_by_library).where.not(status: Book::STATUS_RETURNED_LIBRARY).exists?
@@ -70,16 +72,18 @@ class BooksController < ApplicationController
     end
 
     inventory_sort = params[:inventory_sort].presence_in(INVENTORY_SORT_KEYS) || "isbn"
-    books = filtered_books_scope.where(batch_year_id: batch_year.id)
+    inventory_source = params[:inventory_source].presence
+    if inventory_source.blank?
+      redirect_to books_path(_books_list_query_params), alert: "請先選擇來源。", status: :see_other
+      return
+    end
+
+    books = _inventory_pdf_filtered_scope(batch_year.id)
+    books, source_title_suffix, specific_source = _apply_inventory_source_filter(books, inventory_source)
     books = _inventory_pdf_ordered_scope(books, inventory_sort)
 
-    source_filter = params[:source].presence
-    show_source_column = source_filter.blank?
-    source_title_suffix = if source_filter.present?
-      I18n.t("activerecord.enums.book.source.#{source_filter}")
-    else
-      "全部"
-    end
+    # If user chose a specific source (not 全部 / not 所有老師的書), omit the source column.
+    show_source_column = !specific_source
 
     pdf_data = Books::InventoryPdf.render(
       books.to_a,
@@ -540,6 +544,54 @@ class BooksController < ApplicationController
   end
 
   private
+    def _inventory_pdf_filtered_scope(batch_year_id)
+      books = Book.where.not(title: [ nil, "" ])
+      if params[:status].present?
+        books = books.where(status: params[:status])
+      else
+        books = books.where.not(status: Book::STATUS_RETURNED_LIBRARY)
+      end
+      books = books.where(batch_year_id: batch_year_id)
+
+      q_raw = params[:q].to_s.strip
+      if q_raw.present?
+        pattern = "%#{Book.sanitize_sql_like(q_raw)}%"
+        digits = q_raw.gsub(/\D/, "")
+        if digits.present?
+          isbn_pattern = "%#{Book.sanitize_sql_like(digits)}%"
+          tn = Book.table_name
+          qc = Book.connection
+          isbn_norm = "REPLACE(REPLACE(TRIM(COALESCE(#{qc.quote_table_name(tn)}.#{qc.quote_column_name("isbn")}, '')), '-', ''), ' ', '')"
+          books = books.where("title LIKE ? OR #{isbn_norm} LIKE ?", pattern, isbn_pattern)
+        else
+          books = books.where("title LIKE ?", pattern)
+        end
+      end
+
+      books
+    end
+
+    def _apply_inventory_source_filter(books, inventory_source)
+      case inventory_source
+      when "all"
+        [ books, "全部", false ]
+      when "teachers_all"
+        [ books.where(source: :owned_by_teacher), I18n.t("activerecord.enums.book.source.owned_by_teacher"), false ]
+      when /\Ateacher:(\d+)\z/
+        teacher_id = Regexp.last_match(1).to_i
+        teacher = User.with_deleted.find_by(id: teacher_id)
+        label = teacher&.name.present? ? "#{teacher.name}老師的書" : I18n.t("activerecord.enums.book.source.owned_by_teacher")
+        [ books.where(source: :owned_by_teacher, user_id: teacher_id), label, true ]
+      else
+        # Enum key (owned_by_library / donated / owned_by_class / owned_by_teacher)
+        if Book.sources.key?(inventory_source)
+          [ books.where(source: inventory_source), I18n.t("activerecord.enums.book.source.#{inventory_source}"), true ]
+        else
+          [ books, "全部", false ]
+        end
+      end
+    end
+
     def _inventory_pdf_ordered_scope(books, inventory_sort)
       if Book.respond_to?(:ordered_for_list)
         books.merge(Book.ordered_for_list(inventory_sort))

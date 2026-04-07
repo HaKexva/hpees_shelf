@@ -102,14 +102,14 @@ RSpec.describe "Books", type: :request do
     end
 
     it "returns a PDF when batch_year_id is set" do
-      get inventory_pdf_books_url, params: { batch_year_id: batch_year.id }
+      get inventory_pdf_books_url, params: { batch_year_id: batch_year.id, inventory_source: "all" }
       expect(response).to have_http_status(:success)
       expect(response.media_type).to eq("application/pdf")
       expect(response.body).to start_with("%PDF")
     end
 
     it "omits the source column when source filter is applied" do
-      get inventory_pdf_books_url, params: { batch_year_id: batch_year.id, source: "donated" }
+      get inventory_pdf_books_url, params: { batch_year_id: batch_year.id, inventory_source: "donated" }
       expect(response).to have_http_status(:success)
       expect(response.media_type).to eq("application/pdf")
     end
