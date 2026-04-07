@@ -5,7 +5,7 @@ require "prawn/table"
 
 module Books
   class InventoryPdf
-    FONT_PATH = Rails.root.join("vendor/fonts/NotoSansTC-Regular.otf")
+    FONT_PATH = Rails.root.join("vendor/fonts/NotoSansTC-Variable.ttf")
 
     def self.render(books, batch_year:, show_source_column:, source_title_suffix:)
       new(books, batch_year, show_source_column, source_title_suffix).render
