@@ -8,7 +8,7 @@ class BooksController < ApplicationController
   def index
     BatchYear.ensure_office_exists!
     @list_sort = Book.list_sort_from_param(params[:sort])
-    @books = filtered_books_scope.includes(:batch_year, :borrowers).merge(Book.ordered_for_list(@list_sort))
+    @books = filtered_books_scope.includes(:batch_year, :borrowers, :user).merge(Book.ordered_for_list(@list_sort))
     @batch_years = BatchYear.by_number_desc
     @filter_batch_year_id = params[:batch_year_id]
     @filter_q = params[:q].to_s.strip.presence
@@ -24,7 +24,7 @@ class BooksController < ApplicationController
     @missing_books = Book.where.not(title: [ nil, "" ])
                          .where.not(status: Book::STATUS_RETURNED_LIBRARY)
                          .overdue_as_missing
-                         .includes(:batch_year, :borrowers)
+                         .includes(:batch_year, :borrowers, :user)
                          .order(borrowed_at: :asc)
   end
 

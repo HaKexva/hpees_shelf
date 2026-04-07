@@ -99,7 +99,7 @@
               <span class="font-semibold"><%= book.title %></span>
               <%= " #{book.edition_part}" if book.edition_part.present? %>
               <%= " 冊#{book.volume}" if book.volume.present? %>
-              — <%= book.source.present? ? t("activerecord.enums.book.source.#{book.source}") : "—" %>
+              — <%= book.source.present? ? (book.source.to_s == "owned_by_teacher" && book.user&.name.to_s.strip.present? ? "#{book.user.name}老師的書" : t("activerecord.enums.book.source.#{book.source}")) : "—" %>
               <%= " · 登錄號 #{book.call_number}" if book.call_number.present? %>
               · <span class="font-semibold text-amber-900"><%= book.display_status %></span>
               <% if book.borrowers.any? %>
@@ -275,7 +275,17 @@
                     </div>
                   </td>
                   <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500"><%= book.batch_year&.display_label || "—" %></td>
-                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500"><%= book.source.present? ? t("activerecord.enums.book.source.#{book.source}") : "—" %></td>
+                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    <% if book.source.present? %>
+                      <% if book.source.to_s == "owned_by_teacher" && book.user&.name.to_s.strip.present? %>
+                        <%= "#{book.user.name}老師的書" %>
+                      <% else %>
+                        <%= t("activerecord.enums.book.source.#{book.source}") %>
+                      <% end %>
+                    <% else %>
+                      —
+                    <% end %>
+                  </td>
                   <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500"><%= book.call_number.presence || "—" %></td>
                   <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500"><%= book.total %></td>
                   <td class="px-6 py-4 text-sm text-gray-500 max-w-xs truncate"><%= book.note %></td>
@@ -331,7 +341,16 @@
               </div>
               <div class="mt-4 grid grid-cols-2 gap-x-4 gap-y-1.5 text-sm">
                 <% if book.source.present? %>
-                  <div class="flex gap-1.5"><span class="text-gray-400 shrink-0">來源</span><span class="text-gray-700 truncate"><%= t("activerecord.enums.book.source.#{book.source}") %></span></div>
+                  <div class="flex gap-1.5">
+                    <span class="text-gray-400 shrink-0">來源</span>
+                    <span class="text-gray-700 truncate">
+                      <% if book.source.to_s == "owned_by_teacher" && book.user&.name.to_s.strip.present? %>
+                        <%= "#{book.user.name}老師的書" %>
+                      <% else %>
+                        <%= t("activerecord.enums.book.source.#{book.source}") %>
+                      <% end %>
+                    </span>
+                  </div>
                 <% end %>
                 <% if book.isbn.present? %>
                   <div class="flex gap-1.5 min-w-0"><span class="text-gray-400 shrink-0">ISBN</span><span class="text-gray-700 truncate"><%= format_isbn13(book.isbn) %><% if book.invalid_isbn? %><span class="text-amber-600 ml-0.5" title="ISBN 格式錯誤">⚠</span><% end %></span></div>
