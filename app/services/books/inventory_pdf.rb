@@ -21,7 +21,7 @@ module Books
     def render
       Prawn::Document.new(page_size: "A4", margin: 36) do |pdf|
         register_font(pdf)
-        title = "第 #{@batch_year.batch_number} 屆書籍盤點表（來源：#{@source_title_suffix}）"
+        title = "第 #{@batch_year.batch_number} 屆書籍盤點表 （來源：#{@source_title_suffix}）"
         pdf.text title, size: 14, align: :center
         pdf.move_down 20
 

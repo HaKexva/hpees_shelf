@@ -577,7 +577,7 @@ class BooksController < ApplicationController
       when "all"
         [ books, "全部", false ]
       when "teachers_all"
-        [ books.where(source: :owned_by_teacher), I18n.t("activerecord.enums.book.source.owned_by_teacher"), false ]
+        [ books.where(source: :owned_by_teacher), "所有老師的書", false ]
       when /\Ateacher:(\d+)\z/
         teacher_id = Regexp.last_match(1).to_i
         teacher = User.with_deleted.find_by(id: teacher_id)
