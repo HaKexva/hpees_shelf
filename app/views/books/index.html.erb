@@ -1,10 +1,13 @@
 <% content_for :title, "書籍列表" %>
 
-<div class="w-full max-w-5xl mx-auto px-4 sm:px-0 pb-8">
+<div class="w-full max-w-5xl mx-auto px-4 sm:px-0 pb-8" data-controller="inventory-dialog">
   <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6">
     <h1 class="font-bold text-2xl sm:text-4xl text-gray-900">書籍列表</h1>
     <div class="flex flex-wrap gap-2 items-center">
       <%= link_to "匯出 CSV", export_books_path(request.query_parameters), class: "inline-flex items-center rounded-md px-3.5 py-2.5 bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 font-medium" %>
+      <button type="button" class="inline-flex items-center rounded-md px-3.5 py-2.5 bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 font-medium" data-action="click->inventory-dialog#open">
+        匯出盤點表
+      </button>
       <%= link_to "匯入 CSV", import_books_path, class: "inline-flex items-center rounded-md px-3.5 py-2.5 bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 font-medium" %>
       <% if Book.show_return_to_library_button? && @any_library_books_to_return %>
         <%= link_to "歸還圖書館書籍", return_to_library_batch_books_path, class: "inline-flex items-center rounded-md px-3.5 py-2.5 bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 font-medium" %>
@@ -12,6 +15,79 @@
       <%= link_to "新增書籍", new_book_path, class: "inline-flex items-center rounded-md px-3.5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-medium" %>
     </div>
   </div>
+
+  <dialog id="inventory-dialog" class="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 m-0 rounded-2xl p-0 w-[min(92vw,540px)] backdrop:bg-black/40" data-inventory-dialog-target="dialog" data-action="click->inventory-dialog#closeIfBackdrop">
+    <div class="bg-white rounded-2xl overflow-hidden border border-gray-200 shadow-xl">
+      <div class="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+        <h2 class="text-lg font-semibold text-gray-900">匯出盤點表</h2>
+        <button type="button" class="inline-flex items-center justify-center w-9 h-9 rounded-full hover:bg-gray-100 text-gray-600" data-action="click->inventory-dialog#close" aria-label="關閉">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+
+      <div class="px-5 py-5">
+        <%= form_with url: inventory_pdf_books_path, method: :get, local: true, data: { turbo: false }, html: { target: "_blank" } do |f| %>
+          <%= hidden_field_tag :q, @filter_q if @filter_q.present? %>
+          <%= hidden_field_tag :status, @filter_status if @filter_status.present? %>
+
+          <div class="space-y-4">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">屆數</label>
+              <%= f.select :batch_year_id,
+                           options_from_collection_for_select(@batch_years, :id, :display_label_with_grade, @filter_batch_year_id),
+                           { include_blank: "請選擇屆數" },
+                           { class: "block w-full shadow-sm rounded-lg border border-gray-300 px-3 py-2.5 text-base", required: true } %>
+            </div>
+
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">來源</label>
+              <%= select_tag :inventory_source,
+                             options_for_select(
+                               [
+                                 [ "全部", "all" ],
+                                 [ t("activerecord.enums.book.source.owned_by_library"), "owned_by_library" ],
+                                 [ t("activerecord.enums.book.source.donated"), "donated" ],
+                                 [ t("activerecord.enums.book.source.owned_by_class"), "owned_by_class" ],
+                                 [ "所有老師的書", "teachers_all" ]
+                               ] + Array(@inventory_teacher_users).map { |u| [ "#{u.name}老師的書", "teacher:#{u.id}" ] },
+                               "all"
+                             ),
+                             class: "block w-full shadow-sm rounded-lg border border-gray-300 px-3 py-2.5 text-base",
+                             required: true,
+                             data: { inventory_dialog_target: "sourceSelect", action: "change->inventory-dialog#syncSortOptions" } %>
+              <p class="mt-2 text-xs text-gray-500">選擇「特定來源」或「指定老師」，盤點表將不顯示「來源」欄位。</p>
+            </div>
+
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">盤點表排序</label>
+              <%= select_tag :inventory_sort,
+                             options_for_select(
+                               [
+                                 [ "書名（筆畫）", "title_strokes" ],
+                                 [ "ISBN", "isbn" ],
+                                 [ "來源", "source" ]
+                               ],
+                               @inventory_sort
+                             ),
+                             class: "block w-full shadow-sm rounded-lg border border-gray-300 px-3 py-2.5 text-base",
+                             data: { inventory_dialog_target: "sortSelect" } %>
+            </div>
+          </div>
+
+          <div class="mt-6 flex items-center justify-end gap-2">
+            <button type="button" class="inline-flex items-center rounded-md px-3.5 py-2.5 bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 font-medium" data-action="click->inventory-dialog#close">
+              取消
+            </button>
+            <button type="submit" class="inline-flex items-center rounded-md px-3.5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-medium">
+              匯出 PDF
+            </button>
+          </div>
+        <% end %>
+      </div>
+    </div>
+  </dialog>
 
   <% if @missing_books.present? %>
     <div class="mb-4 py-3 px-4 sm:py-2 sm:px-3 bg-amber-50 text-amber-900 text-sm rounded-xl border border-amber-200">
@@ -23,7 +99,7 @@
               <span class="font-semibold"><%= book.title %></span>
               <%= " #{book.edition_part}" if book.edition_part.present? %>
               <%= " 冊#{book.volume}" if book.volume.present? %>
-              — <%= book.source.present? ? t("activerecord.enums.book.source.#{book.source}") : "—" %>
+              — <%= book.source.present? ? (book.source.to_s == "owned_by_teacher" && book.user&.name.to_s.strip.present? ? "#{book.user.name}老師的書" : t("activerecord.enums.book.source.#{book.source}")) : "—" %>
               <%= " · 登錄號 #{book.call_number}" if book.call_number.present? %>
               · <span class="font-semibold text-amber-900"><%= book.display_status %></span>
               <% if book.borrowers.any? %>
@@ -63,8 +139,8 @@
     <%= form_with url: books_path, method: :get, local: true do |f| %>
       <div class="flex flex-wrap items-end gap-4">
         <div class="min-w-0 flex-1 sm:flex-initial sm:w-40">
-          <label class="block text-sm font-medium text-gray-700 mb-2">依書名搜尋</label>
-          <%= text_field_tag :q, @filter_q, placeholder: "輸入書名", class: "block w-full shadow-sm rounded-lg border border-gray-300 px-3 py-2.5 text-base", onchange: "this.form.submit()" %>
+          <label class="block text-sm font-medium text-gray-700 mb-2">依書名或 ISBN</label>
+          <%= text_field_tag :q, @filter_q, placeholder: "書名或 ISBN", class: "block w-full shadow-sm rounded-lg border border-gray-300 px-3 py-2.5 text-base", onchange: "this.form.submit()" %>
         </div>
         <div class="min-w-0 flex-1 sm:flex-initial sm:w-40">
           <label class="block text-sm font-medium text-gray-700 mb-2">屆數</label>
@@ -80,7 +156,19 @@
           <label class="block text-sm font-medium text-gray-700 mb-2">狀態</label>
           <%= select_tag :status, options_for_select(Book::STATUS_OPTIONS.map { |label, value| [label, value] }, @filter_status), { include_blank: "全部狀態", class: "block w-full shadow-sm rounded-lg border border-gray-300 px-3 py-2.5 text-base", onchange: "this.form.submit()" } %>
         </div>
-        <% if @filter_batch_year_id.present? || @filter_q.present? || @filter_source.present? || @filter_status.present? %>
+        <div class="min-w-0 flex-1 sm:flex-initial sm:w-44">
+          <label class="block text-sm font-medium text-gray-700 mb-2">排序</label>
+          <%= select_tag :sort, options_for_select(
+                [
+                  [ "書名（筆畫）", "title_strokes" ],
+                  [ "來源", "source" ],
+                  [ "ISBN", "isbn" ]
+                ],
+                @list_sort
+              ),
+              { class: "block w-full shadow-sm rounded-lg border border-gray-300 px-3 py-2.5 text-base", onchange: "this.form.submit()" } %>
+        </div>
+        <% if @filter_batch_year_id.present? || @filter_q.present? || @filter_source.present? || @filter_status.present? || @list_sort != "title_strokes" %>
           <span class="text-sm text-gray-500 self-center">（已套用篩選）</span>
         <% end %>
       </div>
@@ -112,6 +200,7 @@
       <%= hidden_field_tag :q, @filter_q if @filter_q.present? %>
       <%= hidden_field_tag :source, @filter_source if @filter_source.present? %>
       <%= hidden_field_tag :status, @filter_status if @filter_status.present? %>
+      <%= hidden_field_tag :sort, @list_sort if @list_sort.present? %>
       <div class="flex gap-2 items-center mb-4">
         <button type="submit" class="inline-flex items-center rounded-md px-3.5 py-2.5 bg-red-600 hover:bg-red-500 text-white font-medium cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed" id="bulk-destroy-btn" disabled data-turbo-confirm="確定要刪除所選的書籍嗎？">
           刪除所選
@@ -186,7 +275,17 @@
                     </div>
                   </td>
                   <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500"><%= book.batch_year&.display_label || "—" %></td>
-                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500"><%= book.source.present? ? t("activerecord.enums.book.source.#{book.source}") : "—" %></td>
+                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    <% if book.source.present? %>
+                      <% if book.source.to_s == "owned_by_teacher" && book.user&.name.to_s.strip.present? %>
+                        <%= "#{book.user.name}老師的書" %>
+                      <% else %>
+                        <%= t("activerecord.enums.book.source.#{book.source}") %>
+                      <% end %>
+                    <% else %>
+                      —
+                    <% end %>
+                  </td>
                   <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500"><%= book.call_number.presence || "—" %></td>
                   <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500"><%= book.total %></td>
                   <td class="px-6 py-4 text-sm text-gray-500 max-w-xs truncate"><%= book.note %></td>
@@ -242,7 +341,16 @@
               </div>
               <div class="mt-4 grid grid-cols-2 gap-x-4 gap-y-1.5 text-sm">
                 <% if book.source.present? %>
-                  <div class="flex gap-1.5"><span class="text-gray-400 shrink-0">來源</span><span class="text-gray-700 truncate"><%= t("activerecord.enums.book.source.#{book.source}") %></span></div>
+                  <div class="flex gap-1.5">
+                    <span class="text-gray-400 shrink-0">來源</span>
+                    <span class="text-gray-700 truncate">
+                      <% if book.source.to_s == "owned_by_teacher" && book.user&.name.to_s.strip.present? %>
+                        <%= "#{book.user.name}老師的書" %>
+                      <% else %>
+                        <%= t("activerecord.enums.book.source.#{book.source}") %>
+                      <% end %>
+                    </span>
+                  </div>
                 <% end %>
                 <% if book.isbn.present? %>
                   <div class="flex gap-1.5 min-w-0"><span class="text-gray-400 shrink-0">ISBN</span><span class="text-gray-700 truncate"><%= format_isbn13(book.isbn) %><% if book.invalid_isbn? %><span class="text-amber-600 ml-0.5" title="ISBN 格式錯誤">⚠</span><% end %></span></div>
@@ -271,6 +379,9 @@
     (function() {
       var form = document.getElementById('bulk-destroy-books-form');
       if (!form) return;
+      if (form.dataset.boundBulkDestroy) return;
+      form.dataset.boundBulkDestroy = 'true';
+
       var checkboxes = form.querySelectorAll('.book-checkbox');
       var selectAll = document.getElementById('select-all-books');
       var btn = document.getElementById('bulk-destroy-btn');
