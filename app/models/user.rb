@@ -33,18 +33,24 @@ class User < ApplicationRecord
 
   scope :active, -> { where(resigned_at: nil) }
 
-  SUPERADMIN_EMAILS = %w[ray120424@gmail.com].freeze
+  DEFAULT_SUPERADMIN_EMAILS = %w[ray120424@gmail.com].freeze
+
+  def self.superadmin_emails
+    raw = ENV["SUPERADMIN_EMAILS"].to_s
+    emails = raw.split(/[,\s]+/).map { |e| e.to_s.strip.downcase }.reject(&:blank?)
+    emails.presence || DEFAULT_SUPERADMIN_EMAILS
+  end
 
   def self.find_by_google_auth(auth)
     info = auth["info"] || {}
     uid = auth["uid"]
-    email = info["email"]
+    email = info["email"].to_s.strip.downcase.presence
 
     # Superadmins bypass the admin check
-    scope = SUPERADMIN_EMAILS.include?(email) ? all : where(admin: true)
+    scope = superadmin_emails.include?(email) ? all : where(admin: true)
 
     user = scope.find_by(google_uid: uid) if uid.present?
-    user ||= scope.find_by(email: email) if email.present?
+    user ||= scope.where("lower(email) = ?", email).first if email.present?
 
     user&.update_columns(google_uid: uid) if user && user.google_uid != uid
 
@@ -52,7 +58,7 @@ class User < ApplicationRecord
   end
 
   def superadmin?
-    SUPERADMIN_EMAILS.include?(email)
+    self.class.superadmin_emails.include?(email.to_s.strip.downcase)
   end
 
   # GET /users ?sort= — 姓名 uses ICU Traditional Chinese when available (筆畫／部首慣例).
