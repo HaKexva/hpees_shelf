@@ -1,15 +1,22 @@
 class BooksController < ApplicationController
+  # 盤點表 PDF 排序（與列表「排序」選項一致：書名筆畫／來源／ISBN）
+  INVENTORY_SORT_KEYS = %w[title_strokes source isbn].freeze
+
   before_action :set_book, only: %i[ show edit update destroy return_to_library borrow return_shelf ]
 
   # GET /books or /books.json
   def index
     BatchYear.ensure_office_exists!
-    @books = filtered_books_scope.includes(:batch_year, :borrowers)
+    @list_sort = Book.list_sort_from_param(params[:sort])
+    @books = filtered_books_scope.includes(:batch_year, :borrowers, :user).merge(Book.ordered_for_list(@list_sort))
     @batch_years = BatchYear.by_number_desc
     @filter_batch_year_id = params[:batch_year_id]
     @filter_q = params[:q].to_s.strip.presence
     @filter_source = params[:source].presence
     @filter_status = params[:status].presence
+    @inventory_sort = params[:inventory_sort].presence_in(INVENTORY_SORT_KEYS) || "isbn"
+    teacher_ids = Book.where(source: :owned_by_teacher).where.not(user_id: nil).distinct.pluck(:user_id)
+    @inventory_teacher_users = User.with_deleted.where(id: teacher_ids).order(:name)
     @invalid_books = @books.select { |b| b.missing_required_fields.any? }
     @books_with_invalid_isbn = @books.select(&:invalid_isbn?)
     @any_library_books_to_return = Book.where(source: :owned_by_library).where.not(status: Book::STATUS_RETURNED_LIBRARY).exists?
@@ -17,14 +24,15 @@ class BooksController < ApplicationController
     @missing_books = Book.where.not(title: [ nil, "" ])
                          .where.not(status: Book::STATUS_RETURNED_LIBRARY)
                          .overdue_as_missing
-                         .includes(:batch_year, :borrowers)
+                         .includes(:batch_year, :borrowers, :user)
                          .order(borrowed_at: :asc)
   end
 
   # GET /books/export — CSV for current list filters (same as index)
   def export
     BatchYear.ensure_office_exists!
-    books = filtered_books_scope.includes(:batch_year).order(:id)
+    sort = Book.list_sort_from_param(params[:sort])
+    books = filtered_books_scope.includes(:batch_year).merge(Book.ordered_for_list(sort))
     bom = "\uFEFF"
     headers = %w[書名 ISBN 屆數 來源 登錄號 總數 冊數 備註 狀態]
     csv = +""
@@ -46,6 +54,46 @@ class BooksController < ApplicationController
     end
     filename = "books_export_#{Time.zone.now.strftime('%Y%m%d_%H%M')}.csv"
     send_data csv, filename: filename, type: "text/csv; charset=utf-8"
+  end
+
+  # GET /books/inventory_pdf — 盤點表 PDF（需選屆數；沿用列表篩選；排序見 inventory_sort）
+  def inventory_pdf
+    BatchYear.ensure_office_exists!
+    batch_year_id = params[:batch_year_id].presence
+    if batch_year_id.blank?
+      redirect_to books_path(_books_list_query_params), alert: "請先選擇屆數。", status: :see_other
+      return
+    end
+
+    batch_year = BatchYear.find_by(id: batch_year_id)
+    unless batch_year
+      redirect_to books_path(_books_list_query_params), alert: "找不到該屆數。", status: :see_other
+      return
+    end
+
+    inventory_sort = params[:inventory_sort].presence_in(INVENTORY_SORT_KEYS) || "isbn"
+    inventory_source = params[:inventory_source].presence
+    if inventory_source.blank?
+      redirect_to books_path(_books_list_query_params), alert: "請先選擇來源。", status: :see_other
+      return
+    end
+
+    books = _inventory_pdf_filtered_scope(batch_year.id)
+    books, source_title_suffix, specific_source = _apply_inventory_source_filter(books, inventory_source)
+    books = _inventory_pdf_ordered_scope(books, inventory_sort)
+    books = books.includes(:user)
+
+    # If user chose a specific source (not 全部 / not 所有老師的書), omit the source column.
+    show_source_column = !specific_source
+
+    pdf_data = Books::InventoryPdf.render(
+      books.to_a,
+      batch_year: batch_year,
+      show_source_column: show_source_column,
+      source_title_suffix: source_title_suffix
+    )
+    filename = "inventory_batch#{batch_year.batch_number}_#{Time.zone.now.strftime('%Y%m%d_%H%M')}.pdf"
+    send_data pdf_data, filename: filename, type: "application/pdf", disposition: "attachment"
   end
 
   # GET /books/import
@@ -482,6 +530,11 @@ class BooksController < ApplicationController
     ids = Array(params[:book_ids]).reject(&:blank?).map(&:to_i)
     redirect_params = {}
     redirect_params[:batch_year_id] = params[:batch_year_id] if params[:batch_year_id].present?
+    redirect_params[:q] = params[:q] if params[:q].present?
+    redirect_params[:source] = params[:source] if params[:source].present?
+    redirect_params[:status] = params[:status] if params[:status].present?
+    redirect_params[:sort] = params[:sort] if params[:sort].present?
+    redirect_params[:inventory_sort] = params[:inventory_sort] if params[:inventory_sort].present?
     if ids.any?
       now = Time.current
       count = Book.where(id: ids).update_all(deleted_at: now, updated_at: now)
@@ -492,6 +545,70 @@ class BooksController < ApplicationController
   end
 
   private
+    def _inventory_pdf_filtered_scope(batch_year_id)
+      books = Book.where.not(title: [ nil, "" ])
+      if params[:status].present?
+        books = books.where(status: params[:status])
+      else
+        books = books.where.not(status: Book::STATUS_RETURNED_LIBRARY)
+      end
+      books = books.where(batch_year_id: batch_year_id)
+
+      q_raw = params[:q].to_s.strip
+      if q_raw.present?
+        pattern = "%#{Book.sanitize_sql_like(q_raw)}%"
+        digits = q_raw.gsub(/\D/, "")
+        if digits.present?
+          isbn_pattern = "%#{Book.sanitize_sql_like(digits)}%"
+          tn = Book.table_name
+          qc = Book.connection
+          isbn_norm = "REPLACE(REPLACE(TRIM(COALESCE(#{qc.quote_table_name(tn)}.#{qc.quote_column_name("isbn")}, '')), '-', ''), ' ', '')"
+          books = books.where("title LIKE ? OR #{isbn_norm} LIKE ?", pattern, isbn_pattern)
+        else
+          books = books.where("title LIKE ?", pattern)
+        end
+      end
+
+      books
+    end
+
+    def _apply_inventory_source_filter(books, inventory_source)
+      case inventory_source
+      when "all"
+        [ books, "全部", false ]
+      when "teachers_all"
+        [ books.where(source: :owned_by_teacher), "所有老師的書", false ]
+      when /\Ateacher:(\d+)\z/
+        teacher_id = Regexp.last_match(1).to_i
+        teacher = User.with_deleted.find_by(id: teacher_id)
+        label = teacher&.name.present? ? "#{teacher.name}老師的書" : I18n.t("activerecord.enums.book.source.owned_by_teacher")
+        [ books.where(source: :owned_by_teacher, user_id: teacher_id), label, true ]
+      else
+        # Enum key (owned_by_library / donated / owned_by_class / owned_by_teacher)
+        if Book.sources.key?(inventory_source)
+          [ books.where(source: inventory_source), I18n.t("activerecord.enums.book.source.#{inventory_source}"), true ]
+        else
+          [ books, "全部", false ]
+        end
+      end
+    end
+
+    def _inventory_pdf_ordered_scope(books, inventory_sort)
+      if Book.respond_to?(:ordered_for_list)
+        books.merge(Book.ordered_for_list(inventory_sort))
+      else
+        case inventory_sort
+        when "source" then books.order(:source)
+        when "isbn" then books.order(:isbn)
+        else books.order(:title)
+        end
+      end
+    end
+
+    def _books_list_query_params
+      params.permit(:batch_year_id, :q, :source, :status, :sort, :inventory_sort).to_h.compact_blank
+    end
+
     def filtered_books_scope
       books = Book.where.not(title: [ nil, "" ])
       if params[:status].present?
@@ -501,9 +618,19 @@ class BooksController < ApplicationController
       end
       books = books.where(source: params[:source]) if params[:source].present?
       books = books.where(batch_year_id: params[:batch_year_id]) if params[:batch_year_id].present?
-      if params[:q].to_s.strip.present?
-        pattern = "%#{Book.sanitize_sql_like(params[:q].strip)}%"
-        books = books.where("title LIKE ?", pattern)
+      q_raw = params[:q].to_s.strip
+      if q_raw.present?
+        pattern = "%#{Book.sanitize_sql_like(q_raw)}%"
+        digits = q_raw.gsub(/\D/, "")
+        if digits.present?
+          isbn_pattern = "%#{Book.sanitize_sql_like(digits)}%"
+          tn = Book.table_name
+          qc = Book.connection
+          isbn_norm = "REPLACE(REPLACE(TRIM(COALESCE(#{qc.quote_table_name(tn)}.#{qc.quote_column_name("isbn")}, '')), '-', ''), ' ', '')"
+          books = books.where("title LIKE ? OR #{isbn_norm} LIKE ?", pattern, isbn_pattern)
+        else
+          books = books.where("title LIKE ?", pattern)
+        end
       end
       books
     end

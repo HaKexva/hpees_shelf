@@ -1,8 +1,14 @@
 FactoryBot.define do
   factory :user do
+    association :batch_year
     sequence(:name) { |n| "User #{n}" }
-    batch_year
+    id_number { nil }
+    seat_number { nil }
     admin { false }
+    resigned_at { nil }
+    deleted_at { nil }
+    grade_id { 1 }
+    email { nil }
 
     trait :admin do
       admin { true }

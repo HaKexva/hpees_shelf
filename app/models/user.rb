@@ -82,7 +82,7 @@ class User < ApplicationRecord
   def self.ordered_for_list(sort)
     case list_sort_from_param(sort)
     when "id_number"
-      order(Arel.sql("#{quoted_table_name}.#{connection.quote_column_name("id_number")} ASC NULLS LAST"))
+      order(Arel.sql("#{quoted_table_name}.#{connection.quote_column_name("id_number")} ASC NULLS FIRST"))
     when "seat_number"
       order(
         Arel.sql(<<~SQL.squish)
@@ -90,8 +90,8 @@ class User < ApplicationRecord
             WHEN #{quoted_table_name}.#{connection.quote_column_name("seat_number")} ~ '^[0-9]+$'
             THEN (#{quoted_table_name}.#{connection.quote_column_name("seat_number")})::integer
             ELSE NULL
-          END) NULLS LAST,
-          #{quoted_table_name}.#{connection.quote_column_name("seat_number")} ASC NULLS LAST
+          END) NULLS FIRST,
+          #{quoted_table_name}.#{connection.quote_column_name("seat_number")} ASC NULLS FIRST
         SQL
       )
     else

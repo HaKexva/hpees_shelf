@@ -25,6 +25,54 @@ class Book < ApplicationRecord
   enum :source, { owned_by_library: 0, donated: 1, owned_by_class: 2, owned_by_teacher: 3 }
   before_validation :normalize_total
 
+  # GET /books ?sort= — 書名 uses ICU Traditional Chinese when available (筆畫／部首慣例).
+  LIST_SORT_OPTIONS = %w[title_strokes source isbn].freeze
+
+  def self.list_sort_from_param(raw)
+    s = raw.to_s
+    return "title_strokes" if s.blank?
+
+    s.presence_in(LIST_SORT_OPTIONS) || "title_strokes"
+  end
+
+  def self.ordered_for_list(sort)
+    case list_sort_from_param(sort)
+    when "source"
+      order(:source)
+    when "isbn"
+      isbn_expr = <<~SQL.squish
+        REPLACE(REPLACE(TRIM(COALESCE(#{quoted_table_name}.#{connection.quote_column_name("isbn")}, '')), '-', ''), ' ', '')
+      SQL
+      order(Arel.sql("#{isbn_expr} ASC NULLS LAST"))
+    else
+      ordered_by_traditional_title
+    end
+  end
+
+  def self.ordered_by_traditional_title
+    col = "#{quoted_table_name}.#{connection.quote_column_name("title")}"
+    if (c = first_available_traditional_title_collation)
+      order(Arel.sql("#{col} COLLATE #{connection.quote_column_name(c)} ASC NULLS LAST"))
+    else
+      order(:title)
+    end
+  end
+
+  def self.first_available_traditional_title_collation
+    @first_available_traditional_title_collation ||= begin
+      candidates = %w[zh-Hant-TW-x-icu zh-Hant-x-icu zh_TW.UTF-8 zh_TW]
+      candidates.find { |n| collation_available?(n) }
+    end
+  end
+
+  def self.collation_available?(name)
+    return false unless connection.adapter_name == "PostgreSQL"
+
+    connection.select_value(sanitize_sql_array([ "SELECT 1 FROM pg_collation WHERE collname = ? LIMIT 1", name ])).present?
+  rescue StandardError
+    false
+  end
+
   # Current status (stored in Chinese): on-shelf, borrowed, missing, returned-to-library
   STATUS_ON_SHELF = "架上"
   STATUS_BORROWED = "借閱中"
