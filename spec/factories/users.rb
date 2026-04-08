@@ -11,4 +11,3 @@ FactoryBot.define do
     email { nil }
   end
 end
-
