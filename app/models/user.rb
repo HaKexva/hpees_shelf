@@ -33,6 +33,42 @@ class User < ApplicationRecord
 
   scope :active, -> { where(resigned_at: nil) }
 
+  SUPERADMIN_EMAILS = %w[ray120424@gmail.com tubaxenor@gmail.com].freeze
+
+  def self.find_by_google_auth(auth)
+    info = auth["info"] || {}
+    uid = auth["uid"]
+    email = info["email"]
+    is_superadmin = SUPERADMIN_EMAILS.include?(email)
+
+    # Superadmins bypass the admin check
+    scope = is_superadmin ? all : where(admin: true)
+
+    user = scope.find_by(google_uid: uid) if uid.present?
+    user ||= scope.find_by(email: email) if email.present?
+
+    # Auto-provision superadmins who don't have a User record yet
+    if user.nil? && is_superadmin
+      batch_year = BatchYear.order(:id).first ||
+        BatchYear.create!(batch_number: 1, grade_id: 1, name: "第1屆")
+      user = create!(
+        name: info["name"] || email.split("@").first,
+        email: email,
+        google_uid: uid,
+        admin: true,
+        batch_year: batch_year
+      )
+    end
+
+    user&.update_columns(google_uid: uid) if user && user.google_uid != uid
+
+    user
+  end
+
+  def superadmin?
+    SUPERADMIN_EMAILS.include?(email)
+  end
+
   # GET /users ?sort= — 姓名 uses ICU Traditional Chinese when available (筆畫／部首慣例).
   LIST_SORT_OPTIONS = %w[name_strokes id_number seat_number].freeze
 

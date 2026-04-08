@@ -9,5 +9,15 @@ FactoryBot.define do
     deleted_at { nil }
     grade_id { 1 }
     email { nil }
+
+    trait :admin do
+      admin { true }
+      sequence(:email) { |n| "admin#{n}@example.com" }
+    end
+
+    trait :superadmin do
+      admin { true }
+      email { User::SUPERADMIN_EMAILS.first }
+    end
   end
 end

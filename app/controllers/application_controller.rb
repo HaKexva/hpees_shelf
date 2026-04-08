@@ -6,15 +6,21 @@ class ApplicationController < ActionController::Base
   # Changes to the importmap will invalidate the etag for HTML responses
   stale_when_importmap_changes
 
-  # 預設為 admin（登入系統尚未建立）
+  before_action :require_login
   helper_method :current_user, :current_user_admin?
 
   def current_user
-    @current_user ||= User.where(admin: true).order(:id).first
+    @current_user ||= User.find_by(id: session[:user_id]) if session[:user_id]
   end
 
   def current_user_admin?
     current_user&.admin?
+  end
+
+  def require_login
+    unless current_user
+      redirect_to login_path
+    end
   end
 
   private

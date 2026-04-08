@@ -54,9 +54,10 @@ module RubyUI
         div(class: "p-6") do
           h1(class: "text-lg font-semibold") { APP_NAME }
         end
-        div(class: "px-4 space-y-2") do
+        div(class: "flex-1 px-4 space-y-2") do
           render_nav_links
         end
+        render_sidebar_footer if view_context.current_user
       end
     end
 
@@ -78,9 +79,10 @@ module RubyUI
             SheetHeader do
               SheetTitle { "導覽選單" }
             end
-            div(class: "mt-4 flex flex-col gap-2") do
+            div(class: "mt-4 flex-1 flex flex-col gap-2") do
               render_nav_links
             end
+            render_sidebar_footer if view_context.current_user
           end
         end
       end
@@ -89,9 +91,11 @@ module RubyUI
     # Shared navigation links to avoid duplication
     def render_nav_links
       nav_link(href: root_path) { "借還書" }
-      nav_link(href: books_path) { "書籍管理" }
-      nav_link(href: batch_years_path) { "屆數管理" }
-      nav_link(href: users_path) { "人員管理" }
+      if view_context.current_user
+        nav_link(href: books_path) { "書籍管理" }
+        nav_link(href: batch_years_path) { "屆數管理" }
+        nav_link(href: users_path) { "人員管理" }
+      end
     end
 
     def nav_link(href:, &block)
@@ -100,6 +104,24 @@ module RubyUI
       link_class += active ? "bg-accent text-accent-foreground" : "hover:bg-accent hover:text-accent-foreground"
       a(href: href, class: link_class) do
         block.call
+      end
+    end
+
+    def render_sidebar_footer
+      div(class: "px-4 py-4 border-t") do
+        div(class: "text-xs text-muted-foreground truncate mb-2") do
+          plain view_context.current_user.name
+        end
+        form(action: view_context.logout_path, method: "post") do
+          input(type: "hidden", name: "_method", value: "delete")
+          input(type: "hidden", name: "authenticity_token", value: view_context.form_authenticity_token)
+          button(
+            type: "submit",
+            class: "w-full inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors " \
+                   "px-4 py-2 h-9 border border-input bg-background shadow-sm " \
+                   "hover:bg-accent hover:text-accent-foreground"
+          ) { "登出" }
+        end
       end
     end
 
