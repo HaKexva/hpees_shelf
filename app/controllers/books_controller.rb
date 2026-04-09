@@ -120,6 +120,7 @@ class BooksController < ApplicationController
       require "json"
       require "base64"
       import_data = JSON.parse(Base64.strict_decode64(params[:import_data]))
+      _apply_import_row_edits!(import_data, params[:edit_rows])
 
       invalid_rows = []
       import_data.each do |row|
@@ -154,6 +155,7 @@ class BooksController < ApplicationController
       require "json"
       require "base64"
       import_data = JSON.parse(Base64.strict_decode64(params[:import_data]))
+      _apply_import_row_edits!(import_data, params[:edit_rows])
       _restore_import_preview(import_data, params[:batch_year_id].presence&.to_i)
       render :import
     elsif params[:confirm] == "true" && params[:import_data].present?
@@ -161,6 +163,7 @@ class BooksController < ApplicationController
       require "json"
       require "base64"
       import_data = JSON.parse(Base64.strict_decode64(params[:import_data]))
+      _apply_import_row_edits!(import_data, params[:edit_rows])
 
       selected_batch_year_id = params[:batch_year_id].presence&.to_i
       if selected_batch_year_id.blank? || selected_batch_year_id < 1
@@ -545,6 +548,55 @@ class BooksController < ApplicationController
   end
 
   private
+    def _apply_import_row_edits!(import_data, edit_rows_param)
+      return if import_data.blank? || edit_rows_param.blank?
+
+      edit_rows =
+        if edit_rows_param.respond_to?(:to_unsafe_h)
+          edit_rows_param.to_unsafe_h
+        else
+          edit_rows_param.to_h
+        end
+
+      import_data.each_with_index do |row, idx|
+        edits = edit_rows[idx.to_s] || edit_rows[idx]
+        next if edits.blank?
+
+        _apply_one_import_row_edit!(row, edits.to_h)
+      end
+    end
+
+    def _apply_one_import_row_edit!(row, edits)
+      return if row.blank? || edits.blank?
+
+      map = {
+        title: %w[title Title 書名],
+        isbn: %w[isbn ISBN 國際標準書號],
+        source: %w[source Source 來源],
+        total: %w[total Total 總數],
+        volume: %w[volume Volume 冊數],
+        note: %w[note Note 備註],
+        call_number: %w[call_number 登錄號]
+      }
+
+      map.each do |field, keys|
+        next unless edits.key?(field.to_s)
+
+        v = edits[field.to_s].to_s.strip
+
+        # Allow clearing values: keep blank edits as blank.
+        # This lets users remove a wrong value and re-check validation.
+        if v.blank?
+          k = keys.find { |kk| row.key?(kk) } || keys.first
+          row[k] = ""
+          next
+        end
+
+        # Update whichever key exists in this row; otherwise prefer the first key.
+        k = keys.find { |kk| row.key?(kk) } || keys.first
+        row[k] = v
+      end
+    end
     def _inventory_pdf_filtered_scope(batch_year_id)
       books = Book.where.not(title: [ nil, "" ])
       if params[:status].present?
