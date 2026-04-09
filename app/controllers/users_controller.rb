@@ -320,8 +320,9 @@ class UsersController < ApplicationController
         attrs["batch_year_id"] = first_id
       else
         office = BatchYear.find_by(is_office: true)
-        attrs[:batch_year_id] = office&.id
-        attrs["batch_year_id"] = office&.id
+        fallback = office&.id || BatchYear.by_number_desc.first&.id
+        attrs[:batch_year_id] = fallback
+        attrs["batch_year_id"] = fallback
       end
     end
 

@@ -29,6 +29,9 @@
 
 zh-TW:
   hello: "哈囉世界"
+  errors:
+    messages:
+      required: "為必填"
   datetime:
     distance_in_words:
       half_a_minute: "半分鐘"
