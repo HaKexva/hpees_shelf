@@ -336,6 +336,7 @@ class UsersController < ApplicationController
           :name,
           :id_number,
           :seat_number,
+          :email,
           :admin,
           :batch_year_id,
           { extra_batch_year_ids: [] }

@@ -2,7 +2,7 @@ import { Controller } from "@hotwired/stimulus"
 
 // Toggle between single batch-year select (students) and multi-select (admins)
 export default class extends Controller {
-  static targets = ["adminCheckbox", "primaryBatchRow", "extraBatchRow"]
+  static targets = ["adminCheckbox", "primaryBatchRow", "extraBatchRow", "adminEmailRow"]
 
   connect() {
     this.toggleBatchRows()
@@ -46,6 +46,10 @@ export default class extends Controller {
           panel.classList.remove("hidden")
         }
       }
+    }
+
+    if (this.hasAdminEmailRowTarget) {
+      this.adminEmailRowTarget.classList.toggle("hidden", !checked)
     }
   }
 }
