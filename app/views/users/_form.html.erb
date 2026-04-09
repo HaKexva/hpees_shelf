@@ -100,6 +100,16 @@
     </div>
   <% end %>
 
+  <div class="my-5 <%= 'hidden' unless user.admin %>" data-user-form-target="adminEmailRow">
+    <%= form.label :email, "Gmail（管理員登入用）", class: "block text-sm font-medium text-gray-700" %>
+    <%= form.email_field :email,
+          placeholder: "admin@example.com",
+          autocomplete: "email",
+          class: ["block shadow-sm rounded-md border px-3 py-2 mt-2 w-full",
+                  {"border-gray-400 focus:outline-blue-600": user.errors[:email].none?, "border-red-400 focus:outline-red-600": user.errors[:email].any?}] %>
+    <p class="mt-1 text-xs text-gray-500">管理員使用 Google 登入時會用此 Email 比對帳號。</p>
+  </div>
+
   <div class="my-5 flex items-center">
     <%= form.check_box :admin,
           class: "h-4 w-4 rounded border-gray-400 text-blue-600 focus:ring-blue-600",
