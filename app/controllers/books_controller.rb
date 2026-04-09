@@ -78,6 +78,15 @@ class BooksController < ApplicationController
       return
     end
 
+    unless _wkhtmltopdf_available?
+      redirect_to(
+        books_path(_books_list_query_params),
+        alert: "PDF 匯出需要安裝 wkhtmltopdf。請先安裝並設定 WKHTMLTOPDF_PATH（或將 wkhtmltopdf 加入 PATH）。",
+        status: :see_other
+      )
+      return
+    end
+
     books = _inventory_pdf_filtered_scope(batch_year.id)
     books, source_title_suffix, specific_source = _apply_inventory_source_filter(books, inventory_source)
     books = _inventory_pdf_ordered_scope(books, inventory_sort)
@@ -85,15 +94,22 @@ class BooksController < ApplicationController
 
     # If user chose a specific source (not 全部 / not 所有老師的書), omit the source column.
     show_source_column = !specific_source
-
-    pdf_data = Books::InventoryPdf.render(
-      books.to_a,
-      batch_year: batch_year,
-      show_source_column: show_source_column,
-      source_title_suffix: source_title_suffix
-    )
     filename = "inventory_batch#{batch_year.batch_number}_#{Time.zone.now.strftime('%Y%m%d_%H%M')}.pdf"
-    send_data pdf_data, filename: filename, type: "application/pdf", disposition: "attachment"
+
+    @books = books.to_a
+    @batch_year = batch_year
+    @show_source_column = show_source_column
+    @source_title_suffix = source_title_suffix
+
+    render(
+      pdf: filename.delete_suffix(".pdf"),
+      template: "books/inventory_pdf",
+      layout: "pdf",
+      encoding: "UTF-8",
+      disposition: "attachment",
+      enable_local_file_access: true,
+      margin: { top: 14, bottom: 14, left: 14, right: 14 }
+    )
   end
 
   # GET /books/import
@@ -659,6 +675,17 @@ class BooksController < ApplicationController
 
     def _books_list_query_params
       params.permit(:batch_year_id, :q, :source, :status, :sort, :inventory_sort).to_h.compact_blank
+    end
+
+    def _wkhtmltopdf_available?
+      return false unless defined?(::WickedPdf)
+
+      exe = ::WickedPdf.config[:exe_path].to_s
+      return false if exe.blank?
+      return false unless File.exist?(exe) && File.executable?(exe)
+      return false if RUBY_PLATFORM.include?("arm64-darwin") && exe.include?("/.gem/")
+
+      true
     end
 
     def filtered_books_scope

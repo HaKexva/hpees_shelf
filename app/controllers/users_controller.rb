@@ -319,10 +319,11 @@ class UsersController < ApplicationController
         attrs[:batch_year_id] = first_id
         attrs["batch_year_id"] = first_id
       else
-        office = BatchYear.find_by(is_office: true)
-        fallback = office&.id || BatchYear.by_number_desc.first&.id
-        attrs[:batch_year_id] = fallback
-        attrs["batch_year_id"] = fallback
+        # Keep primary batch_year present to avoid confusing "batch_year required" error;
+        # actual requirement is enforced by model validation on extra_batch_year_ids.
+        office = BatchYear.find_by(is_office: true) || BatchYear.by_number_desc.first
+        attrs[:batch_year_id] = office&.id
+        attrs["batch_year_id"] = office&.id
       end
     end
 

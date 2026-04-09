@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>PDF</title>
+    <% font_path = Rails.root.join("vendor/fonts/NotoSansTC-Variable.ttf") %>
+    <style>
+      @page { size: A4; margin: 14mm; }
+
+      @font-face {
+        font-family: "NotoSansTC";
+        src: url("file://<%= font_path %>") format("truetype");
+        font-weight: normal;
+        font-style: normal;
+      }
+
+      body {
+        font-family: "NotoSansTC", "PingFang TC", "Heiti TC", "Microsoft JhengHei", sans-serif;
+        font-size: 12px;
+        color: #111827;
+      }
+
+      .title {
+        text-align: center;
+        font-size: 16px;
+        margin: 0 0 14px 0;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        table-layout: fixed;
+      }
+
+      th, td {
+        border: 1px solid #D1D5DB;
+        padding: 6px 8px;
+        vertical-align: middle;
+        word-break: break-word;
+      }
+
+      th {
+        background: #F3F4F6;
+        font-weight: 700;
+      }
+
+      .col-title { width: 46%; }
+      .col-isbn { width: 22%; }
+      .col-total { width: 10%; text-align: right; }
+      .col-source { width: 22%; }
+
+      .empty {
+        margin-top: 10px;
+        color: #374151;
+      }
+    </style>
+  </head>
+  <body>
+    <%= yield %>
+  </body>
+</html>

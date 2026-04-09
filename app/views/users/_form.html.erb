@@ -47,7 +47,7 @@
             data: { extra_batch_select_target: "select" } %>
 
       <!-- Visible Stimulus multi-select UI -->
-      <div class="border border-gray-300 rounded-md px-3 py-2 bg-white">
+      <div class="border rounded-md px-3 py-2 bg-white <%= user.errors[:batch_year_id].none? ? 'border-gray-300' : 'border-red-400' %>">
         <button type="button"
                 class="w-full flex justify-between items-center text-sm text-gray-700"
                 data-action="click->extra-batch-select#togglePanel"

@@ -1,0 +1,40 @@
+<div class="title">
+  第 <%= @batch_year.batch_number %> 屆書籍盤點表 （來源：<%= @source_title_suffix %>）
+</div>
+
+<% if @books.blank? %>
+  <div class="empty">（無書籍資料）</div>
+<% else %>
+  <table>
+    <thead>
+      <tr>
+        <th class="col-title">書名</th>
+        <th class="col-isbn">ISBN</th>
+        <th class="col-total">總數</th>
+        <% if @show_source_column %>
+          <th class="col-source">來源</th>
+        <% end %>
+      </tr>
+    </thead>
+    <tbody>
+      <% @books.each do |book| %>
+        <tr>
+          <td class="col-title"><%= book.title.to_s %></td>
+          <td class="col-isbn"><%= book.isbn.to_s.gsub(/\D/, "") %></td>
+          <td class="col-total"><%= book.total.to_s %></td>
+          <% if @show_source_column %>
+            <td class="col-source">
+              <% if book.source.to_s == "owned_by_teacher" %>
+                <% teacher_name = book.user&.name.to_s.strip %>
+                <%= teacher_name.present? ? "#{teacher_name}老師的書" : t("activerecord.enums.book.source.owned_by_teacher") %>
+              <% else %>
+                <%= book.source.present? ? t("activerecord.enums.book.source.#{book.source}") : "" %>
+              <% end %>
+            </td>
+          <% end %>
+        </tr>
+      <% end %>
+    </tbody>
+  </table>
+<% end %>
+

@@ -97,6 +97,15 @@ RSpec.describe "Books", type: :request do
   describe "GET /books/inventory_pdf" do
     let!(:listed_book) { create(:book, batch_year: batch_year, title: "盤點測試書", isbn: "9789861817286", total: 2) }
 
+    def wkhtmltopdf_available?
+      exe = WickedPdf.config[:exe_path].to_s
+      return false if exe.blank?
+      return false unless File.exist?(exe) && File.executable?(exe)
+      return false if RUBY_PLATFORM.include?("arm64-darwin") && exe.include?("/.gem/")
+
+      true
+    end
+
     it "redirects when batch_year_id is missing" do
       get inventory_pdf_books_url
       expect(response).to redirect_to(books_url)
@@ -104,6 +113,13 @@ RSpec.describe "Books", type: :request do
     end
 
     it "returns a PDF when batch_year_id is set" do
+      unless wkhtmltopdf_available?
+        get inventory_pdf_books_url, params: { batch_year_id: batch_year.id, inventory_source: "all" }
+        expect(response).to redirect_to(books_url(batch_year_id: batch_year.id))
+        expect(flash[:alert]).to include("wkhtmltopdf")
+        next
+      end
+
       get inventory_pdf_books_url, params: { batch_year_id: batch_year.id, inventory_source: "all" }
       expect(response).to have_http_status(:success)
       expect(response.media_type).to eq("application/pdf")
@@ -111,6 +127,13 @@ RSpec.describe "Books", type: :request do
     end
 
     it "omits the source column when source filter is applied" do
+      unless wkhtmltopdf_available?
+        get inventory_pdf_books_url, params: { batch_year_id: batch_year.id, inventory_source: "donated" }
+        expect(response).to redirect_to(books_url(batch_year_id: batch_year.id))
+        expect(flash[:alert]).to include("wkhtmltopdf")
+        next
+      end
+
       get inventory_pdf_books_url, params: { batch_year_id: batch_year.id, inventory_source: "donated" }
       expect(response).to have_http_status(:success)
       expect(response.media_type).to eq("application/pdf")

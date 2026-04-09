@@ -18,6 +18,8 @@ class User < ApplicationRecord
 
   before_save :sync_grade_id_from_batch_year
 
+  validate :admin_must_select_extra_batch_years
+
   validates :id_number,
             format: {
               with: /\A\d{6}\z/,
@@ -150,5 +152,15 @@ class User < ApplicationRecord
   def sync_grade_id_from_batch_year
     return unless batch_year
     self.grade_id = batch_year.grade_id
+  end
+
+  def admin_must_select_extra_batch_years
+    return unless admin?
+
+    ids = Array(extra_batch_year_ids).reject(&:blank?)
+    return if ids.any?
+
+    # Attach the error to the same field students use so the UI/error text matches ("屆數 為必填").
+    errors.add(:batch_year_id, :required)
   end
 end

@@ -32,6 +32,10 @@ zh-TW:
   errors:
     messages:
       required: "為必填"
+  activerecord:
+    errors:
+      messages:
+        record_invalid: "驗證失敗：%{errors}"
   datetime:
     distance_in_words:
       half_a_minute: "半分鐘"
@@ -80,6 +84,7 @@ zh-TW:
         seat_number: "座號"
         batch_year: "屆數"
         batch_year_id: "屆數"
+        extra_batch_year_ids: "屆數"
     enums:
       book:
         source:

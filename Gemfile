@@ -93,5 +93,5 @@ gem "roo", "~> 2.10"
 
 gem "roo-xls", "~> 1.2"
 
-gem "prawn", "~> 2.5"
-gem "prawn-table", "~> 0.2"
+gem "wicked_pdf"
+gem "wkhtmltopdf-binary"
