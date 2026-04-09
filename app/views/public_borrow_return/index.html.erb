@@ -1,0 +1,88 @@
+<% content_for :title, "借還書" %>
+
+<div class="w-full max-w-5xl mx-auto px-4 sm:px-0 pb-8">
+  <div class="flex items-center justify-between mb-6 gap-4">
+    <h1 class="font-bold text-2xl sm:text-4xl text-gray-900">借還書</h1>
+    <%= link_to "管理員登入", login_path, class: "inline-flex items-center rounded-md px-3.5 py-2.5 bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 font-medium whitespace-nowrap" %>
+  </div>
+
+  <div class="space-y-8">
+    <div class="bg-white rounded-xl shadow-md border border-gray-100 p-6 space-y-4">
+      <h2 class="font-semibold text-lg text-gray-900 mb-4">借書 / 還書（學生）</h2>
+      <%= form_with url: public_process_isbn_path, method: :post, local: true, class: "space-y-4", data: { turbo: false }, id: "scan-form" do |f| %>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">借書 或 還書</label>
+          <div class="flex gap-4">
+            <label class="inline-flex items-center gap-2">
+              <input type="radio" name="action_type" value="checkout" checked class="rounded border-gray-300 text-blue-600 focus:ring-blue-600">
+              <span class="text-sm font-medium text-gray-700">借書</span>
+            </label>
+            <label class="inline-flex items-center gap-2">
+              <input type="radio" name="action_type" value="return" class="rounded border-gray-300 text-blue-600 focus:ring-blue-600">
+              <span class="text-sm font-medium text-gray-700">還書</span>
+            </label>
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">學號</label>
+          <input type="text" name="id_number" placeholder="請輸入學號（6 位數字）" required autocomplete="off" class="block w-full max-w-md shadow-sm rounded-lg border border-gray-300 px-3 py-2.5 text-base" />
+        </div>
+
+        <div
+          data-controller="dashboard-isbn-validate camera-icon"
+          data-dashboard-isbn-validate-url-value="<%= public_validate_isbn_path %>"
+        >
+          <label class="block text-sm font-medium text-gray-700 mb-2">ISBN（掃描或輸入）</label>
+          <div class="flex gap-2 items-center">
+            <input
+              type="text"
+              name="isbn"
+              id="scan_isbn"
+              placeholder="請掃描或輸入 ISBN"
+              required
+              autocomplete="off"
+              class="block w-full shadow-sm rounded-lg border border-gray-300 px-3 py-2.5 text-base"
+              data-dashboard-isbn-validate-target="input"
+              data-action="blur->dashboard-isbn-validate#validate"
+            />
+            <button
+              type="button"
+              class="inline-flex items-center justify-center rounded-lg border border-gray-300 px-3 py-2.5 text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 hidden"
+              title="使用相機掃描 ISBN"
+              aria-label="使用相機掃描 ISBN"
+              data-camera-icon-target="button"
+              data-action="click->camera-icon#open"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M4 7h3l2-3h6l2 3h3v11H4z" />
+                <circle cx="12" cy="13" r="4" />
+              </svg>
+            </button>
+          </div>
+          <p data-dashboard-isbn-validate-target="message" class="mt-1 text-sm hidden" aria-live="polite"></p>
+          <div data-dashboard-isbn-validate-target="duplicates" class="mt-1 text-xs text-amber-900 hidden"></div>
+        </div>
+
+        <button type="submit" class="w-full sm:w-auto inline-flex items-center justify-center rounded-md px-3.5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-medium cursor-pointer">送出</button>
+      <% end %>
+    </div>
+
+    <div class="bg-white rounded-xl shadow-md border border-gray-100 p-6">
+      <h2 class="font-semibold text-lg text-gray-900 mb-4">目前借閱中</h2>
+      <% if @library_books_borrowed.any? %>
+        <ul class="space-y-2">
+          <% @library_books_borrowed.each do |book| %>
+            <li class="flex flex-wrap items-center justify-between gap-2 py-2 border-b border-gray-100 last:border-0">
+              <span class="text-sm text-gray-900"><%= book.title %><%= " #{book.edition_part}" if book.edition_part.present? %></span>
+              <span class="text-xs text-gray-500"><%= book.borrowers.any? ? book.borrowers.map(&:name).join("、") + " 借閱" : "借閱中" %> · ISBN <%= format_isbn13(book.isbn) %></span>
+            </li>
+          <% end %>
+        </ul>
+      <% else %>
+        <p class="text-sm text-gray-500">目前無借閱中的圖書館館藏。</p>
+      <% end %>
+    </div>
+  </div>
+</div>
+
