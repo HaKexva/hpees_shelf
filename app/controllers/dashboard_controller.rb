@@ -1,4 +1,12 @@
 class DashboardController < ApplicationController
+  private
+
+  def _borrow_return_home_path
+    admin_dashboard_path
+  end
+
+  public
+
   def index
     # 目前借閱中：顯示所有來源的書，只要狀態是「借閱中」且有書名
     @library_books_borrowed = Book.where(status: Book::STATUS_BORROWED)
@@ -109,7 +117,7 @@ class DashboardController < ApplicationController
   def process_isbn
     isbn = params[:isbn].to_s.strip
     if isbn.blank?
-      redirect_to root_path, alert: "請掃描或輸入 ISBN。", status: :see_other
+      redirect_to _borrow_return_home_path, alert: "請掃描或輸入 ISBN。", status: :see_other
       return
     end
 
@@ -154,7 +162,7 @@ class DashboardController < ApplicationController
           else
             "找不到可還的書（借閱中且符合此 ISBN）。"
           end
-        redirect_to root_path, alert: alert_msg, status: :see_other
+        redirect_to _borrow_return_home_path, alert: alert_msg, status: :see_other
         return
       end
 
@@ -169,19 +177,19 @@ class DashboardController < ApplicationController
       end
 
       if action == "checkout" && borrower.blank?
-        redirect_to root_path, alert: id_number.present? ? "找不到此學號的學生。" : "找不到借閱人。", status: :see_other
+        redirect_to _borrow_return_home_path, alert: id_number.present? ? "找不到此學號的學生。" : "找不到借閱人。", status: :see_other
         return
       end
 
       if action == "checkout" && _student_at_borrow_limit?(borrower)
-        redirect_to root_path, alert: "學生一次只能借一本書，請先歸還再借。", status: :see_other
+        redirect_to _borrow_return_home_path, alert: "學生一次只能借一本書，請先歸還再借。", status: :see_other
         return
       end
 
       if action == "checkout" && !borrower.admin?
         books = books.select { |b| b.batch_year_id == borrower.batch_year_id }
         if books.empty?
-          redirect_to root_path, alert: "此書與借閱人的屆數不同，無法借閱。", status: :see_other
+          redirect_to _borrow_return_home_path, alert: "此書與借閱人的屆數不同，無法借閱。", status: :see_other
           return
         end
       end
@@ -189,7 +197,7 @@ class DashboardController < ApplicationController
       if action == "return"
         books = books.select { |b| b.borrowed_by?(borrower) }
         if books.empty?
-          redirect_to root_path, alert: "此書不是此人借閱的，無法歸還。", status: :see_other
+          redirect_to _borrow_return_home_path, alert: "此書不是此人借閱的，無法歸還。", status: :see_other
           return
         end
       end
@@ -199,7 +207,7 @@ class DashboardController < ApplicationController
       # 為了不再打斷使用者流程，fallback 為選第一筆。
       _do_action(books.first, action, borrower)
       _clear_pending_session
-      redirect_to root_path, notice: @process_notice, status: :see_other
+      redirect_to _borrow_return_home_path, notice: @process_notice, status: :see_other
     else
       # Student flow: only operate on books this student can borrow/return
       books = Book.where.not(status: Book::STATUS_RETURNED_LIBRARY)
@@ -211,33 +219,33 @@ class DashboardController < ApplicationController
       books = books.select { |b| b.id == pending_book_id } if pending_book_id.present?
 
       if books.empty?
-        redirect_to root_path, alert: "找不到此 ISBN 的圖書館館藏（ISBN：#{isbn}）。", status: :see_other
+        redirect_to _borrow_return_home_path, alert: "找不到此 ISBN 的圖書館館藏（ISBN：#{isbn}）。", status: :see_other
         return
       end
 
       borrower = current_user
       if borrower.blank?
-        redirect_to root_path, status: :see_other
+        redirect_to _borrow_return_home_path, status: :see_other
         return
       end
 
       if books.size == 1
         book = books.first
         if book.status == Book::STATUS_ON_SHELF && _student_at_borrow_limit?(borrower)
-          redirect_to root_path, alert: "學生一次只能借一本書，請先歸還再借。", status: :see_other
+          redirect_to _borrow_return_home_path, alert: "學生一次只能借一本書，請先歸還再借。", status: :see_other
           return
         end
         if book.status == Book::STATUS_ON_SHELF && book.batch_year_id != borrower.batch_year_id
-          redirect_to root_path, alert: "此書與您的屆數不同，無法借閱。", status: :see_other
+          redirect_to _borrow_return_home_path, alert: "此書與您的屆數不同，無法借閱。", status: :see_other
           return
         end
         if book.status == Book::STATUS_BORROWED && !book.borrowed_by?(borrower)
-          redirect_to root_path, alert: "此書不是您借閱的，無法歸還。", status: :see_other
+          redirect_to _borrow_return_home_path, alert: "此書不是您借閱的，無法歸還。", status: :see_other
           return
         end
         _do_borrow_or_return_by_status(book, borrower)
         _clear_pending_session
-        redirect_to root_path, notice: @process_notice, status: :see_other
+        redirect_to _borrow_return_home_path, notice: @process_notice, status: :see_other
         return
       end
 
@@ -246,7 +254,7 @@ class DashboardController < ApplicationController
           (b.status == Book::STATUS_BORROWED && b.borrowed_by?(borrower))
       end
       if books.empty?
-        redirect_to root_path, alert: "沒有您可借或可還的書（此書與您的屆數不同或非您借閱）。", status: :see_other
+        redirect_to _borrow_return_home_path, alert: "沒有您可借或可還的書（此書與您的屆數不同或非您借閱）。", status: :see_other
         return
       end
 
@@ -254,7 +262,7 @@ class DashboardController < ApplicationController
       # 為了不中斷流程，學生流程 fallback 也採用第一筆。
       _do_borrow_or_return_by_status(books.first, borrower)
       _clear_pending_session
-      redirect_to root_path, notice: @process_notice, status: :see_other
+      redirect_to _borrow_return_home_path, notice: @process_notice, status: :see_other
     end
   end
 

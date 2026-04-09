@@ -70,7 +70,7 @@ RSpec.describe "Sessions", type: :request do
       delete logout_path
       expect(response).to redirect_to(login_path)
       # Verify session is cleared
-      get root_path
+      get admin_dashboard_path
       expect(response).to redirect_to(login_path)
     end
   end
@@ -79,7 +79,7 @@ RSpec.describe "Sessions", type: :request do
     it "shows logout button and admin nav when logged in" do
       admin = create(:user, :admin, batch_year: batch_year)
       login_as(admin)
-      get root_path
+      get admin_dashboard_path
       expect(response.body).to include('action="/logout"')
       expect(response.body).to include("登出")
       expect(response.body).to include(admin.name)
@@ -100,14 +100,14 @@ RSpec.describe "Sessions", type: :request do
 
   describe "require_login" do
     it "redirects unauthenticated users to login" do
-      get root_path
+      get admin_dashboard_path
       expect(response).to redirect_to(login_path)
     end
 
     it "allows authenticated users through" do
       admin = create(:user, :admin, batch_year: batch_year)
       login_as(admin)
-      get root_path
+      get admin_dashboard_path
       expect(response).to have_http_status(:success)
     end
   end

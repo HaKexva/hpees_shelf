@@ -58,10 +58,13 @@ Rails.application.routes.draw do
   # get "service-worker" => "rails/pwa#service_worker", as: :pwa_service_worker
 
   # Defines the root path route ("/")
-  root "dashboard#index"
+  root "public_borrow_return#index"
+  get "admin", to: "dashboard#index", as: :admin_dashboard
   get "loan_history", to: "dashboard#loan_history", as: :loan_history
   get "validate_isbn", to: "dashboard#validate_isbn", as: :validate_isbn
   post "process_isbn", to: "dashboard#process_isbn", as: :process_isbn
+  get "public/validate_isbn", to: "public_borrow_return#validate_isbn", as: :public_validate_isbn
+  post "public/process_isbn", to: "public_borrow_return#process_isbn", as: :public_process_isbn
   get "login", to: "sessions#new", as: :login
   get "google_auth_callback", to: "sessions#create", as: :google_auth_callback
   delete "logout", to: "sessions#destroy", as: :logout

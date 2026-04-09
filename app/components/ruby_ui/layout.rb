@@ -90,7 +90,8 @@ module RubyUI
 
     # Shared navigation links to avoid duplication
     def render_nav_links
-      nav_link(href: root_path) { "借還書" }
+      href = view_context.current_user ? view_context.admin_dashboard_path : root_path
+      nav_link(href: href) { "借還書" }
       if view_context.current_user
         nav_link(href: books_path) { "書籍管理" }
         nav_link(href: batch_years_path) { "屆數管理" }
