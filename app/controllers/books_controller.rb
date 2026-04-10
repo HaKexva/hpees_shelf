@@ -28,7 +28,7 @@ class BooksController < ApplicationController
                          .order(borrowed_at: :asc)
   end
 
-  # GET /books/export — CSV for current list filters (same as index)
+  # GET /books/export — CSV using `filtered_books_scope` + `sort` (same query params as `/books`).
   def export
     BatchYear.ensure_office_exists!
     sort = Book.list_sort_from_param(params[:sort])
