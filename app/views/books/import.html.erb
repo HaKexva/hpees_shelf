@@ -136,57 +136,11 @@
           </div>
 
           <% invalid_count = (@invalid_row_indices || []).size %>
+          <% headers_have_call_number = @headers.any? { |h| import_header_semantic_key_for_edit(h) == "call_number" } %>
           <% if invalid_count > 0 %>
-            <div class="mb-6 p-4 rounded-lg border border-red-200 bg-red-50">
-              <h3 class="font-semibold text-red-800 mb-2">修正不符合資料（可直接編輯後更新預覽）</h3>
-              <p class="text-sm text-red-700 mb-3">
-                請修正缺少的必填欄位（書名 / ISBN / 來源）或 ISBN 校驗碼錯誤，然後按「套用屆數更新預覽」檢查是否已變成新增/重複。
-              </p>
-              <div class="space-y-3">
-                <% (@invalid_row_indices || []).each do |idx| %>
-                  <% row = @imported_data[idx] || {} %>
-                  <div class="bg-white rounded-md border border-red-100 p-3">
-                    <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
-                      <div class="text-sm text-gray-800">
-                        <span class="font-semibold">第 <%= idx + 1 %> 筆</span>
-                        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 ml-2">不符合</span>
-                      </div>
-                    </div>
-                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                      <div>
-                        <label class="block text-xs font-medium text-gray-700 mb-1">書名</label>
-                        <%= text_field_tag "edit_rows[#{idx}][title]", row["title"] || row["Title"] || row["書名"], class: "block w-full shadow-sm rounded-md border border-gray-300 px-3 py-2 text-sm" %>
-                      </div>
-                      <div>
-                        <label class="block text-xs font-medium text-gray-700 mb-1">ISBN（13 碼，可含連字號）</label>
-                        <%= text_field_tag "edit_rows[#{idx}][isbn]", row["isbn"] || row["ISBN"] || row["國際標準書號"], class: "block w-full shadow-sm rounded-md border border-gray-300 px-3 py-2 text-sm" %>
-                      </div>
-                      <div>
-                        <label class="block text-xs font-medium text-gray-700 mb-1">來源</label>
-                        <%= text_field_tag "edit_rows[#{idx}][source]", row["source"] || row["Source"] || row["來源"], class: "block w-full shadow-sm rounded-md border border-gray-300 px-3 py-2 text-sm" %>
-                      </div>
-                      <div>
-                        <label class="block text-xs font-medium text-gray-700 mb-1">總數</label>
-                        <%= text_field_tag "edit_rows[#{idx}][total]", row["total"] || row["Total"] || row["總數"], class: "block w-full shadow-sm rounded-md border border-gray-300 px-3 py-2 text-sm" %>
-                      </div>
-                      <div>
-                        <label class="block text-xs font-medium text-gray-700 mb-1">冊數</label>
-                        <%= text_field_tag "edit_rows[#{idx}][volume]", row["volume"] || row["Volume"] || row["冊數"], class: "block w-full shadow-sm rounded-md border border-gray-300 px-3 py-2 text-sm" %>
-                      </div>
-                      <div>
-                        <label class="block text-xs font-medium text-gray-700 mb-1">登錄號（圖書館館藏必填）</label>
-                        <%= text_field_tag "edit_rows[#{idx}][call_number]", row["call_number"] || row["登錄號"], class: "block w-full shadow-sm rounded-md border border-gray-300 px-3 py-2 text-sm" %>
-                      </div>
-                      <div class="sm:col-span-2 lg:col-span-3">
-                        <label class="block text-xs font-medium text-gray-700 mb-1">備註</label>
-                        <%= text_field_tag "edit_rows[#{idx}][note]", row["note"] || row["Note"] || row["備註"], class: "block w-full shadow-sm rounded-md border border-gray-300 px-3 py-2 text-sm" %>
-                      </div>
-                    </div>
-                  </div>
-                <% end %>
-              </div>
-            </div>
-
+            <p class="text-sm text-red-700 mb-3">
+              有 <strong><%= invalid_count %></strong> 筆不符合：請在下方<strong>表格內</strong>直接修改欄位，再按「套用屆數更新預覽」重新檢查。
+            </p>
             <div class="mb-4">
               <%= button_tag "下載不符合清單 CSV", type: "submit", name: "export_invalid", value: "true", class: "inline-flex items-center rounded-md px-3.5 py-2.5 bg-red-600 hover:bg-red-500 text-white font-medium cursor-pointer" %>
               <p class="mt-2 text-xs text-gray-600">會匯出「不符合」的資料列（缺書名／ISBN／來源，或 ISBN 非有效 ISBN-13）；缺欄位將填入「請填寫」。</p>
@@ -240,6 +194,7 @@
                         <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">新增</span>
                       <% end %>
                     </td>
+                    <% row_invalid = (@invalid_row_indices || []).include?(index) %>
                     <% @headers.each do |header| %>
                       <% required_header =
                            case header.to_s.strip
@@ -249,11 +204,26 @@
                            else false
                            end %>
                       <% isbn_header = %w[ISBN isbn 國際標準書號].include?(header.to_s.strip) %>
-                      <% missing_required = (@invalid_row_indices || []).include?(index) && required_header && row[header].to_s.strip.blank? %>
-                      <% isbn_checksum_invalid = (@invalid_row_indices || []).include?(index) && isbn_header && row[header].to_s.strip.present? && !Book.valid_isbn13?(row[header]) %>
-                      <td class="px-4 py-2 text-sm <%= (missing_required || isbn_checksum_invalid) ? 'bg-red-50 text-red-700' : (is_duplicate ? 'text-yellow-700' : 'text-gray-900') %>"><%= import_cell_display(header, row[header]) %></td>
+                      <% missing_required = row_invalid && required_header && row[header].to_s.strip.blank? %>
+                      <% isbn_checksum_invalid = row_invalid && isbn_header && row[header].to_s.strip.present? && !Book.valid_isbn13?(row[header]) %>
+                      <% semantic = import_header_semantic_key_for_edit(header) %>
+                      <% td_cls = "px-4 py-2 text-sm align-top " + ((missing_required || isbn_checksum_invalid) ? "bg-red-50" : (is_duplicate ? "text-yellow-700" : "text-gray-900")) %>
+                      <% inp_cls = "block w-full min-w-[5rem] max-w-[20rem] rounded border px-2 py-1 text-sm " + ((missing_required || isbn_checksum_invalid) ? "border-red-300 bg-red-50 text-red-900" : "border-gray-300 text-gray-900") %>
+                      <td class="<%= td_cls %>">
+                        <% if row_invalid && semantic.present? %>
+                          <%= text_field_tag "edit_rows[#{index}][#{semantic}]", row[header].to_s, class: inp_cls %>
+                        <% else %>
+                          <span class="<%= (missing_required || isbn_checksum_invalid) ? 'text-red-700' : '' %>"><%= import_cell_display(header, row[header]) %></span>
+                        <% end %>
+                      </td>
                     <% end %>
-                    <td class="px-4 py-2 text-sm <%= is_duplicate ? 'text-yellow-700' : 'text-gray-900' %>"><%= import_cell_display("登錄號", row["登錄號"] || row["call_number"]) %></td>
+                    <td class="px-4 py-2 text-sm align-top <%= is_duplicate ? 'text-yellow-700' : 'text-gray-900' %>">
+                      <% if row_invalid && !headers_have_call_number %>
+                        <%= text_field_tag "edit_rows[#{index}][call_number]", (row["登錄號"] || row["call_number"]).to_s, class: "block w-full min-w-[5rem] max-w-[20rem] rounded border border-gray-300 px-2 py-1 text-sm" %>
+                      <% else %>
+                        <%= import_cell_display("登錄號", row["登錄號"] || row["call_number"]) %>
+                      <% end %>
+                    </td>
                   </tr>
                 <% end %>
               </tbody>
@@ -284,26 +254,37 @@
                     </label>
                   <% end %>
                 </div>
-                <div class="space-y-1 text-xs text-gray-700">
+                <% row_invalid = (@invalid_row_indices || []).include?(index) %>
+                <div class="space-y-2 text-xs text-gray-700">
                   <% @headers.each do |header| %>
-                    <div class="flex gap-2">
+                    <% required_header =
+                         case header.to_s.strip
+                         when "書名", "title", "Title" then true
+                         when "ISBN", "isbn", "國際標準書號" then true
+                         when "來源", "source", "Source" then true
+                         else false
+                         end %>
+                    <% isbn_header = %w[ISBN isbn 國際標準書號].include?(header.to_s.strip) %>
+                    <% missing_required = row_invalid && required_header && row[header].to_s.strip.blank? %>
+                    <% isbn_checksum_invalid = row_invalid && isbn_header && row[header].to_s.strip.present? && !Book.valid_isbn13?(row[header]) %>
+                    <% semantic = import_header_semantic_key_for_edit(header) %>
+                    <% inp_cls = "w-full rounded border px-2 py-1 text-sm " + ((missing_required || isbn_checksum_invalid) ? "border-red-300 bg-red-50 text-red-900" : "border-gray-300 text-gray-900") %>
+                    <div class="flex flex-col gap-1">
                       <span class="text-gray-400 shrink-0"><%= header %></span>
-                      <% required_header =
-                           case header.to_s.strip
-                           when "書名", "title", "Title" then true
-                           when "ISBN", "isbn", "國際標準書號" then true
-                           when "來源", "source", "Source" then true
-                           else false
-                           end %>
-                      <% isbn_header = %w[ISBN isbn 國際標準書號].include?(header.to_s.strip) %>
-                      <% missing_required = (@invalid_row_indices || []).include?(index) && required_header && row[header].to_s.strip.blank? %>
-                      <% isbn_checksum_invalid = (@invalid_row_indices || []).include?(index) && isbn_header && row[header].to_s.strip.present? && !Book.valid_isbn13?(row[header]) %>
-                      <span class="flex-1 break-all <%= (missing_required || isbn_checksum_invalid) ? 'bg-red-50 text-red-700' : (is_duplicate ? 'text-yellow-700' : 'text-gray-900') %>"><%= import_cell_display(header, row[header]) %></span>
+                      <% if row_invalid && semantic.present? %>
+                        <%= text_field_tag "edit_rows[#{index}][#{semantic}]", row[header].to_s, class: inp_cls %>
+                      <% else %>
+                        <span class="break-all <%= (missing_required || isbn_checksum_invalid) ? 'bg-red-50 text-red-700' : (is_duplicate ? 'text-yellow-700' : 'text-gray-900') %>"><%= import_cell_display(header, row[header]) %></span>
+                      <% end %>
                     </div>
                   <% end %>
-                  <div class="flex gap-2">
+                  <div class="flex flex-col gap-1">
                     <span class="text-gray-400 shrink-0">登錄號</span>
-                    <span class="flex-1 break-all <%= is_duplicate ? 'text-yellow-700' : 'text-gray-900' %>"><%= import_cell_display("登錄號", row["登錄號"] || row["call_number"]) %></span>
+                    <% if row_invalid && !headers_have_call_number %>
+                      <%= text_field_tag "edit_rows[#{index}][call_number]", (row["登錄號"] || row["call_number"]).to_s, class: "w-full rounded border border-gray-300 px-2 py-1 text-sm text-gray-900" %>
+                    <% else %>
+                      <span class="break-all <%= is_duplicate ? 'text-yellow-700' : 'text-gray-900' %>"><%= import_cell_display("登錄號", row["登錄號"] || row["call_number"]) %></span>
+                    <% end %>
                   </div>
                 </div>
               </div>

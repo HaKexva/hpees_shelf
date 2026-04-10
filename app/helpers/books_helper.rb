@@ -17,6 +17,24 @@ module BooksHelper
     h.downcase == "status" || h == "狀態" || h.include?("狀態")
   end
 
+  # Maps CSV/Excel column header to `edit_rows[row_index][...]` key; nil = read-only in preview.
+  def import_header_semantic_key_for_edit(header)
+    h = header.to_s.strip.delete("\uFEFF")
+    return nil if status_column_in_import?(h)
+
+    case h
+    when "書名", "title", "Title" then "title"
+    when "ISBN", "isbn", "國際標準書號" then "isbn"
+    when "來源", "source", "Source" then "source"
+    when "總數", "total", "Total" then "total"
+    when "冊數", "volume", "Volume" then "volume"
+    when "備註", "note", "Note" then "note"
+    when "登錄號", "call_number" then "call_number"
+    else
+      nil
+    end
+  end
+
   # Simple ISBN display: normalize to digits only (auto-delete all dashes/spaces/symbols).
   def format_isbn13(isbn)
     isbn.to_s.gsub(/\D/, "")
