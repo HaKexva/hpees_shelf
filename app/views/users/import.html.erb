@@ -9,7 +9,7 @@
   <div class="bg-white rounded-lg shadow p-6 mb-6">
     <h2 class="font-semibold text-lg mb-4">上傳 CSV 檔案</h2>
     <p class="text-gray-600 mb-4">
-      上傳包含<strong>姓名</strong>欄位的 CSV 檔案。可選欄位：<code class="bg-gray-100 px-1 rounded">學號</code>、<code class="bg-gray-100 px-1 rounded">座號</code>。管理員需要手動新增。跨屆數需要分批次新增。<br>
+      上傳包含<strong>姓名</strong>欄位的 CSV 檔案。可選欄位：<code class="bg-gray-100 px-1 rounded">學號</code>（留空、<strong>6 位數字</strong>，或填「—」等占位符視同留空）、<code class="bg-gray-100 px-1 rounded">座號</code>（留空、<strong>1～2 位數字</strong>，或「—」視同留空）。Excel 若將學號存成數字，系統會自動轉成整數再檢查。管理員需要手動新增。跨屆數需要分批次新增。<br>
       系統會在下方匯入步驟中<strong>要求選擇「屆數」</strong>並套用到本次匯入的所有人員。<strong>不同屆數為不同人員</strong>；重複僅與<strong>所選屆數</strong>比對。請先選屆數並按「套用屆數更新預覽」後，才會顯示重複狀態。
     </p>
 
@@ -63,7 +63,7 @@
 
       <% if @missing_columns.present? %>
         <div class="mb-4">
-          <div class="overflow-x-auto hidden md:block">
+          <div class="overflow-x-auto -mx-2 px-2 sm:mx-0 sm:px-0">
             <table class="min-w-full divide-y divide-gray-200">
               <thead class="bg-gray-50">
                 <tr>
@@ -87,23 +87,6 @@
               </tbody>
             </table>
           </div>
-          <div class="md:hidden space-y-4">
-            <% @imported_data.each_with_index do |row, index| %>
-              <div class="bg-white rounded-2xl border border-gray-200 p-4 shadow-md">
-                <p class="mb-2">
-                  <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">不符合</span>
-                </p>
-                <div class="space-y-1 text-xs text-gray-700">
-                  <% @headers.each do |header| %>
-                    <div class="flex gap-2">
-                      <span class="text-gray-400 shrink-0"><%= header %></span>
-                      <span class="flex-1 break-all"><%= row[header].to_s.presence || "—" %></span>
-                    </div>
-                  <% end %>
-                </div>
-              </div>
-            <% end %>
-          </div>
         </div>
         <p class="text-gray-600 text-sm">請補齊缺少欄位後重新上傳 CSV，即可進行確認匯入。</p>
       <% else %>
@@ -126,12 +109,12 @@
           <% if invalid_count > 0 %>
             <div class="mb-4">
               <%= button_tag "下載不符合清單 CSV", type: "submit", name: "export_invalid", value: "true", class: "inline-flex items-center rounded-md px-3.5 py-2.5 bg-red-600 hover:bg-red-500 text-white font-medium cursor-pointer" %>
-              <p class="mt-2 text-xs text-gray-600">會匯出「不符合」的資料列，缺少必填欄位（姓名）將填入「請填寫」。</p>
+              <p class="mt-2 text-xs text-gray-600">有 <strong><%= invalid_count %></strong> 位不符合：請在下方<strong>表格</strong>內修改標紅的可輸入儲格（缺姓名、學號或座號格式錯誤），再按「套用屆數更新預覽」。下載 CSV 會匯出目前不符合列（缺姓名顯示「請填寫」）。</p>
             </div>
           <% end %>
 
-          <!-- 桌機版：表格 -->
-          <div class="overflow-x-auto mb-4 hidden md:block">
+          <!-- 預覽：僅用表格（含手機橫向捲動）；缺姓名列僅在「姓名」欄可編輯 -->
+          <div class="overflow-x-auto mb-4 -mx-2 px-2 sm:mx-0 sm:px-0">
             <table class="min-w-full divide-y divide-gray-200">
               <thead class="bg-gray-50">
                 <tr>
@@ -149,7 +132,8 @@
                   <tr class="<%= invalid ? 'bg-red-50' : ((duplicate_existing || duplicate_in_file) ? 'bg-yellow-50' : 'hover:bg-gray-50') %>">
                     <td class="px-4 py-2 text-sm">
                       <% if invalid %>
-                        <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">不符合（缺姓名）</span>
+                        <% inv_tags = user_import_row_invalid_tags(row) %>
+                        <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">不符合（<%= inv_tags.any? ? inv_tags.join("、") : "資料" %>）</span>
                       <% elsif !preview_ready %>
                         <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-700">待選屆數</span>
                       <% elsif duplicate_existing %>
@@ -161,13 +145,18 @@
                       <% end %>
                     </td>
                     <% @headers.each do |header| %>
-                      <% required_name =
-                           case header.to_s.strip
-                           when "姓名", "name", "Name" then true
-                           else false
-                           end %>
-                      <% missing_required = invalid && required_name && row[header].to_s.strip.blank? %>
-                      <td class="px-4 py-2 text-sm <%= missing_required ? 'bg-red-50 text-red-700' : 'text-gray-900' %>"><%= row[header].to_s.presence || "—" %></td>
+                      <% semantic = user_import_header_semantic_key_for_edit(header) %>
+                      <% field_invalid = semantic.present? && user_import_preview_field_invalid?(semantic, row) %>
+                      <% missing_required = invalid && field_invalid %>
+                      <% td_cls = "px-4 py-2 text-sm align-top " + (missing_required ? "bg-red-50" : "text-gray-900") %>
+                      <% inp_cls = "block w-full min-w-[5rem] max-w-[20rem] rounded border px-2 py-1 text-sm " + (missing_required ? "border-red-300 bg-red-50 text-red-900" : "border-gray-300 text-gray-900") %>
+                      <td class="<%= td_cls %>">
+                        <% if invalid && field_invalid %>
+                          <%= text_field_tag "edit_rows[#{index}][#{semantic}]", row[header].to_s, class: inp_cls %>
+                        <% else %>
+                          <span class="<%= missing_required ? 'text-red-700' : '' %>"><%= row[header].to_s.presence || "—" %></span>
+                        <% end %>
+                      </td>
                     <% end %>
                   </tr>
                 <% end %>
@@ -175,46 +164,8 @@
             </table>
           </div>
 
-          <!-- 手機版：卡片 -->
-          <div class="md:hidden space-y-4 mb-4">
-            <% @imported_data.each_with_index do |row, index| %>
-              <% invalid = (@invalid_row_indices || []).include?(index) %>
-              <% duplicate_in_file = preview_ready && !invalid && (@duplicate_row_indices || []).include?(index) %>
-              <% duplicate_existing = preview_ready && !invalid && (@existing_duplicate_row_indices || []).include?(index) %>
-              <div class="<%= invalid ? 'bg-red-50 border-red-100' : ((duplicate_existing || duplicate_in_file) ? 'bg-yellow-50 border-yellow-200' : 'bg-white border-gray-200') %> rounded-2xl border p-4 shadow-md">
-                <div class="mb-2">
-                  <% if invalid %>
-                    <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">不符合（缺姓名）</span>
-                  <% elsif !preview_ready %>
-                    <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-700">待選屆數</span>
-                  <% elsif duplicate_existing %>
-                    <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">重複（已存在）</span>
-                  <% elsif duplicate_in_file %>
-                    <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">重複（同名）</span>
-                  <% else %>
-                    <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">新增</span>
-                  <% end %>
-                </div>
-                <div class="space-y-1 text-xs text-gray-700">
-                  <% @headers.each do |header| %>
-                    <div class="flex gap-2">
-                      <span class="text-gray-400 shrink-0"><%= header %></span>
-                      <% required_name =
-                           case header.to_s.strip
-                           when "姓名", "name", "Name" then true
-                           else false
-                           end %>
-                      <% missing_required = invalid && required_name && row[header].to_s.strip.blank? %>
-                      <span class="flex-1 break-all <%= missing_required ? 'bg-red-50 text-red-700' : 'text-gray-900' %>"><%= row[header].to_s.presence || "—" %></span>
-                    </div>
-                  <% end %>
-                </div>
-              </div>
-            <% end %>
-          </div>
-
           <p class="mb-4 text-sm text-gray-600">
-            確認匯入時，「不符合（缺姓名）」的列會略過；其餘會依所選屆數匯入，重複人員將跳過。
+            確認匯入時，「不符合」的列（缺姓名或學號／座號格式不符）會略過；其餘會依所選屆數匯入，重複人員將跳過。
           </p>
 
           <div class="flex gap-2 items-center">

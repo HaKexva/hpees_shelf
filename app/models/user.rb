@@ -31,6 +31,55 @@ class User < ApplicationRecord
               message: "需為 1~2 位數字或留空"
             }
 
+  # CSV/Excel: "—" / dashes / "無" etc. mean empty for optional 學號、座號 (same as leaving the cell blank).
+  IMPORT_BLANK_PLACEHOLDER_STRINGS = %w[
+    — – - － ― ‐ -- …
+    N/A n/a 無
+  ].freeze
+
+  def self.import_blank_placeholder_string?(str)
+    s = str.to_s.strip
+    s.blank? || IMPORT_BLANK_PLACEHOLDER_STRINGS.include?(s)
+  end
+
+  def self.import_user_import_optional_field_blank?(raw)
+    return true if raw.nil?
+    return false if raw.is_a?(Numeric)
+    return true if raw.respond_to?(:blank?) && raw.blank?
+
+    t = raw.to_s.strip.gsub(/\s+/, "")
+    import_blank_placeholder_string?(t)
+  end
+
+  # CSV/Excel import: Roo may yield Integer/Float; avoid "123456.0" breaking /\A\d{6}\z/.
+  def self.import_cell_student_id_digits(raw)
+    return "" if import_user_import_optional_field_blank?(raw)
+
+    case raw
+    when Integer then raw.to_s
+    when Float, BigDecimal then Integer(raw).to_s
+    else
+      raw.to_s.strip.gsub(/\s+/, "")
+    end
+  rescue ArgumentError, RangeError, TypeError
+    t = raw.to_s.strip.gsub(/\s+/, "")
+    import_blank_placeholder_string?(t) ? "" : t
+  end
+
+  def self.import_cell_seat_digits(raw)
+    import_cell_student_id_digits(raw)
+  end
+
+  def self.import_student_id_format_ok?(raw)
+    s = import_cell_student_id_digits(raw)
+    s.blank? || s.match?(/\A\d{6}\z/)
+  end
+
+  def self.import_seat_format_ok?(raw)
+    s = import_cell_seat_digits(raw)
+    s.blank? || s.match?(/\A\d{1,2}\z/)
+  end
+
   scope :active, -> { where(resigned_at: nil) }
 
   SUPERADMIN_EMAILS = %w[ray120424@gmail.com tubaxenor@gmail.com].freeze
