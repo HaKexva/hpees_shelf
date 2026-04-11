@@ -661,6 +661,21 @@ class BooksController < ApplicationController
       params.permit(:batch_year_id, :q, :source, :status, :sort, :inventory_sort).to_h.compact_blank
     end
 
+    # List + CSV export: `source` matches enum keys, or `teachers_all`, or `teacher:<user_id>` (same as inventory PDF).
+    def _filter_books_by_list_source_param(books, raw)
+      s = raw.to_s.strip
+      return books if s.blank?
+
+      case s
+      when "teachers_all"
+        books.where(source: :owned_by_teacher)
+      when /\Ateacher:(\d+)\z/
+        books.where(source: :owned_by_teacher, user_id: Regexp.last_match(1).to_i)
+      else
+        Book.sources.key?(s) ? books.where(source: s) : books
+      end
+    end
+
     def filtered_books_scope
       books = Book.where.not(title: [ nil, "" ])
       if params[:status].present?
@@ -668,7 +683,7 @@ class BooksController < ApplicationController
       else
         books = books.where.not(status: Book::STATUS_RETURNED_LIBRARY)
       end
-      books = books.where(source: params[:source]) if params[:source].present?
+      books = _filter_books_by_list_source_param(books, params[:source]) if params[:source].present?
       books = books.where(batch_year_id: params[:batch_year_id]) if params[:batch_year_id].present?
       q_raw = params[:q].to_s.strip
       if q_raw.present?
