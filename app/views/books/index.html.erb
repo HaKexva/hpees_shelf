@@ -174,8 +174,10 @@
               ),
               { class: "block w-full shadow-sm rounded-lg border border-gray-300 px-3 py-2.5 text-base", onchange: "this.form.submit()" } %>
         </div>
-        <% if @filter_batch_year_id.present? || @filter_q.present? || @filter_source.present? || @filter_status.present? || @list_sort != "title_strokes" %>
+        <% books_filters_applied = @filter_batch_year_id.present? || @filter_q.present? || @filter_source.present? || @filter_status.present? || @list_sort != "title_strokes" %>
+        <% if books_filters_applied %>
           <span class="text-sm text-gray-500 self-center">（已套用篩選）</span>
+          <%= link_to "清除全部篩選", books_path, class: "inline-flex items-center self-center rounded-md px-3 py-2 text-sm font-medium border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 whitespace-nowrap" %>
         <% end %>
       </div>
     <% end %>
