@@ -89,6 +89,22 @@ RSpec.describe "Books", type: :request do
 
       expect(response).to redirect_to(books_url)
     end
+
+    it "redirects to the list with the same sort and filters as the last index visit (HAK-117)" do
+      get books_url, params: { sort: "isbn", source: "donated", q: "needle" }
+      post books_url, params: {
+        book: {
+          batch_year_id: batch_year.id,
+          isbn: "9789861817286",
+          note: "Test note",
+          title: "HAK117 New Book",
+          total: 1,
+          volume: 1,
+          source: "donated"
+        }
+      }
+      expect(response).to redirect_to(books_url(q: "needle", source: "donated", sort: "isbn"))
+    end
   end
 
   describe "GET /books/:id" do

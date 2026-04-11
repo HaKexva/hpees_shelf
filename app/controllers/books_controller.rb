@@ -6,6 +6,7 @@ class BooksController < ApplicationController
 
   # GET /books or /books.json
   def index
+    remember_books_list_query!
     BatchYear.ensure_office_exists!
     @list_sort = Book.list_sort_from_param(params[:sort])
     @books = filtered_books_scope.includes(:batch_year, :borrowers, :user).merge(Book.ordered_for_list(@list_sort))
@@ -264,7 +265,7 @@ class BooksController < ApplicationController
       if save_failed_count.positive?
         message += " 有 #{save_failed_count} 筆因欄位錯誤未能寫入（常見原因：圖書館館藏缺 8 碼登錄號或格式錯誤）。"
       end
-      redirect_to books_path, notice: message, status: :see_other
+      redirect_to books_path(books_list_query_hash), notice: message, status: :see_other
     elsif params[:file].present?
       # Preview uploaded file: parsing lives in BooksImport::UploadParser (CSV encoding vs Excel binary).
       file = params[:file]
@@ -330,7 +331,7 @@ class BooksController < ApplicationController
 
     respond_to do |format|
       if @book.save
-        format.html { redirect_to books_path, notice: "書籍已建立。", status: :see_other }
+        format.html { redirect_to books_path(books_list_query_hash), notice: "書籍已建立。", status: :see_other }
         format.json { render :show, status: :created, location: @book }
       else
         BatchYear.ensure_office_exists!
@@ -351,7 +352,7 @@ class BooksController < ApplicationController
       if @book.update(attrs)
         # When batch_year changes, optionally sync grade (if grade was not changed in the form, derive from batch_year)
         @book.update_column(:grade_id, @book.batch_year&.grade_id) if @book.batch_year_id.present?
-        format.html { redirect_to books_path, notice: "書籍已更新。", status: :see_other }
+        format.html { redirect_to books_path(books_list_query_hash), notice: "書籍已更新。", status: :see_other }
         format.json { render :show, status: :ok, location: @book }
       else
         BatchYear.ensure_office_exists!
@@ -369,7 +370,7 @@ class BooksController < ApplicationController
     @book.destroy!
 
     respond_to do |format|
-      format.html { redirect_to books_path, notice: "書籍已刪除。", status: :see_other }
+      format.html { redirect_to books_path(books_list_query_hash), notice: "書籍已刪除。", status: :see_other }
       format.json { head :no_content }
     end
   end
@@ -485,7 +486,7 @@ class BooksController < ApplicationController
       )
       @book.circulation_records.where(returned_at: nil).update_all(returned_at: Time.current)
       @book.update!(user_id: nil, status: Book::STATUS_RETURNED_LIBRARY, borrowed_at: nil)
-      redirect_to books_path, notice: "已歸還圖書館，書籍狀態已標記為「歸還圖書館」，借閱紀錄已保留。", status: :see_other
+      redirect_to books_path(books_list_query_hash), notice: "已歸還圖書館，書籍狀態已標記為「歸還圖書館」，借閱紀錄已保留。", status: :see_other
     else
       redirect_to @book, alert: "僅圖書館的書可執行此操作。", status: :see_other
     end
@@ -493,13 +494,13 @@ class BooksController < ApplicationController
 
   # GET /books/return_to_library_batch — Choose which batch's library books to mark as returned (only available in return period; button is hidden otherwise)
   def return_to_library_batch
-    return redirect_to books_path, status: :see_other unless Book.show_return_to_library_button?
+    return redirect_to books_path(books_list_query_hash), status: :see_other unless Book.show_return_to_library_button?
     @batch_years = BatchYear.class_batches_by_number_desc
   end
 
   # POST /books/apply_return_to_library_batch — Save borrow history for each library book then delete the books
   def apply_return_to_library_batch
-    return redirect_to books_path, status: :see_other unless Book.show_return_to_library_button?
+    return redirect_to books_path(books_list_query_hash), status: :see_other unless Book.show_return_to_library_button?
     raw = params[:batch_year_id].to_s
     scope = Book.where(source: :owned_by_library)
     scope = scope.where(batch_year_id: raw.to_i) if raw.present? && raw != "all"
@@ -527,25 +528,19 @@ class BooksController < ApplicationController
     end
 
     label = raw == "all" ? "全部屆數" : "該屆"
-    redirect_to books_path, notice: "已將#{label} #{count} 本圖書館的書歸還並刪除書籍資料，借閱紀錄已保留。", status: :see_other
+    redirect_to books_path(books_list_query_hash), notice: "已將#{label} #{count} 本圖書館的書歸還並刪除書籍資料，借閱紀錄已保留。", status: :see_other
   end
 
   # DELETE /books/bulk_destroy
   def bulk_destroy
     ids = Array(params[:book_ids]).reject(&:blank?).map(&:to_i)
-    redirect_params = {}
-    redirect_params[:batch_year_id] = params[:batch_year_id] if params[:batch_year_id].present?
-    redirect_params[:q] = params[:q] if params[:q].present?
-    redirect_params[:source] = params[:source] if params[:source].present?
-    redirect_params[:status] = params[:status] if params[:status].present?
-    redirect_params[:sort] = params[:sort] if params[:sort].present?
-    redirect_params[:inventory_sort] = params[:inventory_sort] if params[:inventory_sort].present?
+    rq = books_bulk_redirect_query
     if ids.any?
       now = Time.current
       count = Book.where(id: ids).update_all(deleted_at: now, updated_at: now)
-      redirect_to books_path(redirect_params), notice: "已刪除 #{count} 本書籍。", status: :see_other
+      redirect_to books_path(rq), notice: "已刪除 #{count} 本書籍。", status: :see_other
     else
-      redirect_to books_path(redirect_params), alert: "請至少選擇一本書。", status: :see_other
+      redirect_to books_path(rq), alert: "請至少選擇一本書。", status: :see_other
     end
   end
 

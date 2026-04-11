@@ -24,6 +24,42 @@ class ApplicationController < ActionController::Base
   end
 
   private
+    # Remember GET query on list pages so redirects after create/update/import/bulk keep filters + sort (HAK-117).
+    BOOKS_LIST_QUERY_KEYS = %w[batch_year_id q source status sort inventory_sort].freeze
+    USERS_LIST_QUERY_KEYS = %w[q_name q_seat_number q_id_number batch_year_id sort].freeze
+
+    def remember_books_list_query!
+      session[:books_list_query] = request.query_parameters.slice(*BOOKS_LIST_QUERY_KEYS).compact_blank
+    end
+
+    def remember_users_list_query!
+      session[:users_list_query] = request.query_parameters.slice(*USERS_LIST_QUERY_KEYS).compact_blank
+    end
+
+    def books_list_query_hash
+      (session[:books_list_query].presence || {}).stringify_keys
+    end
+
+    def users_list_query_hash
+      (session[:users_list_query].presence || {}).stringify_keys
+    end
+
+    def books_bulk_redirect_query
+      h = books_list_query_hash.dup
+      BOOKS_LIST_QUERY_KEYS.each do |key|
+        h[key] = params[key] if params[key].present?
+      end
+      h.compact_blank
+    end
+
+    def users_bulk_redirect_query
+      h = users_list_query_hash.dup
+      USERS_LIST_QUERY_KEYS.each do |key|
+        h[key] = params[key] if params[key].present?
+      end
+      h.compact_blank
+    end
+
     def _csv_escape(value)
       s = value.to_s
       return "\"#{s.gsub('"', '""')}\"" if s.include?(",") || s.include?("\"") || s.include?("\n") || s.include?("\r")

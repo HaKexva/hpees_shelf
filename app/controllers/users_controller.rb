@@ -3,6 +3,7 @@ class UsersController < ApplicationController
 
   # GET /users or /users.json — only active (non-resigned) users are shown; resigned users can still log in.
   def index
+    remember_users_list_query!
     @sort = User.list_sort_from_param(params[:sort])
     @users = filtered_users_scope.includes(:batch_year).merge(User.ordered_for_list(@sort))
     @batch_years = BatchYear.by_number_desc
@@ -61,7 +62,7 @@ class UsersController < ApplicationController
 
     respond_to do |format|
       if @user.save
-        format.html { redirect_to users_path, notice: "人員已建立。", status: :see_other }
+        format.html { redirect_to users_path(users_list_query_hash), notice: "人員已建立。", status: :see_other }
         format.json { render :edit, status: :created, location: @user }
       else
         @batch_years = BatchYear.by_number_desc
@@ -77,7 +78,7 @@ class UsersController < ApplicationController
     _ensure_admin_batch_year(attrs)
     respond_to do |format|
       if @user.update(attrs)
-        format.html { redirect_to users_path, notice: "人員已更新。", status: :see_other }
+        format.html { redirect_to users_path(users_list_query_hash), notice: "人員已更新。", status: :see_other }
         format.json { render :edit, status: :ok, location: @user }
       else
         @batch_years = BatchYear.by_number_desc
@@ -106,7 +107,7 @@ class UsersController < ApplicationController
     @user.destroy!
 
     respond_to do |format|
-      format.html { redirect_to users_path, notice: "人員已刪除。", status: :see_other }
+      format.html { redirect_to users_path(users_list_query_hash), notice: "人員已刪除。", status: :see_other }
       format.json { head :no_content }
     end
   end
@@ -114,19 +115,13 @@ class UsersController < ApplicationController
   # DELETE /users/bulk_destroy
   def bulk_destroy
     ids = Array(params[:user_ids]).reject(&:blank?).map(&:to_i)
-    redirect_params = {
-      q_name: params[:q_name].presence,
-      q_seat_number: params[:q_seat_number].presence,
-      q_id_number: params[:q_id_number].presence,
-      batch_year_id: params[:batch_year_id].presence,
-      sort: params[:sort].presence
-    }.compact
+    rq = users_bulk_redirect_query
     if ids.any?
       now = Time.current
       count = User.where(id: ids).update_all(deleted_at: now, updated_at: now)
-      redirect_to users_path(redirect_params), notice: "已刪除 #{count} 位人員。", status: :see_other
+      redirect_to users_path(rq), notice: "已刪除 #{count} 位人員。", status: :see_other
     else
-      redirect_to users_path(redirect_params), alert: "請至少選擇一位人員。", status: :see_other
+      redirect_to users_path(rq), alert: "請至少選擇一位人員。", status: :see_other
     end
   end
 
@@ -252,7 +247,7 @@ class UsersController < ApplicationController
         message += " 另有 #{failed_count} 位匯入失敗（資料格式不符或缺欄位）。"
         message += " 例：#{failed_examples.join('；')}" if failed_examples.any?
       end
-      redirect_to users_path, notice: message, status: :see_other
+      redirect_to users_path(users_list_query_hash), notice: message, status: :see_other
     elsif params[:file].present?
       file = params[:file]
       begin
