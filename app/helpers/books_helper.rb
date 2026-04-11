@@ -25,11 +25,14 @@ module BooksHelper
     case h
     when "書名", "title", "Title" then "title"
     when "ISBN", "isbn", "國際標準書號" then "isbn"
+    when "屆數", "batch_year" then "batch_year"
+    when "屆數ID", "batch_year_id" then "batch_year_id"
     when "來源", "source", "Source" then "source"
     when "總數", "total", "Total" then "total"
     when "冊數", "volume", "Volume" then "volume"
     when "備註", "note", "Note" then "note"
     when "登錄號", "call_number" then "call_number"
+    when "狀態", "status", "Status" then "status"
     else
       nil
     end
@@ -76,6 +79,11 @@ module BooksHelper
 
       c = import_preview_row_value(row, "call_number", "登錄號").to_s.strip
       c.blank? || !c.match?(/\A\d{8}\z/)
+    when "status"
+      v = import_preview_row_value(row, "status", "狀態", "Status").to_s.strip
+      v.present? && !VALID_BOOK_STATUSES.include?(v)
+    when "batch_year", "batch_year_id"
+      Book.send(:_import_book_batch_year_id_for_row, row, nil) == -1
     else
       false
     end
