@@ -17,7 +17,7 @@ class UsersController < ApplicationController
     sort = User.list_sort_from_param(params[:sort])
     users = filtered_users_scope.includes(:batch_year).merge(User.ordered_for_list(sort))
     bom = "\uFEFF"
-    headers = %w[姓名 屆數ID 屆數 學號 座號 管理員]
+    headers = %w[姓名 屆數ID 屆數 學號 座號 電子信箱 管理員]
     csv = +""
     csv << bom
     csv << headers.map { |h| _csv_escape(h) }.join(",") << "\n"
@@ -28,6 +28,7 @@ class UsersController < ApplicationController
         user.batch_year&.display_label_with_grade.to_s,
         user.admin ? "—" : (user.id_number || ""),
         user.admin ? "—" : (user.seat_number || ""),
+        user.email.to_s,
         user.admin ? "是" : "否"
       ]
       csv << row.map { |c| _csv_escape(c) }.join(",") << "\n"
@@ -143,7 +144,8 @@ class UsersController < ApplicationController
       "batch_year_id" => "屆數ID",
       "batch_year" => "屆數",
       "id_number" => "學號",
-      "seat_number" => "座號"
+      "seat_number" => "座號",
+      "email" => "電子信箱"
     }
 
     return unless request.post?
@@ -164,11 +166,12 @@ class UsersController < ApplicationController
           "屆數ID" => _user_import_value(row, "batch_year_id", "屆數ID").to_s.strip.presence,
           "屆數" => _user_import_value(row, "batch_year", "屆數").to_s.strip.presence,
           "學號" => _user_import_student_id(row).presence || _user_import_value(row, "id_number", "學號").to_s.strip.presence,
-          "座號" => _user_import_seat(row).presence || _user_import_value(row, "seat_number", "座號").to_s.strip.presence
+          "座號" => _user_import_seat(row).presence || _user_import_value(row, "seat_number", "座號").to_s.strip.presence,
+          "電子信箱" => _user_import_value(row, "email", "電子信箱", "Email").to_s.strip.presence
         }
       end
 
-      headers = %w[姓名 屆數ID 屆數 學號 座號]
+      headers = %w[姓名 屆數ID 屆數 學號 座號 電子信箱]
       bom = "\uFEFF"
       csv = +""
       csv << bom
@@ -232,11 +235,13 @@ class UsersController < ApplicationController
           next
         end
 
+        email = _user_import_resolved_email(row, id_number)
+
         user_attrs = {
           name: name,
           id_number: id_number,
           seat_number: seat_number,
-          email: id_number.present? ? "#{id_number}@hpees.tp.edu.tw" : nil,
+          email: email,
           batch_year_id: effective_batch_year_id,
           admin: false
         }
@@ -269,7 +274,7 @@ class UsersController < ApplicationController
 
       message = "成功匯入 #{imported_count} 位人員。"
       message += " 已跳過 #{skipped_count} 位重複人員。" if skipped_count > 0
-      message += " 已跳過 #{invalid_skipped_count} 筆不符合的資料（缺姓名或學號／座號格式不符）。" if invalid_skipped_count > 0
+      message += " 已跳過 #{invalid_skipped_count} 筆不符合的資料（缺姓名、學號／座號格式不符或電子信箱格式錯誤）。" if invalid_skipped_count > 0
       if failed_count > 0
         message += " 另有 #{failed_count} 位匯入失敗（資料格式不符或缺欄位）。"
         message += " 例：#{failed_examples.join('；')}" if failed_examples.any?
@@ -284,7 +289,7 @@ class UsersController < ApplicationController
         headers_stripped = @headers.map { |h| h&.to_s&.strip }
         normalized_headers = headers_stripped.map { |h| _normalize_user_csv_header_value(h) }.compact
         @missing_columns = @expected_columns - normalized_headers
-        known_optional = @expected_columns + %w[id_number seat_number batch_year_id batch_year admin]
+        known_optional = @expected_columns + %w[id_number seat_number batch_year_id batch_year email admin]
         @extra_columns = normalized_headers - known_optional
 
         @invalid_row_indices = []
@@ -372,6 +377,7 @@ class UsersController < ApplicationController
       when "座號" then "seat_number"
       when "屆數ID" then "batch_year_id"
       when "屆數" then "batch_year"
+      when "電子信箱" then "email"
       when "管理員" then "admin"
       else s.downcase.presence
       end
@@ -429,6 +435,17 @@ class UsersController < ApplicationController
       User.import_cell_seat_digits(_user_import_first_raw(row, "seat_number", "座號")).presence
     end
 
+    # Uses「電子信箱」when present and valid; otherwise `id_number@hpees.tp.edu.tw` when 學號 present; else nil.
+    def _user_import_resolved_email(row, id_number)
+      raw = _user_import_first_raw(row, "email", "電子信箱", "Email")
+      if raw.present? && !User.import_user_import_optional_field_blank?(raw)
+        e = raw.is_a?(String) ? raw.strip : raw.to_s.strip
+        return e if e.match?(URI::MailTo::EMAIL_REGEXP)
+      end
+
+      id_number.present? ? "#{id_number}@hpees.tp.edu.tw" : nil
+    end
+
     def _user_import_batch_year_id_for_row(row, fallback_id)
       id_raw = _user_import_value(row, "batch_year_id", "屆數ID")
       if id_raw.present?
@@ -461,6 +478,8 @@ class UsersController < ApplicationController
 
       return true if _user_import_batch_year_id_for_row(row, nil) == -1
 
+      return true unless User.import_email_format_ok?(_user_import_first_raw(row, "email", "電子信箱", "Email"))
+
       !User.import_student_id_format_ok?(_user_import_first_raw(row, "id_number", "學號")) ||
         !User.import_seat_format_ok?(_user_import_first_raw(row, "seat_number", "座號"))
     end
@@ -491,7 +510,8 @@ class UsersController < ApplicationController
         batch_year_id: %w[batch_year_id 屆數ID],
         batch_year: %w[batch_year 屆數],
         id_number: %w[id_number 學號],
-        seat_number: %w[seat_number 座號]
+        seat_number: %w[seat_number 座號],
+        email: %w[email 電子信箱 Email]
       }
 
       map.each do |field, keys|
@@ -516,7 +536,7 @@ class UsersController < ApplicationController
       headers_stripped = @headers.map { |h| h&.to_s&.strip }
       normalized_headers = headers_stripped.map { |h| _normalize_user_csv_header_value(h) }.compact
       @missing_columns = @expected_columns - normalized_headers
-      known_optional = @expected_columns + %w[id_number seat_number batch_year_id batch_year admin]
+      known_optional = @expected_columns + %w[id_number seat_number batch_year_id batch_year email admin]
       @extra_columns = normalized_headers - known_optional
       @invalid_row_indices = []
       @imported_data.each_with_index do |row, index|
