@@ -79,6 +79,9 @@ module UsersImport
       when "姓名" then "name"
       when "學號" then "id_number"
       when "座號" then "seat_number"
+      when "屆數ID" then "batch_year_id"
+      when "屆數" then "batch_year"
+      when "電子信箱" then "email"
       when "管理員" then "admin"
       else s.downcase.presence
       end

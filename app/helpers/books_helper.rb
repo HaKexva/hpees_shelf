@@ -50,29 +50,14 @@ module BooksHelper
     end
   end
 
-  # First non-blank value for a row (same key order as BooksController import parsing).
+  # First non-blank value for a row (same rules as BooksController / `Book.lookup_import_row_value`).
   def import_preview_row_value(row, *keys)
-    keys.each do |k|
-      v = row[k]
-      next if v.blank?
-
-      s = v.to_s.strip
-      return s if s.present?
-    end
-    nil
+    Book.lookup_import_row_value(row, *keys)
   end
 
   # ISBN digits for preview (matches BooksController / spreadsheets with numeric ISBN cells).
   def import_preview_isbn_digits(row)
-    raw = nil
-    %w[isbn ISBN 國際標準書號].each do |k|
-      v = row[k]
-      next if v.blank?
-
-      raw = v
-      break
-    end
-    Book.import_isbn_digits(raw)
+    Book.import_row_isbn_digits(row)
   end
 
   # True when this semantic field alone fails BooksController import rules (required / ISBN-13 / library 登錄號).
@@ -94,8 +79,12 @@ module BooksHelper
     when "status"
       v = import_preview_row_value(row, "status", "狀態", "Status").to_s.strip
       v.present? && !VALID_BOOK_STATUSES.include?(v)
-    when "batch_year", "batch_year_id"
-      Book.send(:_import_book_batch_year_id_for_row, row, nil) == -1
+    when "batch_year_id"
+      id_raw = import_preview_row_value(row, "batch_year_id", "屆數ID", "Batch_year_id")
+      id_raw.present? && !(id_raw.to_s.strip.to_i.positive? && BatchYear.exists?(id: id_raw.to_s.strip.to_i))
+    when "batch_year"
+      lab = import_preview_row_value(row, "屆數", "batch_year", "Batch_year")
+      lab.present? && BatchYear.find_id_from_import_label(lab).blank?
     else
       false
     end
