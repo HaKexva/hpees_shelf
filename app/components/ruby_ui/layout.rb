@@ -38,13 +38,29 @@ module RubyUI
           div(class: "py-2 px-3 bg-red-50 text-red-600 font-medium rounded-md border border-red-200", role: "alert") { required_alert }
         end
         if flash[:notice].present?
-          div(class: "py-2 px-3 bg-green-50 text-green-600 font-medium rounded-md border border-green-200", role: "status") { flash[:notice] }
+          notice_class = "py-2 px-3 bg-green-50 text-green-600 font-medium rounded-md border border-green-200"
+          if auto_dismiss_borrow_success_flash?
+            div(
+              class: notice_class,
+              role: "status",
+              data: { controller: "flash-auto-dismiss", flash_auto_dismiss_delay_value: 3000 }
+            ) { flash[:notice] }
+          else
+            div(class: notice_class, role: "status") { flash[:notice] }
+          end
         end
       end
     end
 
     def flash
       view_context.flash
+    end
+
+    # Borrow/return home: hide green success after a few seconds (rapid scanning); alerts unchanged.
+    def auto_dismiss_borrow_success_flash?
+      c = view_context.controller
+      (c.controller_name == "public_borrow_return" && c.action_name == "index") ||
+        (c.controller_name == "dashboard" && c.action_name == "index")
     end
 
     def render_desktop_sidebar

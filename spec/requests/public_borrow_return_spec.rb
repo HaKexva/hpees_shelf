@@ -7,5 +7,56 @@ RSpec.describe "PublicBorrowReturn", type: :request do
       expect(response).to have_http_status(:success)
       expect(response.body).to include("借還書")
     end
+
+    it "wraps borrow success notice with auto-dismiss Stimulus" do
+      batch_year = create(:batch_year)
+      student = create(:user, batch_year: batch_year, id_number: "123456", seat_number: "1", admin: false)
+      create(
+        :book,
+        batch_year: batch_year,
+        title: "HAK115 Borrow Flash",
+        isbn: "9789861817286",
+        source: :owned_by_library,
+        call_number: "12345678",
+        status: Book::STATUS_ON_SHELF,
+        user_id: nil
+      )
+
+      post public_process_isbn_path, params: {
+        action_type: "checkout",
+        id_number: student.id_number,
+        isbn: "978-986-181-7286"
+      }
+      expect(response).to redirect_to(root_path)
+      follow_redirect!
+      expect(response).to have_http_status(:success)
+      expect(response.body).to include("已登記借閱")
+      expect(response.body).to include('data-controller="flash-auto-dismiss"')
+      expect(response.body).to include("flash-auto-dismiss-delay-value=\"3000\"")
+    end
+
+    it "does not attach auto-dismiss to error alerts" do
+      batch_year = create(:batch_year)
+      create(
+        :book,
+        batch_year: batch_year,
+        title: "HAK115 Error Path",
+        isbn: "9789861817286",
+        source: :owned_by_library,
+        call_number: "87654321",
+        status: Book::STATUS_ON_SHELF,
+        user_id: nil
+      )
+
+      post public_process_isbn_path, params: {
+        action_type: "checkout",
+        id_number: "999999",
+        isbn: "9789861817286"
+      }
+      expect(response).to redirect_to(root_path)
+      follow_redirect!
+      expect(response.body).to include("找不到此學號的學生")
+      expect(response.body).not_to include('data-controller="flash-auto-dismiss"')
+    end
   end
 end
