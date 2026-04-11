@@ -157,6 +157,9 @@ RSpec.describe "Books", type: :request do
       get export_books_url, params: { source: "donated" }
       expect(response).to have_http_status(:success)
       expect(response.media_type).to eq("text/csv")
+      header_line = response.body.lines.first.to_s.delete_prefix("\uFEFF")
+      expect(header_line).to include("屆數ID")
+      expect(header_line).not_to include("狀態")
       expect(response.body).to include("HAK112 Donated Row")
       expect(response.body).not_to include("HAK112 Class Row")
     end
@@ -171,6 +174,7 @@ RSpec.describe "Books", type: :request do
       expect(response).to have_http_status(:success)
       expect(response.media_type).to eq("text/csv")
       expect(response.body).to include("Csv Only T1")
+      expect(response.body).to include("CsvT1老師的書")
       expect(response.body).not_to include("Csv Only T2")
     end
   end

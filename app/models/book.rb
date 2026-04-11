@@ -232,6 +232,11 @@ class Book < ApplicationRecord
     raw.to_s.strip.gsub(/\D/, "").presence
   end
 
+  # Resolves「屆數ID」from an import row (Chinese/English headers). Returns nil if missing, -1 if invalid, or a positive BatchYear id.
+  def self.import_batch_year_id_from_row(row)
+    BatchYear.import_id_from_row(row)
+  end
+
   # Map CSV/Excel 來源 cell to `books.source` enum key (same rules as BooksController import).
   def self.import_source_key_from_label(raw)
     return "owned_by_library" if raw.blank?
@@ -316,6 +321,17 @@ class Book < ApplicationRecord
     return false if stored.blank?
     n = normalize_isbn13(input)
     n.present? && n == normalize_isbn13(stored)
+  end
+
+  # CSV 匯出「來源」：與列表、匯入格式一致；老師的書為「姓名老師的書」。
+  def source_label_for_csv
+    return "" if source.blank?
+
+    if owned_by_teacher? && user&.name.to_s.strip.present?
+      "#{user.name}老師的書"
+    else
+      I18n.t("activerecord.enums.book.source.#{source}")
+    end
   end
 
   private

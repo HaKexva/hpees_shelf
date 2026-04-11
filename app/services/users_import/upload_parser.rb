@@ -6,7 +6,7 @@ module UsersImport
   class UploadParser
     XLS_OLE_MAGIC = "\xD0\xCF\x11\xE0\xA1\xB1\x1A\xE1".b.freeze
 
-    def self.call(uploaded_file, expected_columns: %w[name])
+    def self.call(uploaded_file, expected_columns: %w[name batch_year_id])
       new(uploaded_file, expected_columns: expected_columns).call
     end
 
@@ -80,7 +80,6 @@ module UsersImport
       when "學號" then "id_number"
       when "座號" then "seat_number"
       when "屆數ID" then "batch_year_id"
-      when "屆數" then "batch_year"
       when "電子信箱" then "email"
       when "管理員" then "admin"
       else s.downcase.presence
@@ -89,7 +88,7 @@ module UsersImport
 
     # Try decoding CSV bytes into UTF-8 (Excel Big5 / Google Sheets UTF-8 BOM / UTF-16, etc.).
     def decode_csv_to_utf8(raw)
-      expected = @expected_columns || %w[name]
+      expected = @expected_columns || %w[name batch_year_id]
       strip_bom = ->(s) { s.delete_prefix("\uFEFF") }
 
       header_matches_expected = lambda do |decoded|

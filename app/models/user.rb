@@ -88,6 +88,57 @@ class User < ApplicationRecord
     s.match?(URI::MailTo::EMAIL_REGEXP)
   end
 
+  # Same rules as Book import / BatchYear.import_id_from_row (per-row 屆數ID).
+  def self.import_batch_year_id_from_row(row)
+    BatchYear.import_id_from_row(row)
+  end
+
+  # CSV/Excel「管理員」: 是 / 否 / Excel boolean; default false if column absent.
+  def self.import_admin_boolean_from_row(row)
+    return false if row.blank?
+
+    raw = nil
+    %w[admin 管理員].each do |k|
+      next unless row.key?(k)
+
+      v = row[k]
+      next if v.nil?
+      next if v.respond_to?(:blank?) && v.blank? && !v.is_a?(Numeric) && v != true && v != false
+
+      raw = v
+      break
+    end
+
+    if raw.nil?
+      row.each do |key, v|
+        next if v.nil?
+        next if v.respond_to?(:blank?) && v.blank? && !v.is_a?(Numeric) && v != true && v != false
+
+        nk = key.to_s.strip.delete("\uFEFF")
+        next unless nk == "管理員" || nk.casecmp("admin").zero?
+
+        raw = v
+        break
+      end
+    end
+
+    return false if raw.nil?
+
+    case raw
+    when true then true
+    when false then false
+    when Numeric then !raw.to_i.zero?
+    else
+      s = raw.to_s.strip
+      return false if import_blank_placeholder_string?(s)
+      return true if s.casecmp("true").zero?
+      return false if s.casecmp("false").zero?
+      return false if %w[否 N n 0].include?(s) || s.casecmp("no").zero?
+
+      %w[是 Y y 1].include?(s) || s.casecmp("yes").zero?
+    end
+  end
+
   scope :active, -> { where(resigned_at: nil) }
 
   SUPERADMIN_EMAILS = %w[ray120424@gmail.com tubaxenor@gmail.com].freeze

@@ -177,4 +177,42 @@ class BatchYear < ApplicationRecord
   def self.ensure_office_exists!
     # no-op; kept for backwards compatibility
   end
+
+  # Resolves「屆數ID」from a CSV/Excel import row (Chinese/English headers). Returns nil if missing, -1 if invalid, or a positive id.
+  def self.import_id_from_row(row)
+    return nil if row.blank?
+
+    id_raw = nil
+    %w[batch_year_id 屆數ID Batch_year_id].each do |k|
+      v = row[k]
+      next if v.nil?
+      next if v.respond_to?(:blank?) && v.blank? && !v.is_a?(Numeric)
+
+      id_raw = v
+      break
+    end
+
+    if id_raw.nil?
+      row.each do |key, v|
+        next if v.nil?
+        next if v.respond_to?(:blank?) && v.blank? && !v.is_a?(Numeric)
+
+        nk = key.to_s.strip.delete("\uFEFF")
+        next unless nk == "屆數ID" || nk.casecmp("batch_year_id").zero?
+
+        id_raw = v
+        break
+      end
+    end
+
+    return nil if id_raw.nil?
+
+    stripped = id_raw.to_s.strip
+    return -1 unless stripped.match?(/\A\d+\z/)
+
+    i = stripped.to_i
+    return -1 unless i.positive? && exists?(id: i)
+
+    i
+  end
 end
