@@ -423,8 +423,7 @@ class BooksController < ApplicationController
         return
       end
     else
-      book.update!(user_id: user.id, status: Book::STATUS_BORROWED, borrowed_at: Time.current)
-      book.circulation_records.create!(user_id: user.id, borrowed_at: Time.current)
+      book.checkout_to_borrower!(user)
     end
     redirect_to root_path, notice: "已登記借閱：#{book.title} → #{user.name}。", status: :see_other
   end
@@ -456,8 +455,7 @@ class BooksController < ApplicationController
       @book.circulation_records.create!(user_id: user.id, borrowed_at: Time.current)
       @book.update!(status: Book::STATUS_BORROWED, borrowed_at: Time.current)
     else
-      @book.update!(user_id: user.id, status: Book::STATUS_BORROWED, borrowed_at: Time.current)
-      @book.circulation_records.create!(user_id: user.id, borrowed_at: Time.current)
+      @book.checkout_to_borrower!(user)
     end
     redirect_to root_path, notice: "已登記借閱：#{@book.title} → #{user.name}。", status: :see_other
   end
@@ -469,8 +467,7 @@ class BooksController < ApplicationController
       @book.circulation_records.where(returned_at: nil).update_all(returned_at: Time.current)
       @book.update!(user_id: nil, status: Book::STATUS_ON_SHELF, borrowed_at: nil)
     else
-      @book.circulation_records.where(returned_at: nil).update_all(returned_at: Time.current)
-      @book.update!(user_id: nil, status: Book::STATUS_ON_SHELF, borrowed_at: nil)
+      @book.return_from_single_copy_borrow!
     end
     redirect_to root_path, notice: "已還書：#{@book.title}。", status: :see_other
   end
