@@ -80,6 +80,14 @@ class User < ApplicationRecord
     s.blank? || s.match?(/\A\d{1,2}\z/)
   end
 
+  # Optional CSV/Excel「電子信箱」: blank ok; if present must look like an email (unique index applies at save).
+  def self.import_email_format_ok?(raw)
+    return true if import_user_import_optional_field_blank?(raw)
+
+    s = raw.to_s.strip
+    s.match?(URI::MailTo::EMAIL_REGEXP)
+  end
+
   scope :active, -> { where(resigned_at: nil) }
 
   SUPERADMIN_EMAILS = %w[ray120424@gmail.com tubaxenor@gmail.com].freeze

@@ -104,5 +104,36 @@ RSpec.describe "Books import preview", type: :request do
       expect(response.body).to include("成功匯入 1 本書籍")
       expect(Book.find_by(title: "UTF8書", batch_year_id: batch_year.id)).to be_present
     end
+
+    it "confirms import using per-row 屆數ID when form 屆數 is blank" do
+      csv = <<~CSV
+        書名,ISBN,屆數ID,來源,登錄號
+        屆數ID匯入,9789861817286,#{batch_year.id},圖書館館藏,12345678
+      CSV
+      tf = Tempfile.new([ "books_batch_id", ".csv" ])
+      tf.write("\uFEFF#{csv}")
+      tf.close
+
+      post import_books_path, params: {
+        file: Rack::Test::UploadedFile.new(tf.path, "text/csv")
+      }
+      File.unlink(tf.path)
+      expect(response).to have_http_status(:success)
+      expect(response.body).to include("本新書")
+
+      m = response.body.match(/name=(?:"|')import_data(?:"|')[^>]*value=(?:"|')(?<data>[^"']+)(?:"|')/)
+      import_data = m && m[:data]
+      expect(import_data).to be_present
+
+      expect {
+        post import_books_path, params: {
+          confirm: "true",
+          import_data: import_data
+        }
+      }.to change(Book, :count).by(1)
+
+      expect(response).to redirect_to(books_path)
+      expect(Book.find_by(title: "屆數ID匯入", batch_year_id: batch_year.id)).to be_present
+    end
   end
 end

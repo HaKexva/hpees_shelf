@@ -32,6 +32,19 @@ class BatchYear < ApplicationRecord
     "#{base}（#{grade_text}）"
   end
 
+  # Import / export round-trip: match CSV「屆數」to a class batch row (exact string == `display_label_with_grade`).
+  def self.find_id_from_import_label(label)
+    return nil if label.blank?
+
+    s = label.to_s.strip
+    return nil if s.blank?
+
+    class_batches.find_each do |by|
+      return by.id if by.display_label_with_grade.to_s == s
+    end
+    nil
+  end
+
   def self.grade_options
     [ [ "（選填）", "" ], [ "畢業", GRADE_GRADUATED ] ] + (1..6).map { |n| [ n.to_s, n ] }
   end

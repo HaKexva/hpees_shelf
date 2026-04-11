@@ -9,8 +9,8 @@
   <div class="bg-white rounded-lg shadow p-6 mb-6">
     <h2 class="font-semibold text-lg mb-4">上傳 CSV 或 Excel 檔案</h2>
     <p class="text-gray-600 mb-4">
-      上傳包含<strong>姓名</strong>欄位的 CSV（UTF-8、Big5 等）或 Excel（<strong>.xlsx</strong>、.xls）檔案。可選欄位：<code class="bg-gray-100 px-1 rounded">學號</code>（留空、<strong>6 位數字</strong>，或填「—」等占位符視同留空）、<code class="bg-gray-100 px-1 rounded">座號</code>（留空、<strong>1～2 位數字</strong>，或「—」視同留空）。Excel 若將學號存成數字，系統會自動轉成整數再檢查。管理員需要手動新增。跨屆數需要分批次新增。<br>
-      系統會在下方匯入步驟中<strong>要求選擇「屆數」</strong>並套用到本次匯入的所有人員。<strong>不同屆數為不同人員</strong>；重複僅與<strong>所選屆數</strong>比對。請先選屆數並按「套用屆數更新預覽」後，才會顯示重複狀態。
+      欄位可與<strong>人員列表匯出的 CSV</strong>一致（含 <code class="bg-gray-100 px-1 rounded">屆數ID</code>、<code class="bg-gray-100 px-1 rounded">屆數</code>、<code class="bg-gray-100 px-1 rounded">電子信箱</code> 等）。上傳須含<strong>姓名</strong>；可選欄位：<code class="bg-gray-100 px-1 rounded">學號</code>（留空、<strong>6 位數字</strong>，或填「—」等占位符視同留空）、<code class="bg-gray-100 px-1 rounded">座號</code>（留空、<strong>1～2 位數字</strong>，或「—」視同留空）、<code class="bg-gray-100 px-1 rounded">電子信箱</code>（留空時若有學號則預設為 <code class="bg-gray-100 px-1 rounded">學號@hpees.tp.edu.tw</code>；有填則須為有效信箱格式）。Excel 若將學號存成數字，系統會自動轉成整數再檢查。管理員需要手動新增。<br>
+      請選擇<strong>屆數</strong>並按「套用屆數更新預覽」；若<strong>每一筆</strong>在檔案中已有有效的 <code class="bg-gray-100 px-1 rounded">屆數ID</code> 或 <code class="bg-gray-100 px-1 rounded">屆數</code>，可不選下拉即可顯示重複狀態。<strong>不同屆數為不同人員</strong>；列上與下拉不一致時，以<strong>列上</strong>為準。
     </p>
 
     <%= form_with url: import_users_path, method: :post, multipart: true, class: "space-y-4", data: { turbo: false } do |f| %>
@@ -44,7 +44,7 @@
       <h2 class="font-semibold text-lg mb-4">
         預覽（共 <%= @imported_data.size %> 筆<%= "：" if @missing_columns.blank? %>
         <% if @missing_columns.blank? %>
-          <% preview_ready = @preview_batch_year_id.present? %>
+          <% preview_ready = @user_import_preview_ready %>
           <% invalid_count = (@invalid_row_indices || []).size %>
           <% duplicate_count = preview_ready ? ((@duplicate_row_indices || []) | (@existing_duplicate_row_indices || [])).size : 0 %>
           <% new_count = preview_ready ? (@imported_data.size - invalid_count - duplicate_count) : nil %>
@@ -90,19 +90,19 @@
         </div>
         <p class="text-gray-600 text-sm">請補齊缺少欄位後重新上傳 CSV，即可進行確認匯入。</p>
       <% else %>
-        <% preview_ready = @preview_batch_year_id.present? %>
+        <% preview_ready = @user_import_preview_ready %>
         <%= form_with url: import_users_path, method: :post, data: { turbo: false }, id: "import-form" do |f| %>
           <input type="hidden" name="confirm" value="true">
           <%= hidden_field_tag :import_data, Base64.strict_encode64(@imported_data.to_json) %>
 
           <div class="mb-4">
-            <label class="block text-sm font-medium text-gray-700 mb-2">屆數（必填，套用至所有匯入的人員）</label>
-            <%= select_tag :batch_year_id, options_from_collection_for_select(@batch_years || BatchYear.class_batches_by_number_desc, :id, :display_label_with_grade, params[:batch_year_id]), { include_blank: "請選擇屆數", required: true, class: "block w-full max-w-md shadow-sm rounded-md border border-gray-300 px-3 py-2" } %>
+            <label class="block text-sm font-medium text-gray-700 mb-2">屆數（預設套用至未在檔案中指定屆數的列）</label>
+            <%= select_tag :batch_year_id, options_from_collection_for_select(@batch_years || BatchYear.class_batches_by_number_desc, :id, :display_label_with_grade, params[:batch_year_id]), { include_blank: "請選擇屆數（可與檔案「屆數／屆數ID」併用）", class: "block w-full max-w-md shadow-sm rounded-md border border-gray-300 px-3 py-2" } %>
           </div>
 
           <div class="mb-4">
             <%= button_tag "套用屆數更新預覽", type: "submit", name: "refresh_preview", value: "true", class: "inline-flex items-center rounded-md px-3.5 py-2.5 bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 font-medium cursor-pointer" %>
-            <p class="mt-2 text-xs text-gray-600">選擇屆數後按此按鈕，可更新「重複」狀態（與資料庫該屆比對）。再按「確認匯入」完成匯入。</p>
+            <p class="mt-2 text-xs text-gray-600">選擇屆數後按此按鈕，可更新「重複」狀態；列上另有「屆數／屆數ID」時，以該列為準。再按「確認匯入」完成匯入。</p>
           </div>
 
           <% invalid_count = (@invalid_row_indices || []).size %>
@@ -165,7 +165,7 @@
           </div>
 
           <p class="mb-4 text-sm text-gray-600">
-            確認匯入時，「不符合」的列（缺姓名或學號／座號格式不符）會略過；其餘會依所選屆數匯入，重複人員將跳過。
+            確認匯入時，「不符合」的列（缺姓名、學號／座號格式不符、電子信箱格式錯誤）會略過；其餘會依所選屆數匯入，重複人員將跳過。
           </p>
 
           <div class="flex gap-2 items-center">

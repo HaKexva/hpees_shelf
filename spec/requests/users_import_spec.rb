@@ -106,5 +106,46 @@ RSpec.describe "Users import preview", type: :request do
       expect(response.body).to include("1 位將匯入")
       expect(response.body).to include("0 位不符合")
     end
+
+    it "includes 電子信箱 in CSV export headers" do
+      get export_users_path
+      expect(response).to have_http_status(:success)
+      expect(response.body).to include("電子信箱")
+      expect(response.body).to include("姓名")
+    end
+
+    it "imports 電子信箱 from the row when provided" do
+      payload = [
+        {
+          "姓名" => "自訂信箱",
+          "學號" => "601234",
+          "座號" => "1",
+          "電子信箱" => "custom.user@example.com",
+          "屆數ID" => batch_year.id
+        }
+      ]
+      import_data = Base64.strict_encode64(payload.to_json)
+
+      post import_users_path, params: {
+        refresh_preview: "true",
+        import_data: import_data
+      }
+      expect(response).to have_http_status(:success)
+
+      m = response.body.match(/name=(?:"|')import_data(?:"|')[^>]*value=(?:"|')(?<data>[^"']+)(?:"|')/)
+      import_data2 = m && m[:data]
+      expect(import_data2).to be_present
+
+      expect {
+        post import_users_path, params: {
+          confirm: "true",
+          import_data: import_data2
+        }
+      }.to change(User, :count).by(1)
+
+      u = User.find_by(name: "自訂信箱", batch_year_id: batch_year.id)
+      expect(u).to be_present
+      expect(u.email).to eq("custom.user@example.com")
+    end
   end
 end
