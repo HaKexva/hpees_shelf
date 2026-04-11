@@ -31,6 +31,35 @@ class User < ApplicationRecord
               message: "需為 1~2 位數字或留空"
             }
 
+  # CSV/Excel import: Roo may yield Integer/Float; avoid "123456.0" breaking /\A\d{6}\z/.
+  def self.import_cell_student_id_digits(raw)
+    return "" if raw.nil?
+    return "" if raw.respond_to?(:blank?) && raw.blank?
+
+    case raw
+    when Integer then raw.to_s
+    when Float, BigDecimal then Integer(raw).to_s
+    else
+      raw.to_s.strip.gsub(/\s+/, "")
+    end
+  rescue ArgumentError, RangeError, TypeError
+    raw.to_s.strip.gsub(/\s+/, "")
+  end
+
+  def self.import_cell_seat_digits(raw)
+    import_cell_student_id_digits(raw)
+  end
+
+  def self.import_student_id_format_ok?(raw)
+    s = import_cell_student_id_digits(raw)
+    s.blank? || s.match?(/\A\d{6}\z/)
+  end
+
+  def self.import_seat_format_ok?(raw)
+    s = import_cell_seat_digits(raw)
+    s.blank? || s.match?(/\A\d{1,2}\z/)
+  end
+
   scope :active, -> { where(resigned_at: nil) }
 
   SUPERADMIN_EMAILS = %w[ray120424@gmail.com tubaxenor@gmail.com].freeze
