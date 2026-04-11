@@ -148,16 +148,17 @@ class UsersController < ApplicationController
       require "json"
       require "base64"
       import_data = JSON.parse(Base64.strict_decode64(params[:import_data]))
+      _apply_user_import_row_edits!(import_data, params[:edit_rows])
 
       invalid_rows = []
       import_data.each do |row|
-        name = _user_import_value(row, "name", "姓名")
-        next unless name.blank?
+        next unless _user_import_row_invalid?(row)
 
+        name = _user_import_value(row, "name", "姓名")
         invalid_rows << {
           "姓名" => name.presence || "請填寫",
-          "學號" => _user_import_value(row, "id_number", "學號").to_s.strip.presence,
-          "座號" => _user_import_value(row, "seat_number", "座號").to_s.strip.presence
+          "學號" => _user_import_student_id(row).presence || _user_import_value(row, "id_number", "學號").to_s.strip.presence,
+          "座號" => _user_import_seat(row).presence || _user_import_value(row, "seat_number", "座號").to_s.strip.presence
         }
       end
 
@@ -174,11 +175,13 @@ class UsersController < ApplicationController
       send_data csv, filename: filename, type: "text/csv; charset=utf-8"
     elsif params[:refresh_preview] == "true" && params[:import_data].present?
       import_data = JSON.parse(Base64.strict_decode64(params[:import_data]))
+      _apply_user_import_row_edits!(import_data, params[:edit_rows])
       selected_batch_year_id = params[:batch_year_id].presence&.to_i
       _restore_import_preview_users(import_data, selected_batch_year_id)
       render :import
     elsif params[:confirm] == "true" && params[:import_data].present?
       import_data = JSON.parse(Base64.strict_decode64(params[:import_data]))
+      _apply_user_import_row_edits!(import_data, params[:edit_rows])
 
       selected_batch_year_id = params[:batch_year_id].presence&.to_i
       if selected_batch_year_id.blank? || selected_batch_year_id < 1
@@ -199,17 +202,18 @@ class UsersController < ApplicationController
       BatchYear.find_by(id: selected_batch_year_id)
 
       import_data.each_with_index do |row, index|
-        name = _user_import_value(row, "name", "姓名")
-        if name.blank?
+        if _user_import_row_invalid?(row)
           invalid_skipped_count += 1
           next
         end
 
-        id_number = _user_import_value(row, "id_number", "學號")
+        name = _user_import_value(row, "name", "姓名")
+        id_number = _user_import_student_id(row)
+        seat_number = _user_import_seat(row)
         user_attrs = {
           name: name,
           id_number: id_number,
-          seat_number: _user_import_value(row, "seat_number", "座號"),
+          seat_number: seat_number,
           email: id_number.present? ? "#{id_number}@hpees.tp.edu.tw" : nil,
           batch_year_id: selected_batch_year_id,
           admin: false
@@ -234,7 +238,7 @@ class UsersController < ApplicationController
           imported_count += 1
         else
           failed_count += 1
-          if failed_examples.size < 5
+          if failed_examples.size < 10
             failed_examples << "第 #{index + 1} 筆（#{name}）：#{user.errors.full_messages.join('、')}"
           end
           Rails.logger.error "Failed to save user: #{user.errors.full_messages.join(', ')}"
@@ -243,7 +247,7 @@ class UsersController < ApplicationController
 
       message = "成功匯入 #{imported_count} 位人員。"
       message += " 已跳過 #{skipped_count} 位重複人員。" if skipped_count > 0
-      message += " 已跳過 #{invalid_skipped_count} 筆不符合的資料（缺姓名）。" if invalid_skipped_count > 0
+      message += " 已跳過 #{invalid_skipped_count} 筆不符合的資料（缺姓名或學號／座號格式不符）。" if invalid_skipped_count > 0
       if failed_count > 0
         message += " 另有 #{failed_count} 位匯入失敗（資料格式不符或缺欄位）。"
         message += " 例：#{failed_examples.join('；')}" if failed_examples.any?
@@ -271,8 +275,7 @@ class UsersController < ApplicationController
 
         @invalid_row_indices = []
         @imported_data.each_with_index do |row, index|
-          name = _user_import_value(row, "name", "姓名")
-          @invalid_row_indices << index if name.blank?
+          @invalid_row_indices << index if _user_import_row_invalid?(row)
         end
         @preview_batch_year_id = nil
         _compute_import_duplicates_users!(nil)
@@ -466,6 +469,88 @@ class UsersController < ApplicationController
       nil
     end
 
+    def _user_import_first_raw(row, *keys)
+      targets = keys.map { |k| _normalize_user_csv_header_value(k) }.compact.uniq
+
+      keys.each do |k|
+        v = row[k] || row[k.to_s]
+        next if v.nil?
+        next if v.respond_to?(:blank?) && v.blank? && !v.is_a?(Numeric)
+
+        return v if v.is_a?(Numeric) || v.to_s.strip.present?
+      end
+
+      row.each do |row_key, v|
+        normalized_key = _normalize_user_csv_header_value(row_key)
+        next if normalized_key.blank?
+        next unless targets.include?(normalized_key)
+        next if v.nil?
+        next if v.respond_to?(:blank?) && v.blank? && !v.is_a?(Numeric)
+
+        return v if v.is_a?(Numeric) || v.to_s.strip.present?
+      end
+      nil
+    end
+
+    def _user_import_student_id(row)
+      User.import_cell_student_id_digits(_user_import_first_raw(row, "id_number", "學號")).presence
+    end
+
+    def _user_import_seat(row)
+      User.import_cell_seat_digits(_user_import_first_raw(row, "seat_number", "座號")).presence
+    end
+
+    def _user_import_row_invalid?(row)
+      name = _user_import_value(row, "name", "姓名")
+      return true if name.blank?
+
+      !User.import_student_id_format_ok?(_user_import_first_raw(row, "id_number", "學號")) ||
+        !User.import_seat_format_ok?(_user_import_first_raw(row, "seat_number", "座號"))
+    end
+
+    def _apply_user_import_row_edits!(import_data, edit_rows_param)
+      return if import_data.blank? || edit_rows_param.blank?
+
+      edit_rows =
+        if edit_rows_param.respond_to?(:to_unsafe_h)
+          edit_rows_param.to_unsafe_h
+        else
+          edit_rows_param.to_h
+        end
+
+      import_data.each_with_index do |row, idx|
+        edits = edit_rows[idx.to_s] || edit_rows[idx]
+        next if edits.blank?
+
+        _apply_one_user_import_row_edit!(row, edits.to_h)
+      end
+    end
+
+    def _apply_one_user_import_row_edit!(row, edits)
+      return if row.blank? || edits.blank?
+
+      map = {
+        name: %w[name Name 姓名],
+        id_number: %w[id_number 學號],
+        seat_number: %w[seat_number 座號]
+      }
+
+      map.each do |field, keys|
+        next unless edits.key?(field.to_s)
+
+        v = edits[field.to_s].to_s.strip
+
+        if v.blank?
+          k = keys.find { |kk| row.key?(kk) } || keys.first
+          row[k] = ""
+          next
+        end
+
+        k = keys.find { |kk| row.key?(kk) } || keys.first
+        row[k] = v
+      end
+    end
+
     def _restore_import_preview_users(import_data, duplicate_batch_year_id = nil)
       @imported_data = import_data
       @headers = import_data.first&.keys || []
@@ -482,14 +567,15 @@ class UsersController < ApplicationController
       @extra_columns = normalized_headers - @expected_columns - %w[id_number seat_number]
       @invalid_row_indices = []
       @imported_data.each_with_index do |row, index|
-        name = _user_import_value(row, "name", "姓名")
-        @invalid_row_indices << index if name.blank?
+        @invalid_row_indices << index if _user_import_row_invalid?(row)
       end
       @preview_batch_year_id = duplicate_batch_year_id
       _compute_import_duplicates_users!(duplicate_batch_year_id)
       @duplicates = []
       @new_users = []
       @imported_data.each_with_index do |row, index|
+        next if (@invalid_row_indices || []).include?(index)
+
         @new_users << { index: index, row: row } if _user_import_value(row, "name", "姓名").present?
       end
       @batch_years = BatchYear.by_number_desc
@@ -504,14 +590,15 @@ class UsersController < ApplicationController
       keys = @imported_data.map do |row|
         [
           _user_import_value(row, "name", "姓名"),
-          _user_import_value(row, "id_number", "學號")
+          _user_import_student_id(row)
         ]
       end
       key_counts = keys.tally
 
-      @imported_data.each_with_index do |_row, index|
+      @imported_data.each_with_index do |row, index|
         next if (@invalid_row_indices || []).include?(index)
-        name, id_number = keys[index]
+        name = _user_import_value(row, "name", "姓名")
+        id_number = _user_import_student_id(row)
         next if name.blank?
 
         key = [ name, id_number ]

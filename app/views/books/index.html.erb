@@ -150,7 +150,11 @@
         <div class="w-full md:hidden"></div>
         <div class="min-w-0 flex-1 sm:flex-initial sm:w-40">
           <label class="block text-sm font-medium text-gray-700 mb-2">來源</label>
-          <%= select_tag :source, options_for_select(Book.sources.keys.map { |k| [t("activerecord.enums.book.source.#{k}"), k] }, @filter_source), { include_blank: "全部來源", class: "block w-full shadow-sm rounded-lg border border-gray-300 px-3 py-2.5 text-base", onchange: "this.form.submit()" } %>
+          <% book_source_select_options =
+               Book.sources.keys.map { |k| [ t("activerecord.enums.book.source.#{k}"), k ] } +
+               [ [ "所有老師的書", "teachers_all" ] ] +
+               Array(@inventory_teacher_users).map { |u| [ "#{u.name}老師的書", "teacher:#{u.id}" ] } %>
+          <%= select_tag :source, options_for_select(book_source_select_options, @filter_source), { include_blank: "全部來源", class: "block w-full shadow-sm rounded-lg border border-gray-300 px-3 py-2.5 text-base", onchange: "this.form.submit()" } %>
         </div>
         <div class="min-w-0 flex-1 sm:flex-initial sm:w-40">
           <label class="block text-sm font-medium text-gray-700 mb-2">狀態</label>

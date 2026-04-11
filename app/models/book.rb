@@ -195,6 +195,35 @@ class Book < ApplicationRecord
     check == digits[12].to_i
   end
 
+  # Roo/Excel often yields ISBN as Integer/Float; avoid "978…6.0" from Float#to_s (breaks checksum validation).
+  def self.import_isbn_digits(raw)
+    return nil if raw.nil?
+    return nil if raw.respond_to?(:blank?) && raw.blank?
+
+    digits = case raw
+    when Integer then raw.to_s
+    when Float, BigDecimal then Integer(raw).to_s
+    else raw.to_s.strip.gsub(/\D/, "")
+    end
+    digits.presence
+  rescue ArgumentError, RangeError, TypeError
+    raw.to_s.strip.gsub(/\D/, "").presence
+  end
+
+  # Map CSV/Excel 來源 cell to `books.source` enum key (same rules as BooksController import).
+  def self.import_source_key_from_label(raw)
+    return "owned_by_library" if raw.blank?
+    s = raw.to_s.strip
+    return "owned_by_library" if s.blank?
+    return "owned_by_teacher" if s.end_with?("老師的書")
+    return "owned_by_library" if s == "圖書館館藏"
+    return "donated" if s == "捐贈的書"
+    return "owned_by_class" if s == "班級的書"
+    return s if sources.key?(s)
+
+    "owned_by_library"
+  end
+
   # Compare two ISBNs by normalized 13 digits (so 978-986-181-728-6 matches 9789861817286)
   def self.isbn_match?(stored, input)
     return false if stored.blank?
