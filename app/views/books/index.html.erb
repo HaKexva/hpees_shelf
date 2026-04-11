@@ -4,7 +4,7 @@
   <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6">
     <h1 class="font-bold text-2xl sm:text-4xl text-gray-900">書籍列表</h1>
     <div class="flex flex-wrap gap-2 items-center">
-      <%= link_to "匯出 CSV", export_books_path(request.query_parameters), class: "inline-flex items-center rounded-md px-3.5 py-2.5 bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 font-medium" %>
+      <%= link_to "匯出 CSV", export_books_path(books_export_filter_params), class: "inline-flex items-center rounded-md px-3.5 py-2.5 bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 font-medium" %>
       <button type="button" class="inline-flex items-center rounded-md px-3.5 py-2.5 bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 font-medium" data-action="click->inventory-dialog#open">
         匯出盤點表
       </button>

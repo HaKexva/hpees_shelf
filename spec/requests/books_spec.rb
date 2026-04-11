@@ -23,6 +23,16 @@ RSpec.describe "Books", type: :request do
       expect(response.body).to include("Unique Title XYZ")
     end
 
+    it "includes CSV export link with current filter params" do
+      get books_url, params: { source: "donated", q: "Hello", sort: "isbn" }
+      expect(response).to have_http_status(:success)
+      body = response.body
+      expect(body).to include("books/export")
+      expect(body).to include("q=Hello")
+      expect(body).to include("source=donated")
+      expect(body).to include("sort=isbn")
+    end
+
     it "lists teacher source options and filters by teachers_all" do
       t1 = create(:user, :admin, batch_year: batch_year, name: "TeacherOne")
       t2 = create(:user, :admin, batch_year: batch_year, name: "TeacherTwo")
@@ -125,6 +135,16 @@ RSpec.describe "Books", type: :request do
   end
 
   describe "GET /books/export" do
+    it "returns CSV rows matching the books list filters (source)" do
+      create(:book, batch_year: batch_year, title: "HAK112 Donated Row", source: :donated)
+      create(:book, batch_year: batch_year, title: "HAK112 Class Row", source: :owned_by_class)
+      get export_books_url, params: { source: "donated" }
+      expect(response).to have_http_status(:success)
+      expect(response.media_type).to eq("text/csv")
+      expect(response.body).to include("HAK112 Donated Row")
+      expect(response.body).not_to include("HAK112 Class Row")
+    end
+
     it "includes only that teacher's rows when source=teacher:<id>" do
       t1 = create(:user, :admin, batch_year: batch_year, name: "CsvT1")
       t2 = create(:user, :admin, batch_year: batch_year, name: "CsvT2")
