@@ -224,6 +224,71 @@ class Book < ApplicationRecord
     "owned_by_library"
   end
 
+  # CSV/Excel header → semantic key (shared by import preview + BooksController).
+  def self.normalize_import_csv_header(value)
+    s = value.to_s.strip
+    return nil if s.blank?
+
+    case s
+    when "書名" then "title"
+    when "總數" then "total"
+    when "冊數" then "volume"
+    when "備註" then "note"
+    when "ISBN", "國際標準書號" then "isbn"
+    when "來源" then "source"
+    when "登錄號" then "call_number"
+    when "屆數" then "batch_year"
+    when "屆數ID" then "batch_year_id"
+    when "狀態" then "status"
+    else s.downcase.presence
+    end
+  end
+
+  # First matching cell for import preview / BooksController (direct keys, then header-normalized scan).
+  def self.lookup_import_row_value(row, *keys)
+    return nil if row.blank?
+
+    keys.each do |k|
+      v = row[k]
+      return v.to_s.strip.presence if v.present? && v.to_s.strip.present?
+    end
+
+    targets = keys.map { |k| normalize_import_csv_header(k) || k.to_s.downcase.strip.presence }.compact.uniq
+    row.each do |header, val|
+      next if val.blank?
+
+      norm = normalize_import_csv_header(header)
+      next if norm.blank?
+      next unless targets.include?(norm)
+
+      s = val.to_s.strip
+      return s if s.present?
+    end
+    nil
+  end
+
+  # Normalized ISBN-13 digits from an import row (same rules as BooksController).
+  def self.import_row_isbn_digits(row)
+    raw = nil
+    %w[isbn ISBN 國際標準書號].each do |k|
+      v = row[k]
+      next if v.blank?
+
+      raw = v
+      break
+    end
+    if raw.nil?
+      row.each do |header, val|
+        next if val.blank?
+        next unless normalize_import_csv_header(header) == "isbn"
+
+        raw = val
+        break
+      end
+    end
+    import_isbn_digits(raw)
+  end
+
   # Compare two ISBNs by normalized 13 digits (so 978-986-181-728-6 matches 9789861817286)
   def self.isbn_match?(stored, input)
     return false if stored.blank?

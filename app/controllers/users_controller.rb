@@ -17,13 +17,14 @@ class UsersController < ApplicationController
     sort = User.list_sort_from_param(params[:sort])
     users = filtered_users_scope.includes(:batch_year).merge(User.ordered_for_list(sort))
     bom = "\uFEFF"
-    headers = %w[姓名 屆數 學號 座號 管理員]
+    headers = %w[姓名 屆數ID 屆數 學號 座號 管理員]
     csv = +""
     csv << bom
     csv << headers.map { |h| _csv_escape(h) }.join(",") << "\n"
     users.find_each do |user|
       row = [
         user.name,
+        user.batch_year_id.to_s,
         user.batch_year&.display_label_with_grade.to_s,
         user.admin ? "—" : (user.id_number || ""),
         user.admin ? "—" : (user.seat_number || ""),
@@ -133,11 +134,14 @@ class UsersController < ApplicationController
   # GET /users/import — show form; POST with file — preview; POST with confirm + import_data — perform import
   def import
     BatchYear.ensure_office_exists!
+    @user_import_preview_ready = false
     @imported_data = []
     @headers = []
     @expected_columns = %w[name]
     @column_names_zh = {
       "name" => "姓名",
+      "batch_year_id" => "屆數ID",
+      "batch_year" => "屆數",
       "id_number" => "學號",
       "seat_number" => "座號"
     }
@@ -157,12 +161,14 @@ class UsersController < ApplicationController
         name = _user_import_value(row, "name", "姓名")
         invalid_rows << {
           "姓名" => name.presence || "請填寫",
+          "屆數ID" => _user_import_value(row, "batch_year_id", "屆數ID").to_s.strip.presence,
+          "屆數" => _user_import_value(row, "batch_year", "屆數").to_s.strip.presence,
           "學號" => _user_import_student_id(row).presence || _user_import_value(row, "id_number", "學號").to_s.strip.presence,
           "座號" => _user_import_seat(row).presence || _user_import_value(row, "seat_number", "座號").to_s.strip.presence
         }
       end
 
-      headers = %w[姓名 學號 座號]
+      headers = %w[姓名 屆數ID 屆數 學號 座號]
       bom = "\uFEFF"
       csv = +""
       csv << bom
@@ -184,12 +190,22 @@ class UsersController < ApplicationController
       _apply_user_import_row_edits!(import_data, params[:edit_rows])
 
       selected_batch_year_id = params[:batch_year_id].presence&.to_i
-      if selected_batch_year_id.blank? || selected_batch_year_id < 1
-        _restore_import_preview_users(import_data, params[:batch_year_id].presence&.to_i)
-        @batch_years = BatchYear.by_number_desc
-        flash.now[:alert] = "請選擇屆數。"
-        render :import, status: :unprocessable_entity
-        return
+      selected_batch_year_id = nil if selected_batch_year_id.blank? || selected_batch_year_id < 1
+
+      if selected_batch_year_id.nil?
+        needs_fallback = import_data.each_with_index.any? do |row, _idx|
+          next false if _user_import_row_invalid?(row)
+
+          eff = _user_import_batch_year_id_for_row(row, nil)
+          eff.nil? || eff < 1
+        end
+        if needs_fallback
+          _restore_import_preview_users(import_data, params[:batch_year_id].presence&.to_i)
+          @batch_years = BatchYear.by_number_desc
+          flash.now[:alert] = "請選擇屆數，或在檔案中為每一筆提供有效的「屆數ID」或「屆數」。"
+          render :import, status: :unprocessable_entity
+          return
+        end
       end
 
       imported_count = 0
@@ -210,16 +226,22 @@ class UsersController < ApplicationController
         name = _user_import_value(row, "name", "姓名")
         id_number = _user_import_student_id(row)
         seat_number = _user_import_seat(row)
+        effective_batch_year_id = _user_import_batch_year_id_for_row(row, selected_batch_year_id)
+        if effective_batch_year_id.nil? || effective_batch_year_id < 1
+          invalid_skipped_count += 1
+          next
+        end
+
         user_attrs = {
           name: name,
           id_number: id_number,
           seat_number: seat_number,
           email: id_number.present? ? "#{id_number}@hpees.tp.edu.tw" : nil,
-          batch_year_id: selected_batch_year_id,
+          batch_year_id: effective_batch_year_id,
           admin: false
         }
 
-        is_duplicate = User.exists?(name: name, id_number: id_number, batch_year_id: selected_batch_year_id)
+        is_duplicate = User.exists?(name: name, id_number: id_number, batch_year_id: effective_batch_year_id)
         if is_duplicate
           case duplicate_action
           when "skip"
@@ -260,16 +282,10 @@ class UsersController < ApplicationController
         @imported_data = rows.reject { |row| row.values.all? { |v| v.nil? || v.to_s.strip.empty? } }
 
         headers_stripped = @headers.map { |h| h&.to_s&.strip }
-        normalized_headers = headers_stripped.map do |h|
-          case h.to_s
-          when "姓名" then "name"
-          when "學號" then "id_number"
-          when "座號" then "seat_number"
-          else h.to_s.downcase.presence
-          end
-        end.compact
+        normalized_headers = headers_stripped.map { |h| _normalize_user_csv_header_value(h) }.compact
         @missing_columns = @expected_columns - normalized_headers
-        @extra_columns = normalized_headers - @expected_columns - %w[id_number seat_number]
+        known_optional = @expected_columns + %w[id_number seat_number batch_year_id batch_year admin]
+        @extra_columns = normalized_headers - known_optional
 
         @invalid_row_indices = []
         @imported_data.each_with_index do |row, index|
@@ -354,6 +370,8 @@ class UsersController < ApplicationController
       when "姓名" then "name"
       when "學號" then "id_number"
       when "座號" then "seat_number"
+      when "屆數ID" then "batch_year_id"
+      when "屆數" then "batch_year"
       when "管理員" then "admin"
       else s.downcase.presence
       end
@@ -411,9 +429,37 @@ class UsersController < ApplicationController
       User.import_cell_seat_digits(_user_import_first_raw(row, "seat_number", "座號")).presence
     end
 
+    def _user_import_batch_year_id_for_row(row, fallback_id)
+      id_raw = _user_import_value(row, "batch_year_id", "屆數ID")
+      if id_raw.present?
+        stripped = id_raw.to_s.strip
+        if stripped.match?(/\A\d+\z/)
+          i = stripped.to_i
+          return i if i.positive? && BatchYear.exists?(id: i)
+
+          return -1
+        end
+
+        return -1
+      end
+
+      lab = _user_import_value(row, "batch_year", "屆數")
+      if lab.present?
+        bid = BatchYear.find_id_from_import_label(lab)
+        return bid if bid.present?
+
+        return -1
+      end
+
+      fb = fallback_id.to_i
+      fb.positive? ? fb : nil
+    end
+
     def _user_import_row_invalid?(row)
       name = _user_import_value(row, "name", "姓名")
       return true if name.blank?
+
+      return true if _user_import_batch_year_id_for_row(row, nil) == -1
 
       !User.import_student_id_format_ok?(_user_import_first_raw(row, "id_number", "學號")) ||
         !User.import_seat_format_ok?(_user_import_first_raw(row, "seat_number", "座號"))
@@ -442,6 +488,8 @@ class UsersController < ApplicationController
 
       map = {
         name: %w[name Name 姓名],
+        batch_year_id: %w[batch_year_id 屆數ID],
+        batch_year: %w[batch_year 屆數],
         id_number: %w[id_number 學號],
         seat_number: %w[seat_number 座號]
       }
@@ -466,16 +514,10 @@ class UsersController < ApplicationController
       @imported_data = import_data
       @headers = import_data.first&.keys || []
       headers_stripped = @headers.map { |h| h&.to_s&.strip }
-      normalized_headers = headers_stripped.map do |h|
-        case h.to_s
-        when "姓名" then "name"
-        when "學號" then "id_number"
-        when "座號" then "seat_number"
-        else h.to_s.downcase.presence
-        end
-      end.compact
+      normalized_headers = headers_stripped.map { |h| _normalize_user_csv_header_value(h) }.compact
       @missing_columns = @expected_columns - normalized_headers
-      @extra_columns = normalized_headers - @expected_columns - %w[id_number seat_number]
+      known_optional = @expected_columns + %w[id_number seat_number batch_year_id batch_year admin]
+      @extra_columns = normalized_headers - known_optional
       @invalid_row_indices = []
       @imported_data.each_with_index do |row, index|
         @invalid_row_indices << index if _user_import_row_invalid?(row)
@@ -492,16 +534,18 @@ class UsersController < ApplicationController
       @batch_years = BatchYear.by_number_desc
     end
 
-    # Preview-only: after 屆數 is chosen, duplicates in file and vs DB for that batch (different 屆 = different person for same name/id).
+    # Preview-only: duplicates in file and vs DB (per-row 屆數／屆數ID when present, else selected 屆數).
     def _compute_import_duplicates_users!(selected_batch_year_id = nil)
       @duplicate_row_indices = []
       @existing_duplicate_row_indices = []
-      return if selected_batch_year_id.blank? || selected_batch_year_id.to_i < 1
+      fallback = selected_batch_year_id.present? && selected_batch_year_id.to_i >= 1 ? selected_batch_year_id.to_i : nil
 
       keys = @imported_data.map do |row|
+        eff = _user_import_batch_year_id_for_row(row, fallback)
         [
           _user_import_value(row, "name", "姓名"),
-          _user_import_student_id(row)
+          _user_import_student_id(row),
+          eff
         ]
       end
       key_counts = keys.tally
@@ -512,10 +556,27 @@ class UsersController < ApplicationController
         id_number = _user_import_student_id(row)
         next if name.blank?
 
-        key = [ name, id_number ]
+        eff = _user_import_batch_year_id_for_row(row, fallback)
+        next if eff.nil? || eff < 1
+
+        key = [ name, id_number, eff ]
         @duplicate_row_indices << index if key_counts[key].to_i > 1
 
-        @existing_duplicate_row_indices << index if User.exists?(name: name, id_number: id_number, batch_year_id: selected_batch_year_id.to_i)
+        @existing_duplicate_row_indices << index if User.exists?(name: name, id_number: id_number, batch_year_id: eff)
+      end
+
+      @user_import_preview_ready =
+        @missing_columns.blank? && (fallback.present? || _user_import_all_non_invalid_rows_have_batch?(fallback))
+    end
+
+    def _user_import_all_non_invalid_rows_have_batch?(fallback)
+      return false if @imported_data.blank?
+
+      @imported_data.each_with_index.all? do |row, idx|
+        next true if (@invalid_row_indices || []).include?(idx)
+
+        eff = _user_import_batch_year_id_for_row(row, fallback)
+        eff.present? && eff >= 1
       end
     end
 end
