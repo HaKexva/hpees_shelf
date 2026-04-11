@@ -8,6 +8,18 @@ RSpec.describe "Users import preview", type: :request do
   before { login_as(create(:user, :admin, batch_year: batch_year)) }
 
   describe "POST /users/import" do
+    it "parses .xlsx via Roo without corrupting Chinese text" do
+      post import_users_path, params: {
+        file: fixture_file_upload(
+          "users_import.xlsx",
+          "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
+      }
+      expect(response).to have_http_status(:success)
+      expect(response.body).to include("XLSX學生")
+      expect(response.body).to include("601234")
+    end
+
     it "allows fixing blank name in the preview table and re-validates on refresh" do
       post import_users_path, params: {
         file: fixture_file_upload("users_import_blank_name.csv", "text/csv")
