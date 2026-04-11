@@ -246,6 +246,27 @@ class Book < ApplicationRecord
     "owned_by_library"
   end
 
+  # "張三老師的書" → "張三"; bare "老師的書" or enum-only labels → nil.
+  def self.import_teacher_name_from_owned_by_teacher_label(raw)
+    s = raw.to_s.strip
+    return nil unless s.end_with?("老師的書")
+
+    s.sub(/老師的書\z/, "").strip.presence
+  end
+
+  # Resolves admin user for 老師的書 import rows. nil if missing name or no matching admin (HAK-119).
+  def self.import_teacher_user_from_source_label(raw)
+    return nil unless import_source_key_from_label(raw) == "owned_by_teacher"
+
+    name = import_teacher_name_from_owned_by_teacher_label(raw)
+    return nil if name.blank?
+
+    scope = User.active.where(admin: true)
+    scope.find_by(name: name) ||
+      scope.find_by(name: "#{name}老師") ||
+      scope.where("name LIKE ?", "%#{name}%").first
+  end
+
   # CSV/Excel header → semantic key (shared by import preview + BooksController).
   def self.normalize_import_csv_header(value)
     s = value.to_s.strip

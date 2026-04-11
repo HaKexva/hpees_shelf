@@ -69,7 +69,11 @@ module BooksHelper
 
     case semantic.to_s
     when "title" then title.blank?
-    when "source" then source.blank?
+    when "source"
+      return true if source.blank?
+
+      sk = Book.import_source_key_from_label(source)
+      sk == "owned_by_teacher" && Book.import_teacher_user_from_source_label(source).nil?
     when "isbn" then isbn_digits.blank? || !Book.valid_isbn13?(isbn_digits)
     when "call_number"
       return false unless source_key == "owned_by_library"
