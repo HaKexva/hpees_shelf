@@ -347,10 +347,11 @@ GEM
     roo (2.10.1)
       nokogiri (~> 1)
       rubyzip (>= 1.3.0, < 3.0.0)
-    roo-xls (1.2.0)
+    roo-xls (2.0.0)
+      csv
       nokogiri
-      roo (>= 2.0.0, < 3)
-      spreadsheet (> 0.9.0)
+      roo (>= 2.0.0, < 4)
+      spreadsheet (>= 1.3.4, < 2)
     rouge (4.7.0)
     rspec-core (3.13.6)
       rspec-support (~> 3.13.0)
@@ -524,7 +525,7 @@ DEPENDENCIES
   rack (>= 3.2.5)
   rails (~> 8.1.1)
   roo (~> 2.10)
-  roo-xls (~> 1.2)
+  roo-xls (~> 2.0)
   rouge (~> 4.7)
   rspec-rails
   rubocop-rails-omakase
@@ -674,7 +675,7 @@ CHECKSUMS
   reline (0.6.3) sha256=1198b04973565b36ec0f11542ab3f5cfeeec34823f4e54cebde90968092b1835
   rexml (3.4.4) sha256=19e0a2c3425dfbf2d4fc1189747bdb2f849b6c5e74180401b15734bc97b5d142
   roo (2.10.1) sha256=cbb43bc955f9c110e74b721c835fb9bd3515b63af88ec709ac87fbf30f8be70e
-  roo-xls (1.2.0) sha256=e340d7458d5f084e30f5eb4dc80925b047ecc7802a09115eaaba11bd4e8384cd
+  roo-xls (2.0.0) sha256=72a6ac126e3fd140f3fb105097e5b212deb9419eb7e100abd72e0f7a94048f01
   rouge (4.7.0) sha256=dba5896715c0325c362e895460a6d350803dbf6427454f49a47500f3193ea739
   rspec-core (3.13.6) sha256=a8823c6411667b60a8bca135364351dda34cd55e44ff94c4be4633b37d828b2d
   rspec-expectations (3.13.5) sha256=33a4d3a1d95060aea4c94e9f237030a8f9eae5615e9bd85718fe3a09e4b58836
