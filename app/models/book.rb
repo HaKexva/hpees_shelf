@@ -6,7 +6,9 @@ class Book < ApplicationRecord
   scope :only_deleted, -> { unscope(where: :deleted_at).where.not(deleted_at: nil) }
 
   belongs_to :batch_year
-  belongs_to :user, -> { merge(User.with_deleted) }, optional: true # current borrower (single-copy) or teacher (owned_by_teacher)
+  # Library single-copy / 捐贈、班級: `user` is current borrower while借閱中.
+  # 老師的書: `user` is always the owning teacher; borrowers are only `borrowers` / circulation_records.
+  belongs_to :user, -> { merge(User.with_deleted) }, optional: true
   # Soft delete keeps the row; circulation_records remain linked (no dependent: :destroy).
   has_many :circulation_records, inverse_of: :book
   has_many :loan_records, -> { where(returned_at: nil) }, class_name: "CirculationRecord"
@@ -139,6 +141,26 @@ class Book < ApplicationRecord
 
   def can_borrow_copy?
     available_copies.positive?
+  end
+
+  # Single-copy checkout (not 圖書館多冊分流): records loan; for 老師的書 keeps `user_id` as the teacher.
+  def checkout_to_borrower!(borrower)
+    circulation_records.create!(user_id: borrower.id, borrowed_at: Time.current)
+    if owned_by_teacher?
+      update!(status: STATUS_BORROWED, borrowed_at: Time.current)
+    else
+      update!(user_id: borrower.id, status: STATUS_BORROWED, borrowed_at: Time.current)
+    end
+  end
+
+  # Single-copy return (not 圖書館多冊): clears loans; for 老師的書 keeps `user_id` so 來源 label stays the teacher.
+  def return_from_single_copy_borrow!
+    circulation_records.where(returned_at: nil).update_all(returned_at: Time.current)
+    if owned_by_teacher?
+      update!(status: STATUS_ON_SHELF, borrowed_at: nil)
+    else
+      update!(user_id: nil, status: STATUS_ON_SHELF, borrowed_at: nil)
+    end
   end
 
   # Soft delete: row remains so circulation_records and FKs stay valid; excluded from default Book scopes.
