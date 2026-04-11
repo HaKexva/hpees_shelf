@@ -22,6 +22,36 @@ RSpec.describe "Books", type: :request do
       get books_url, params: { q: "978-986-181" }
       expect(response.body).to include("Unique Title XYZ")
     end
+
+    it "lists teacher source options and filters by teachers_all" do
+      t1 = create(:user, :admin, batch_year: batch_year, name: "TeacherOne")
+      t2 = create(:user, :admin, batch_year: batch_year, name: "TeacherTwo")
+      create(:book, batch_year: batch_year, title: "T1 Book", source: :owned_by_teacher, user: t1, isbn: "9780000000002")
+      create(:book, batch_year: batch_year, title: "T2 Book", source: :owned_by_teacher, user: t2, isbn: "9780000000019")
+      create(:book, batch_year: batch_year, title: "Class Book", source: :owned_by_class, isbn: "9780000000026")
+
+      get books_url
+      body = response.body
+      expect(body).to include("teachers_all")
+      expect(body).to include("teacher:#{t1.id}")
+      expect(body).to include("teacher:#{t2.id}")
+
+      get books_url, params: { source: "teachers_all" }
+      expect(response.body).to include("T1 Book")
+      expect(response.body).to include("T2 Book")
+      expect(response.body).not_to include("Class Book")
+    end
+
+    it "filters by teacher:<id> to that teacher only" do
+      t1 = create(:user, :admin, batch_year: batch_year, name: "FilterT1")
+      t2 = create(:user, :admin, batch_year: batch_year, name: "FilterT2")
+      create(:book, batch_year: batch_year, title: "Only T1", source: :owned_by_teacher, user: t1, isbn: "9780000000033")
+      create(:book, batch_year: batch_year, title: "Only T2", source: :owned_by_teacher, user: t2, isbn: "9780000000040")
+
+      get books_url, params: { source: "teacher:#{t1.id}" }
+      expect(response.body).to include("Only T1")
+      expect(response.body).not_to include("Only T2")
+    end
   end
 
   describe "GET /books/new" do
@@ -91,6 +121,21 @@ RSpec.describe "Books", type: :request do
       }.to change(Book, :count).by(-1)
 
       expect(response).to redirect_to(books_url)
+    end
+  end
+
+  describe "GET /books/export" do
+    it "includes only that teacher's rows when source=teacher:<id>" do
+      t1 = create(:user, :admin, batch_year: batch_year, name: "CsvT1")
+      t2 = create(:user, :admin, batch_year: batch_year, name: "CsvT2")
+      create(:book, batch_year: batch_year, title: "Csv Only T1", source: :owned_by_teacher, user: t1, isbn: "9780000000057")
+      create(:book, batch_year: batch_year, title: "Csv Only T2", source: :owned_by_teacher, user: t2, isbn: "9780000000064")
+
+      get export_books_url, params: { source: "teacher:#{t1.id}" }
+      expect(response).to have_http_status(:success)
+      expect(response.media_type).to eq("text/csv")
+      expect(response.body).to include("Csv Only T1")
+      expect(response.body).not_to include("Csv Only T2")
     end
   end
 
