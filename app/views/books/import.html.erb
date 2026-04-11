@@ -9,7 +9,7 @@
   <div class="bg-white rounded-lg shadow p-6 mb-6">
     <h2 class="font-semibold text-lg mb-4">上傳 CSV 或 Excel 檔案</h2>
     <p class="text-gray-600 mb-4">
-      上傳包含以下欄位的 CSV（UTF-8、Big5 等）或 Excel（.xlsx、.xls）檔案。<strong>必填：</strong><code class="bg-gray-100 px-1 rounded">書名</code>、<code class="bg-gray-100 px-1 rounded">ISBN</code>（須為 <strong>ISBN-13</strong> 共 13 碼且<strong>校驗碼正確</strong>，可含連字號）、<code class="bg-gray-100 px-1 rounded">來源</code>；<strong>選填：</strong><code class="bg-gray-100 px-1 rounded">總數</code>（預設 1）、<code class="bg-gray-100 px-1 rounded">冊數</code>、<code class="bg-gray-100 px-1 rounded">備註</code>。<br>
+      上傳包含以下欄位的 CSV（UTF-8、Big5 等）或 Excel（.xlsx、.xls）檔案。<strong>必填：</strong><code class="bg-gray-100 px-1 rounded">書名</code>、<code class="bg-gray-100 px-1 rounded">ISBN</code>（須為 <strong>ISBN-13</strong> 共 13 碼且<strong>校驗碼正確</strong>，可含連字號）、<code class="bg-gray-100 px-1 rounded">來源</code>；<strong>選填：</strong><code class="bg-gray-100 px-1 rounded">總數</code>（預設 1）、<code class="bg-gray-100 px-1 rounded">冊數</code>、<code class="bg-gray-100 px-1 rounded">備註</code>。<strong>來源為「圖書館館藏」時須填</strong><code class="bg-gray-100 px-1 rounded">登錄號</code>（8 位數字）。<br>
       來源可填：圖書館館藏、捐贈的書、班級的書；老師的書請填「姓名＋老師的書」（例如：王小明老師的書）。<br>
       系統會在下方匯入步驟中<strong>要求選擇「屆數」</strong>並套用到本次匯入的所有書籍。<strong>不同屆數視為不同館藏</strong>，重複與否僅與<strong>所選屆數</strong>比對；請先選屆數並按「套用屆數更新預覽」後，才會顯示與資料庫重複的列。
     </p>
@@ -72,8 +72,7 @@
 
       <% if @missing_columns.present? %>
         <div class="mb-4">
-          <!-- 桌機版：表格 -->
-          <div class="overflow-x-auto hidden md:block">
+          <div class="overflow-x-auto -mx-2 px-2 sm:mx-0 sm:px-0">
             <table class="min-w-full divide-y divide-gray-200">
               <thead class="bg-gray-50">
                 <tr>
@@ -97,25 +96,6 @@
               </tbody>
             </table>
           </div>
-
-          <!-- 手機版：卡片 -->
-          <div class="md:hidden space-y-4">
-            <% @imported_data.each_with_index do |row, index| %>
-              <div class="bg-white rounded-2xl border border-gray-200 p-4 shadow-md">
-                <p class="mb-2">
-                  <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">不符合</span>
-                </p>
-                <div class="space-y-1 text-xs text-gray-700">
-                  <% @headers.each do |header| %>
-                    <div class="flex gap-2">
-                      <span class="text-gray-400 shrink-0"><%= header %></span>
-                      <span class="flex-1 break-all"><%= import_cell_display(header, row[header]) %></span>
-                    </div>
-                  <% end %>
-                </div>
-              </div>
-            <% end %>
-          </div>
         </div>
         <p class="text-gray-600 text-sm">請補齊缺少欄位後重新上傳 CSV，即可進行確認匯入。</p>
       <% else %>
@@ -137,59 +117,9 @@
 
           <% invalid_count = (@invalid_row_indices || []).size %>
           <% if invalid_count > 0 %>
-            <div class="mb-6 p-4 rounded-lg border border-red-200 bg-red-50">
-              <h3 class="font-semibold text-red-800 mb-2">修正不符合資料（可直接編輯後更新預覽）</h3>
-              <p class="text-sm text-red-700 mb-3">
-                請修正缺少的必填欄位（書名 / ISBN / 來源）或 ISBN 校驗碼錯誤，然後按「套用屆數更新預覽」檢查是否已變成新增/重複。
-              </p>
-              <div class="space-y-3">
-                <% (@invalid_row_indices || []).each do |idx| %>
-                  <% row = @imported_data[idx] || {} %>
-                  <div class="bg-white rounded-md border border-red-100 p-3">
-                    <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
-                      <div class="text-sm text-gray-800">
-                        <span class="font-semibold">第 <%= idx + 1 %> 筆</span>
-                        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 ml-2">不符合</span>
-                      </div>
-                    </div>
-                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                      <div>
-                        <label class="block text-xs font-medium text-gray-700 mb-1">書名</label>
-                        <%= text_field_tag "edit_rows[#{idx}][title]", row["title"] || row["Title"] || row["書名"], class: "block w-full shadow-sm rounded-md border border-gray-300 px-3 py-2 text-sm" %>
-                      </div>
-                      <div>
-                        <label class="block text-xs font-medium text-gray-700 mb-1">ISBN（13 碼，可含連字號）</label>
-                        <%= text_field_tag "edit_rows[#{idx}][isbn]", row["isbn"] || row["ISBN"] || row["國際標準書號"], class: "block w-full shadow-sm rounded-md border border-gray-300 px-3 py-2 text-sm" %>
-                      </div>
-                      <div>
-                        <label class="block text-xs font-medium text-gray-700 mb-1">來源</label>
-                        <%= text_field_tag "edit_rows[#{idx}][source]", row["source"] || row["Source"] || row["來源"], class: "block w-full shadow-sm rounded-md border border-gray-300 px-3 py-2 text-sm" %>
-                      </div>
-                      <div>
-                        <label class="block text-xs font-medium text-gray-700 mb-1">總數</label>
-                        <%= text_field_tag "edit_rows[#{idx}][total]", row["total"] || row["Total"] || row["總數"], class: "block w-full shadow-sm rounded-md border border-gray-300 px-3 py-2 text-sm" %>
-                      </div>
-                      <div>
-                        <label class="block text-xs font-medium text-gray-700 mb-1">冊數</label>
-                        <%= text_field_tag "edit_rows[#{idx}][volume]", row["volume"] || row["Volume"] || row["冊數"], class: "block w-full shadow-sm rounded-md border border-gray-300 px-3 py-2 text-sm" %>
-                      </div>
-                      <div>
-                        <label class="block text-xs font-medium text-gray-700 mb-1">登錄號（圖書館館藏必填）</label>
-                        <%= text_field_tag "edit_rows[#{idx}][call_number]", row["call_number"] || row["登錄號"], class: "block w-full shadow-sm rounded-md border border-gray-300 px-3 py-2 text-sm" %>
-                      </div>
-                      <div class="sm:col-span-2 lg:col-span-3">
-                        <label class="block text-xs font-medium text-gray-700 mb-1">備註</label>
-                        <%= text_field_tag "edit_rows[#{idx}][note]", row["note"] || row["Note"] || row["備註"], class: "block w-full shadow-sm rounded-md border border-gray-300 px-3 py-2 text-sm" %>
-                      </div>
-                    </div>
-                  </div>
-                <% end %>
-              </div>
-            </div>
-
             <div class="mb-4">
               <%= button_tag "下載不符合清單 CSV", type: "submit", name: "export_invalid", value: "true", class: "inline-flex items-center rounded-md px-3.5 py-2.5 bg-red-600 hover:bg-red-500 text-white font-medium cursor-pointer" %>
-              <p class="mt-2 text-xs text-gray-600">會匯出「不符合」的資料列（缺書名／ISBN／來源，或 ISBN 非有效 ISBN-13）；缺欄位將填入「請填寫」。</p>
+              <p class="mt-2 text-xs text-gray-600">有 <strong><%= invalid_count %></strong> 筆不符合：請在下方<strong>表格</strong>內僅修改標示為可輸入的欄位（缺書名／來源／ISBN 或 ISBN 校驗碼錯誤），再按「套用屆數更新預覽」。下載 CSV 會匯出目前不符合列（缺欄位顯示「請填寫」）。</p>
             </div>
           <% end %>
 
@@ -200,8 +130,8 @@
             </p>
           <% end %>
 
-          <!-- 桌機版：表格 -->
-          <div class="overflow-x-auto mb-4 hidden md:block">
+          <!-- 預覽：僅用表格（含手機橫向捲動），不符合列在儲格內編輯 -->
+          <div class="overflow-x-auto mb-4 -mx-2 px-2 sm:mx-0 sm:px-0">
             <table class="min-w-full divide-y divide-gray-200">
               <thead class="bg-gray-50">
                 <tr>
@@ -240,6 +170,7 @@
                         <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">新增</span>
                       <% end %>
                     </td>
+                    <% row_invalid = (@invalid_row_indices || []).include?(index) %>
                     <% @headers.each do |header| %>
                       <% required_header =
                            case header.to_s.strip
@@ -249,65 +180,27 @@
                            else false
                            end %>
                       <% isbn_header = %w[ISBN isbn 國際標準書號].include?(header.to_s.strip) %>
-                      <% missing_required = (@invalid_row_indices || []).include?(index) && required_header && row[header].to_s.strip.blank? %>
-                      <% isbn_checksum_invalid = (@invalid_row_indices || []).include?(index) && isbn_header && row[header].to_s.strip.present? && !Book.valid_isbn13?(row[header]) %>
-                      <td class="px-4 py-2 text-sm <%= (missing_required || isbn_checksum_invalid) ? 'bg-red-50 text-red-700' : (is_duplicate ? 'text-yellow-700' : 'text-gray-900') %>"><%= import_cell_display(header, row[header]) %></td>
+                      <% missing_required = row_invalid && required_header && row[header].to_s.strip.blank? %>
+                      <% isbn_checksum_invalid = row_invalid && isbn_header && row[header].to_s.strip.present? && !Book.valid_isbn13?(row[header]) %>
+                      <% semantic = import_header_semantic_key_for_edit(header) %>
+                      <% field_invalid = semantic.present? && import_preview_book_field_invalid?(semantic, row) %>
+                      <% td_cls = "px-4 py-2 text-sm align-top " + ((missing_required || isbn_checksum_invalid) ? "bg-red-50" : (is_duplicate ? "text-yellow-700" : "text-gray-900")) %>
+                      <% inp_cls = "block w-full min-w-[5rem] max-w-[20rem] rounded border px-2 py-1 text-sm " + ((missing_required || isbn_checksum_invalid) ? "border-red-300 bg-red-50 text-red-900" : "border-gray-300 text-gray-900") %>
+                      <td class="<%= td_cls %>">
+                        <% if row_invalid && field_invalid %>
+                          <%= text_field_tag "edit_rows[#{index}][#{semantic}]", row[header].to_s, class: inp_cls %>
+                        <% else %>
+                          <span class="<%= (missing_required || isbn_checksum_invalid) ? 'text-red-700' : '' %>"><%= import_cell_display(header, row[header]) %></span>
+                        <% end %>
+                      </td>
                     <% end %>
-                    <td class="px-4 py-2 text-sm <%= is_duplicate ? 'text-yellow-700' : 'text-gray-900' %>"><%= import_cell_display("登錄號", row["登錄號"] || row["call_number"]) %></td>
+                    <td class="px-4 py-2 text-sm align-top <%= is_duplicate ? 'text-yellow-700' : 'text-gray-900' %>">
+                      <%= import_cell_display("登錄號", row["登錄號"] || row["call_number"]) %>
+                    </td>
                   </tr>
                 <% end %>
               </tbody>
             </table>
-          </div>
-
-          <!-- 手機版：卡片 -->
-          <div class="md:hidden space-y-4 mb-4">
-            <% @imported_data.each_with_index do |row, index| %>
-              <% is_duplicate = preview_ready && duplicate_indices.include?(index) %>
-              <div class="<%= is_duplicate ? 'bg-yellow-50 border-yellow-200' : 'bg-white border-gray-200' %> rounded-2xl border p-4 shadow-md">
-                <div class="flex items-start justify-between gap-2 mb-2">
-                  <div>
-                    <% if (@invalid_row_indices || []).include?(index) %>
-                      <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">不符合</span>
-                    <% elsif !preview_ready %>
-                      <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-700">待選屆數</span>
-                    <% elsif is_duplicate %>
-                      <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">重複</span>
-                    <% else %>
-                      <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">新增</span>
-                    <% end %>
-                  </div>
-                  <% if preview_ready && @duplicates.present? && is_duplicate %>
-                    <label class="inline-flex items-center gap-1 text-xs text-gray-700">
-                      <input type="checkbox" name="selected_duplicates[]" value="<%= index %>" class="duplicate-checkbox rounded" title="勾選以保留匯入">
-                      保留
-                    </label>
-                  <% end %>
-                </div>
-                <div class="space-y-1 text-xs text-gray-700">
-                  <% @headers.each do |header| %>
-                    <div class="flex gap-2">
-                      <span class="text-gray-400 shrink-0"><%= header %></span>
-                      <% required_header =
-                           case header.to_s.strip
-                           when "書名", "title", "Title" then true
-                           when "ISBN", "isbn", "國際標準書號" then true
-                           when "來源", "source", "Source" then true
-                           else false
-                           end %>
-                      <% isbn_header = %w[ISBN isbn 國際標準書號].include?(header.to_s.strip) %>
-                      <% missing_required = (@invalid_row_indices || []).include?(index) && required_header && row[header].to_s.strip.blank? %>
-                      <% isbn_checksum_invalid = (@invalid_row_indices || []).include?(index) && isbn_header && row[header].to_s.strip.present? && !Book.valid_isbn13?(row[header]) %>
-                      <span class="flex-1 break-all <%= (missing_required || isbn_checksum_invalid) ? 'bg-red-50 text-red-700' : (is_duplicate ? 'text-yellow-700' : 'text-gray-900') %>"><%= import_cell_display(header, row[header]) %></span>
-                    </div>
-                  <% end %>
-                  <div class="flex gap-2">
-                    <span class="text-gray-400 shrink-0">登錄號</span>
-                    <span class="flex-1 break-all <%= is_duplicate ? 'text-yellow-700' : 'text-gray-900' %>"><%= import_cell_display("登錄號", row["登錄號"] || row["call_number"]) %></span>
-                  </div>
-                </div>
-              </div>
-            <% end %>
           </div>
 
           <div class="flex gap-2 items-center">

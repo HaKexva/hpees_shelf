@@ -125,7 +125,7 @@ class BooksController < ApplicationController
       invalid_rows = []
       import_data.each do |row|
         title = _import_row_value(row, "title", "Title", "書名")
-        isbn = _import_row_value(row, "isbn", "ISBN", "國際標準書號")
+        isbn = _import_row_isbn(row)
         source = _import_row_value(row, "source", "Source", "來源")
         next unless _import_book_row_invalid?(row)
 
@@ -177,6 +177,7 @@ class BooksController < ApplicationController
       imported_count = 0
       skipped_count = 0
       invalid_skipped_count = 0
+      save_failed_count = 0
       duplicate_action = params[:duplicate_action] || "skip"
       selected_duplicates = (params[:selected_duplicates] || []).map(&:to_i)
       batch_year = BatchYear.find_by(id: selected_batch_year_id)
@@ -188,9 +189,9 @@ class BooksController < ApplicationController
         end
 
         title = _import_row_value(row, "title", "Title", "書名")
-        isbn = _import_row_value(row, "isbn", "ISBN", "國際標準書號")
+        isbn = _import_row_isbn(row)
         source_raw = _import_row_value(row, "source", "Source", "來源")
-        source_key = _normalize_import_source(source_raw)
+        source_key = Book.import_source_key_from_label(source_raw)
         total_raw = _import_row_value(row, "total", "Total", "總數")
         total_value = total_raw.present? && total_raw.to_s.strip.present? ? total_raw.to_s.to_i : 1
         total_value = 1 if total_value < 1
@@ -252,6 +253,7 @@ class BooksController < ApplicationController
         if book.save
           imported_count += 1
         else
+          save_failed_count += 1
           Rails.logger.error "Failed to save book: #{book.errors.full_messages.join(', ')}"
         end
       end
@@ -259,6 +261,9 @@ class BooksController < ApplicationController
       message = "成功匯入 #{imported_count} 本書籍。"
       message += " 已跳過 #{skipped_count} 本重複書籍。" if skipped_count > 0
       message += " 已跳過 #{invalid_skipped_count} 筆不符合的資料。" if invalid_skipped_count > 0
+      if save_failed_count.positive?
+        message += " 有 #{save_failed_count} 筆因欄位錯誤未能寫入（常見原因：圖書館館藏缺 8 碼登錄號或格式錯誤）。"
+      end
       redirect_to books_path, notice: message, status: :see_other
     elsif params[:file].present?
       # Preview uploaded file: parsing lives in BooksImport::UploadParser (CSV encoding vs Excel binary).
@@ -787,28 +792,32 @@ class BooksController < ApplicationController
       nil
     end
 
-    # Same rules as import preview: required title / ISBN / source, and ISBN must be valid ISBN-13 (checksum).
-    def _import_book_row_invalid?(row)
-      title = _import_row_value(row, "title", "Title", "書名")
-      isbn = _import_row_value(row, "isbn", "ISBN", "國際標準書號")
-      source = _import_row_value(row, "source", "Source", "來源")
-      title.blank? || source.blank? || isbn.blank? || !Book.valid_isbn13?(isbn)
+    def _import_row_isbn(row)
+      raw = nil
+      %w[isbn ISBN 國際標準書號].each do |k|
+        v = row[k]
+        next if v.blank?
+
+        raw = v
+        break
+      end
+      Book.import_isbn_digits(raw)
     end
 
-    # Map CSV source value (Chinese or English) to Book source enum key; default owned_by_library if blank/unknown
-    # For 老師的書: accepts "老師的書" or "XX老師的書" (e.g. 文榛老師的書, Momo老師的書)
-    def _normalize_import_source(raw)
-      return "owned_by_library" if raw.blank?
-      s = raw.to_s.strip
-      return "owned_by_library" if s.blank?
-      return "owned_by_teacher" if s.end_with?("老師的書")
-      # Chinese labels (from zh-TW)
-      return "owned_by_library" if s == "圖書館館藏"
-      return "donated" if s == "捐贈的書"
-      return "owned_by_class" if s == "班級的書"
-      # Enum keys (English)
-      return s if Book.sources.key?(s)
-      "owned_by_library"
+    # Same rules as import preview: required title / ISBN / source, valid ISBN-13; library rows need 8-digit 登錄號.
+    def _import_book_row_invalid?(row)
+      title = _import_row_value(row, "title", "Title", "書名")
+      isbn = _import_row_isbn(row)
+      source = _import_row_value(row, "source", "Source", "來源")
+      return true if title.blank? || source.blank? || isbn.blank? || !Book.valid_isbn13?(isbn)
+
+      source_key = Book.import_source_key_from_label(source)
+      if source_key == "owned_by_library"
+        call_num = _import_row_value(row, "call_number", "登錄號").to_s.strip
+        return true if call_num.blank? || !call_num.match?(/\A\d{8}\z/)
+      end
+
+      false
     end
 
     # Extract teacher name from source value like "文榛老師的書" or "Momo老師的書" => "文榛" / "Momo"
@@ -849,9 +858,9 @@ class BooksController < ApplicationController
           next if (@invalid_row_indices || []).include?(index)
 
           title = _import_row_value(row, "title", "Title", "書名")
-          isbn = _import_row_value(row, "isbn", "ISBN", "國際標準書號")
+          isbn = _import_row_isbn(row)
           source_raw = _import_row_value(row, "source", "Source", "來源")
-          source_key = _normalize_import_source(source_raw)
+          source_key = Book.import_source_key_from_label(source_raw)
           next if title.blank?
           existing = _import_find_existing(row, title, isbn, source_key, bid)
           if existing
