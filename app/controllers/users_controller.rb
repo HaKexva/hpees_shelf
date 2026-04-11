@@ -256,9 +256,7 @@ class UsersController < ApplicationController
     elsif params[:file].present?
       file = params[:file]
       begin
-        raw = file.read
-        content = _decode_csv_to_utf8(raw)
-        @headers, rows = _parse_csv_users(content)
+        @headers, rows = UsersImport::UploadParser.call(file, expected_columns: @expected_columns)
         @imported_data = rows.reject { |row| row.values.all? { |v| v.nil? || v.to_s.strip.empty? } }
 
         headers_stripped = @headers.map { |h| h&.to_s&.strip }
@@ -288,7 +286,7 @@ class UsersController < ApplicationController
           end
         end
       rescue StandardError => e
-        flash.now[:alert] = "無法解析 CSV：#{e.message}"
+        flash.now[:alert] = "無法解析檔案（CSV 或 Excel）：#{e.message}"
       end
       @batch_years ||= BatchYear.by_number_desc
     end
@@ -348,51 +346,6 @@ class UsersController < ApplicationController
       )
     end
 
-    def _parse_csv_users(content)
-      lines = content.split(/\r?\n/)
-      return [ [], [] ] if lines.empty?
-
-      headers = _parse_csv_line_users(lines[0])
-      rows = lines[1..].filter_map do |line|
-        next nil if line.strip.empty?
-
-        values = _parse_csv_line_users(line)
-        headers.each_with_index.to_h { |h, i| [ h, values[i] ] }
-      end
-      [ headers, rows ]
-    end
-
-    def _parse_csv_line_users(line)
-      fields = []
-      i = 0
-      while i < line.length
-        if line[i] == '"'
-          i += 1
-          field = +""
-          while i < line.length
-            if line[i] == '"'
-              if line[i + 1] == '"'
-                field << '"'
-                i += 2
-              else
-                i += 1
-                break
-              end
-            else
-              field << line[i]
-              i += 1
-            end
-          end
-          fields << field
-        else
-          end_idx = line.index(",", i) || line.length
-          fields << line[i...end_idx].to_s.strip
-          i = end_idx + 1
-        end
-      end
-      fields
-    end
-
     def _normalize_user_csv_header_value(value)
       s = value.to_s.strip
       return nil if s.blank?
@@ -404,48 +357,6 @@ class UsersController < ApplicationController
       when "管理員" then "admin"
       else s.downcase.presence
       end
-    end
-
-    # Try decoding CSV bytes into UTF-8 for both:
-    # - Excel exports (Big5/CP950)
-    # - Google Sheets exports (UTF-8, sometimes with BOM / sometimes UTF-16)
-    def _decode_csv_to_utf8(raw)
-      expected = @expected_columns || %w[name]
-      strip_bom = ->(s) { s.delete_prefix("\uFEFF") }
-
-      header_matches_expected = lambda do |decoded|
-        header_line = decoded.lines.first.to_s
-        headers = _parse_csv_line_users(header_line)
-        normalized_headers = headers.map { |h| _normalize_user_csv_header_value(h) }.compact
-        (expected - normalized_headers).empty?
-      end
-
-      # 1) Prefer real UTF-8 if it is valid.
-      utf8 = raw.dup.force_encoding("UTF-8")
-      if utf8.valid_encoding?
-        decoded = strip_bom.call(utf8.encode("UTF-8"))
-        return decoded if header_matches_expected.call(decoded)
-      end
-
-      # 2) Try common encodings.
-      candidates = [
-        -> { raw.force_encoding("UTF-16LE").encode("UTF-8", invalid: :replace, undef: :replace, replace: "") },
-        -> { raw.force_encoding("UTF-16BE").encode("UTF-8", invalid: :replace, undef: :replace, replace: "") },
-        -> { raw.force_encoding("CP950").encode("UTF-8", invalid: :replace, undef: :replace, replace: "") },
-        -> { raw.force_encoding("Big5").encode("UTF-8", invalid: :replace, undef: :replace, replace: "") }
-      ]
-
-      candidates.each do |decoder|
-        begin
-          decoded = strip_bom.call(decoder.call)
-          return decoded if header_matches_expected.call(decoded)
-        rescue Encoding::UndefinedConversionError, Encoding::InvalidByteSequenceError
-          next
-        end
-      end
-
-      # 3) Last resort: try UTF-8 with replacement, but don't keep ISO-8859-1/CP950 mojibake.
-      strip_bom.call(raw.force_encoding("UTF-8").encode("UTF-8", invalid: :replace, undef: :replace, replace: ""))
     end
 
     def _user_import_value(row, *keys)
