@@ -79,3 +79,5 @@ yarn-debug.log*
 /CONTRIBUTING.md
 
 /.cursor
+
+.mcp.json
