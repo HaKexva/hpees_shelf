@@ -20,7 +20,11 @@ class BooksController < ApplicationController
     @inventory_teacher_users = User.with_deleted.where(id: teacher_ids).order(:name)
     @invalid_books = @books.select { |b| b.missing_required_fields.any? }
     @books_with_invalid_isbn = @books.select(&:invalid_isbn?)
-    @any_library_books_to_return = Book.where(source: :owned_by_library).where.not(status: Book::STATUS_RETURNED_LIBRARY).exists?
+    @show_return_to_library_batch_link =
+      @filter_batch_year_id.present? &&
+      Book.where(source: :owned_by_library, batch_year_id: @filter_batch_year_id)
+          .where.not(status: Book::STATUS_RETURNED_LIBRARY)
+          .exists?
     # 借閱超過一天視為失蹤，在頁面上方列出
     @missing_books = Book.where.not(title: [ nil, "" ])
                          .where.not(status: Book::STATUS_RETURNED_LIBRARY)
@@ -513,15 +517,13 @@ class BooksController < ApplicationController
     end
   end
 
-  # GET /books/return_to_library_batch — Choose which batch's library books to mark as returned (only available in return period; button is hidden otherwise)
+  # GET /books/return_to_library_batch — Choose which batch's library books to mark as returned
   def return_to_library_batch
-    return redirect_to books_path(books_list_query_hash), status: :see_other unless Book.show_return_to_library_button?
     @batch_years = BatchYear.class_batches_by_number_desc
   end
 
   # POST /books/apply_return_to_library_batch — Save borrow history for each library book then delete the books
   def apply_return_to_library_batch
-    return redirect_to books_path(books_list_query_hash), status: :see_other unless Book.show_return_to_library_button?
     raw = params[:batch_year_id].to_s
     scope = Book.where(source: :owned_by_library)
     scope = scope.where(batch_year_id: raw.to_i) if raw.present? && raw != "all"

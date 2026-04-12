@@ -5,12 +5,10 @@
   <div class="mb-6">
     <h1 class="font-bold text-4xl">指定屆數</h1>
     <p class="text-gray-600 mt-1">學年度已切換，請為下列書籍與人員指定新屆數（可選「老師」或班級屆數）。</p>
-    <% if @show_return_to_library_button %>
-      <% if @any_library_books_to_return %>
-        <%= link_to "歸還圖書館書籍", return_to_library_batch_books_path, class: "inline-flex items-center mt-3 rounded-md px-3.5 py-2.5 bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 font-medium" %>
-      <% else %>
-        <span class="inline-block mt-3 rounded-md px-3.5 py-2.5 bg-gray-100 text-gray-600 text-sm font-medium">已歸還完成</span>
-      <% end %>
+    <% if @any_library_books_to_return %>
+      <%= link_to "歸還圖書館書籍", return_to_library_batch_books_path, class: "inline-flex items-center mt-3 rounded-md px-3.5 py-2.5 bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 font-medium" %>
+    <% else %>
+      <span class="inline-block mt-3 rounded-md px-3.5 py-2.5 bg-gray-100 text-gray-600 text-sm font-medium">已歸還完成</span>
     <% end %>
   </div>
 

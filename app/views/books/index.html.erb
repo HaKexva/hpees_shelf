@@ -9,8 +9,8 @@
         匯出盤點表
       </button>
       <%= link_to "匯入 CSV", import_books_path, class: "inline-flex items-center rounded-md px-3.5 py-2.5 bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 font-medium" %>
-      <% if Book.show_return_to_library_button? && @any_library_books_to_return %>
-        <%= link_to "歸還圖書館書籍", return_to_library_batch_books_path, class: "inline-flex items-center rounded-md px-3.5 py-2.5 bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 font-medium" %>
+      <% if @show_return_to_library_batch_link %>
+        <%= link_to "歸還圖書館書籍", return_to_library_batch_books_path(batch_year_id: @filter_batch_year_id), class: "inline-flex items-center rounded-md px-3.5 py-2.5 bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 font-medium" %>
       <% end %>
       <%= link_to "新增書籍", new_book_path, class: "inline-flex items-center rounded-md px-3.5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-medium" %>
     </div>
