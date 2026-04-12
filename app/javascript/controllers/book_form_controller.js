@@ -2,7 +2,7 @@ import { Controller } from "@hotwired/stimulus"
 
 // Toggles visibility of fields that depend on book source
 export default class extends Controller {
-  static targets = ["sourceSelect", "teacherField", "callNumberField", "totalField"]
+  static targets = ["sourceSelect", "teacherField", "teacherSelect", "callNumberField", "totalField"]
 
   connect() {
     this.toggleFields()
@@ -15,6 +15,10 @@ export default class extends Controller {
 
     if (this.hasTeacherFieldTarget) {
       this.teacherFieldTarget.style.display = isTeacher ? "" : "none"
+    }
+
+    if (this.hasTeacherSelectTarget) {
+      this.teacherSelectTarget.required = isTeacher
     }
 
     if (this.hasCallNumberFieldTarget) {

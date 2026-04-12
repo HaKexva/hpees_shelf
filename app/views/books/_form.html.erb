@@ -27,8 +27,8 @@
   </div>
 
   <div class="my-5" data-book-form-target="teacherField" style="<%= 'display: none;' unless book.source == 'owned_by_teacher' %>">
-    <%= form.label :user_id, "老師" %>
-    <%= form.collection_select :user_id, @admin_users || [], :id, :name, { include_blank: "請選擇老師" }, { class: ["block shadow-sm rounded-md border px-3 py-2 mt-2 w-full", {"border-gray-400 focus:outline-blue-600": book.errors[:user_id].none?, "border-red-400 focus:outline-red-600": book.errors[:user_id].any?}] } %>
+    <%= form.label :user_id, "老師（必填）" %>
+    <%= form.collection_select :user_id, @admin_users || [], :id, :name, { include_blank: "請選擇老師" }, { required: book.owned_by_teacher?, class: ["block shadow-sm rounded-md border px-3 py-2 mt-2 w-full", {"border-gray-400 focus:outline-blue-600": book.errors[:user_id].none?, "border-red-400 focus:outline-red-600": book.errors[:user_id].any?}], data: { book_form_target: "teacherSelect" } } %>
   </div>
 
   <div class="my-5" data-controller="required-field" data-book-form-target="callNumberField" style="<%= 'display: none;' unless book.source == 'owned_by_library' %>">

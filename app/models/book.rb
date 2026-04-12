@@ -23,6 +23,7 @@ class Book < ApplicationRecord
             presence: true,
             format: { with: /\A\d{8}\z/, message: "需為 8 位數字" },
             if: :owned_by_library?
+  validates :user_id, presence: true, if: :owned_by_teacher?
   validate :isbn_must_be_valid_13_if_present
   enum :source, { owned_by_library: 0, donated: 1, owned_by_class: 2, owned_by_teacher: 3 }
   before_validation :normalize_total

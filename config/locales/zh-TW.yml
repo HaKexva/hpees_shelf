@@ -74,6 +74,7 @@ zh-TW:
         title: "書名"
         batch_year_id: "屆數"
         source: "來源"
+        user_id: "老師"
       user:
         name: "姓名"
         id_number: "學號"
@@ -87,4 +88,10 @@ zh-TW:
           donated: "捐贈的書"
           owned_by_class: "班級的書"
           owned_by_teacher: "老師的書"
+    errors:
+      models:
+        book:
+          attributes:
+            user_id:
+              blank: "請選擇老師"
 
