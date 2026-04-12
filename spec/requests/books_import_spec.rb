@@ -62,6 +62,34 @@ RSpec.describe "Books import preview", type: :request do
       expect(response.body).not_to include("9789861817280")
     end
 
+    it "marks 老師的書 rows invalid when no admin matches the teacher name (HAK-119)" do
+      create(:user, :admin, batch_year: batch_year, name: "ExistingAdmin")
+      csv = <<~CSV
+        書名,ISBN,屆數ID,來源
+        無此人,9789861817286,#{batch_year.id},無此老師姓名老師的書
+      CSV
+      post import_books_path, params: {
+        file: Rack::Test::UploadedFile.new(StringIO.new("\uFEFF#{csv}"), "text/csv", original_filename: "t.csv")
+      }
+      expect(response).to have_http_status(:success)
+      expect(response.body).to include("不符合")
+
+      m = response.body.match(/name=(?:"|')import_data(?:"|')[^>]*value=(?:"|')(?<data>[^"']+)(?:"|')/)
+      import_data = m && m[:data]
+      expect(import_data).to be_present
+
+      expect {
+        post import_books_path, params: {
+          confirm: "true",
+          import_data: import_data,
+          batch_year_id: batch_year.id
+        }
+      }.not_to change(Book, :count)
+
+      follow_redirect!
+      expect(response.body).to include("已跳過")
+    end
+
     it "marks 圖書館館藏 rows invalid when 登錄號 is missing (preview matched save rules)" do
       post import_books_path, params: {
         file: fixture_file_upload("books_import_library_no_call_number.csv", "text/csv")

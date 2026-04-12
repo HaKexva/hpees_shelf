@@ -44,4 +44,21 @@ RSpec.describe Book do
       expect(book.borrowers).to include(student)
     end
   end
+
+  describe ".import_teacher_user_from_source_label (HAK-119)" do
+    it "returns nil when the label does not match any admin" do
+      create(:user, :admin, batch_year: batch_year, name: "SomeoneElse")
+      expect(Book.import_teacher_user_from_source_label("幽靈老師的老師的書")).to be_nil
+    end
+
+    it "returns the admin user when the name matches" do
+      t = create(:user, :admin, batch_year: batch_year, name: "MatchName")
+      expect(Book.import_teacher_user_from_source_label("MatchName老師的書")).to eq(t)
+    end
+
+    it "returns nil for bare 老師的書" do
+      create(:user, :admin, batch_year: batch_year, name: "Any")
+      expect(Book.import_teacher_user_from_source_label("老師的書")).to be_nil
+    end
+  end
 end

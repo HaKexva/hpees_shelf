@@ -244,16 +244,9 @@ class BooksController < ApplicationController
           call_num = _import_row_value(row, "call_number", "登錄號")
           book_attrs[:call_number] = call_num.to_s.strip.presence if call_num.present?
         end
-        if source_key == "owned_by_teacher" && source_raw.present?
-          teacher_name = _import_teacher_name_from_source(source_raw)
-          if teacher_name.present?
-            admin_scope = User.active.where(admin: true)
-            teacher =
-              admin_scope.find_by(name: teacher_name) ||
-              admin_scope.find_by(name: "#{teacher_name}老師") ||
-              admin_scope.where("name LIKE ?", "%#{teacher_name}%").first
-            book_attrs[:user_id] = teacher.id if teacher
-          end
+        if source_key == "owned_by_teacher"
+          teacher = Book.import_teacher_user_from_source_label(source_raw)
+          book_attrs[:user_id] = teacher.id if teacher
         end
 
         # Duplicate only when same batch_year and title, isbn, source (and for library: call_number) all match
@@ -794,6 +787,7 @@ class BooksController < ApplicationController
         :volume,
         :note,
         :source,
+        :relocation_behavior,
         :borrowed_at,
         :edition_part,
         :batch_year_id,
@@ -876,6 +870,9 @@ class BooksController < ApplicationController
         call_num = _import_row_value(row, "call_number", "登錄號").to_s.strip
         return true if call_num.blank? || !call_num.match?(/\A\d{8}\z/)
       end
+      if source_key == "owned_by_teacher"
+        return true if Book.import_teacher_user_from_source_label(source).nil?
+      end
 
       bid = _import_book_batch_year_id_for_row(row, nil)
       return true if bid == -1
@@ -883,12 +880,6 @@ class BooksController < ApplicationController
       return true if _import_book_status_invalid?(row)
 
       false
-    end
-
-    # Extract teacher name from source value like "文榛老師的書" or "Momo老師的書" => "文榛" / "Momo"
-    def _import_teacher_name_from_source(raw)
-      return nil if raw.blank?
-      raw.to_s.strip.sub(/老師的書\z/, "").strip.presence
     end
 
     # Find existing book in the same 屆數: same batch_year, title, isbn, source; for library also same call_number.
