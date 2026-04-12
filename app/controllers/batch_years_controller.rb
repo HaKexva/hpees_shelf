@@ -96,7 +96,6 @@ class BatchYearsController < ApplicationController
     @pending_users = User.where(id: session[:pending_relocation_user_ids].to_a).includes(:batch_year).to_a
     @batch_years = BatchYear.class_batches_by_number_desc
     @batch_years_with_office = BatchYear.by_number_desc
-    @show_return_to_library_button = Book.show_return_to_library_button?
     @any_library_books_to_return = Book.where(source: :owned_by_library).where.not(status: Book::STATUS_RETURNED_LIBRARY).exists?
     @relocation_draft = session[:relocation_draft] || {}
     @resigned_restorable = User.where.not(resigned_at: nil).where("resigned_at >= ?", 1.month.ago).includes(:batch_year).order(:name)
