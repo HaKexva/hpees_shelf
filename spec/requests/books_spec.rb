@@ -45,8 +45,14 @@ RSpec.describe "Books", type: :request do
       expect(body).to include("teachers_all")
       expect(body).to include("teacher:#{t1.id}")
       expect(body).to include("teacher:#{t2.id}")
+      expect(body).not_to include('value="owned_by_teacher"')
 
       get books_url, params: { source: "teachers_all" }
+      expect(response.body).to include("T1 Book")
+      expect(response.body).to include("T2 Book")
+      expect(response.body).not_to include("Class Book")
+
+      get books_url, params: { source: "owned_by_teacher" }
       expect(response.body).to include("T1 Book")
       expect(response.body).to include("T2 Book")
       expect(response.body).not_to include("Class Book")

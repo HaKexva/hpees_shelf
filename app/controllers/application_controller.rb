@@ -29,7 +29,9 @@ class ApplicationController < ActionController::Base
     USERS_LIST_QUERY_KEYS = %w[q_name q_seat_number q_id_number batch_year_id sort].freeze
 
     def remember_books_list_query!
-      session[:books_list_query] = request.query_parameters.slice(*BOOKS_LIST_QUERY_KEYS).compact_blank
+      h = request.query_parameters.slice(*BOOKS_LIST_QUERY_KEYS).compact_blank
+      h = h.merge("source" => "teachers_all") if h["source"].to_s.strip == "owned_by_teacher"
+      session[:books_list_query] = h
     end
 
     def remember_users_list_query!
@@ -37,7 +39,9 @@ class ApplicationController < ActionController::Base
     end
 
     def books_list_query_hash
-      (session[:books_list_query].presence || {}).stringify_keys
+      h = (session[:books_list_query].presence || {}).stringify_keys
+      h = h.merge("source" => "teachers_all") if h["source"].to_s.strip == "owned_by_teacher"
+      h
     end
 
     def users_list_query_hash
