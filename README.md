@@ -1,5 +1,19 @@
 # HPEES Shelf
 
+![HPEES Shelf — project banner](docs/banner.svg)
+
+## Quick links
+
+| | |
+|:---|:---|
+| **Live demo** | *No hosted demo yet.* Run locally with `bin/dev` (see [Local development setup](#local-development-setup)) or deploy (e.g. [Railway](#deployment--railway)), then add your public URL here and in the repo **About → Website**. |
+| **Source code** | [https://github.com/HaKexva/hpees_shelf](https://github.com/HaKexva/hpees_shelf) |
+| **README on GitHub** | [Open `README.md` on `main`](https://github.com/HaKexva/hpees_shelf/blob/main/README.md) |
+| **Clone** | `git clone https://github.com/HaKexva/hpees_shelf.git` |
+| **Development log** | [docs/DEVLOG.md](docs/DEVLOG.md) (dated work sessions) |
+
+The repository must be **Public** on GitHub for anonymous `git clone` and for the links above to work for everyone. Owners: **Settings → General → Danger zone → Change repository visibility → Public**.
+
 **Language | 語言:** [English](#readme-en) · [繁體中文](#readme-zh)
 
 ---
@@ -168,6 +182,18 @@ For maintainers: see **`AGENTS.md`** (Cursor / Linear / branch → PR → merge 
 學校圖書與流通管理：**書籍**、**使用者（學生／教職員）**、**屆數（學年／年級）**。介面預設語系為 **`zh-TW`**，時區為 **`Asia/Taipei`**。
 
 **返回語言選擇：** [English](#readme-en) · [繁體中文](#readme-zh)
+
+### 快速連結
+
+| | |
+|:---|:---|
+| **線上試用** | *尚未提供公開網址。* 請本機執行 `bin/dev`（見[本機開發環境](#本機開發環境)）或自行部署（如 [Railway](#部署railway)），有網址後可更新此列與 repo **About → Website**。 |
+| **原始碼** | [https://github.com/HaKexva/hpees_shelf](https://github.com/HaKexva/hpees_shelf) |
+| **GitHub 上的 README** | [在 `main` 檢視 `README.md`](https://github.com/HaKexva/hpees_shelf/blob/main/README.md) |
+| **複製儲存庫** | `git clone https://github.com/HaKexva/hpees_shelf.git` |
+| **開發紀錄** | [docs/DEVLOG.md](docs/DEVLOG.md)（有日期的紀錄） |
+
+儲存庫需為 **Public**，匿名使用者才能 `git clone`、開啟上述連結。擁有者：**Settings → General → Danger zone → Change repository visibility → Public**。
 
 ### 目錄
 
