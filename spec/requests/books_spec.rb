@@ -197,6 +197,54 @@ RSpec.describe "Books", type: :request do
     end
   end
 
+  describe "POST /books/:id/return_to_library and apply_return_to_library_batch (HAK-75)" do
+    include ActiveSupport::Testing::TimeHelpers
+
+    let(:lib_book) do
+      create(
+        :book,
+        batch_year: batch_year,
+        source: :owned_by_library,
+        call_number: "87654321",
+        title: "HAK75 Lib Copy",
+        isbn: "9780000000095"
+      )
+    end
+
+    around do |example|
+      travel_to(Time.zone.local(2026, 7, 10, 12, 0, 0)) { example.run }
+    end
+
+    it "soft-deletes the library book and writes LibraryLoanHistory" do
+      expect {
+        post return_to_library_book_url(lib_book)
+      }.to change(LibraryLoanHistory, :count).by(1)
+
+      expect(response).to redirect_to(books_url)
+      saved = Book.unscoped.find(lib_book.id)
+      expect(saved.deleted_at).to be_present
+      expect(saved.status).to eq(Book::STATUS_RETURNED_LIBRARY)
+      expect(Book.find_by(id: lib_book.id)).to be_nil
+    end
+
+    it "soft-deletes only scoped library books on batch apply" do
+      other_year = create(:batch_year)
+      b1 = create(:book, batch_year: batch_year, source: :owned_by_library, call_number: "11111111", isbn: "9780000000026", title: "H75 B1")
+      b2 = create(:book, batch_year: batch_year, source: :owned_by_library, call_number: "22222222", isbn: "9780000000033", title: "H75 B2")
+      create(:book, batch_year: batch_year, source: :donated, isbn: "9780000000040", title: "H75 Don")
+      create(:book, batch_year: other_year, source: :owned_by_library, call_number: "33333333", isbn: "9780000000057", title: "H75 Other")
+
+      expect {
+        post apply_return_to_library_batch_books_url, params: { batch_year_id: batch_year.id }
+      }.to change(LibraryLoanHistory, :count).by(2)
+
+      expect(Book.unscoped.find(b1.id).deleted_at).to be_present
+      expect(Book.unscoped.find(b2.id).deleted_at).to be_present
+      expect(Book.find_by(isbn: "9780000000040")).to be_present
+      expect(Book.unscoped.find_by(isbn: "9780000000057").deleted_at).to be_nil
+    end
+  end
+
   describe "GET /books/export" do
     it "returns CSV rows matching the books list filters (source)" do
       create(:book, batch_year: batch_year, title: "HAK112 Donated Row", source: :donated)
