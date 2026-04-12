@@ -90,6 +90,25 @@ RSpec.describe "Books", type: :request do
       expect(response).to redirect_to(books_url)
     end
 
+    it "rejects create when 老師的書 is chosen without selecting a teacher" do
+      expect {
+        post books_url, params: {
+          book: {
+            batch_year_id: batch_year.id,
+            isbn: "9789861817286",
+            title: "Teacher book no owner",
+            total: 1,
+            volume: 1,
+            source: "owned_by_teacher",
+            user_id: ""
+          }
+        }
+      }.not_to change(Book, :count)
+
+      expect(response).to have_http_status(:unprocessable_content)
+      expect(response.body).to include("請選擇老師")
+    end
+
     it "redirects to the list with the same sort and filters as the last index visit (HAK-117)" do
       get books_url, params: { sort: "isbn", source: "donated", q: "needle" }
       post books_url, params: {
