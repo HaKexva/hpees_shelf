@@ -166,6 +166,18 @@ RSpec.describe "Books", type: :request do
       get edit_book_url(book)
       expect(response).to have_http_status(:success)
     end
+
+    it "includes 歸還圖書館 for library books not yet returned to library" do
+      lib = create(:book, batch_year: batch_year, source: :owned_by_library, call_number: "87654321", title: "LibEdit", isbn: "9780000000026")
+      get edit_book_url(lib)
+      expect(response.body).to include("歸還圖書館")
+      expect(response.body).to include(return_to_library_book_path(lib))
+    end
+
+    it "does not include 歸還圖書館 for non-library books" do
+      get edit_book_url(book)
+      expect(response.body).not_to include("歸還圖書館")
+    end
   end
 
   describe "PATCH /books/:id" do
