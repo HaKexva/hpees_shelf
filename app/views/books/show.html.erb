@@ -9,7 +9,7 @@
     <div class="flex flex-wrap gap-2 items-center mt-4">
       <%= link_to "編輯此書籍", edit_book_path(@book), class: "inline-flex items-center rounded-md px-3.5 py-2.5 bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 font-medium" %>
       <%= link_to "返回書籍列表", books_path, class: "inline-flex items-center rounded-md px-3.5 py-2.5 bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 font-medium" %>
-      <% if @book.owned_by_library? && @book.status != Book::STATUS_RETURNED_LIBRARY && Book.show_return_to_library_button? %>
+      <% if @book.owned_by_library? && @book.status != Book::STATUS_RETURNED_LIBRARY %>
         <%= button_to "歸還圖書館", return_to_library_book_path(@book), method: :post, class: "inline-flex items-center rounded-md px-3.5 py-2.5 bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 font-medium cursor-pointer", data: { turbo_confirm: "確定要將此書標記為「歸還圖書館」？" } %>
       <% end %>
       <%= button_to "刪除此書籍", @book, method: :delete, class: "inline-flex items-center rounded-md px-3.5 py-2.5 bg-red-600 hover:bg-red-500 text-white font-medium cursor-pointer", data: { turbo_confirm: "確定要刪除嗎？" } %>
