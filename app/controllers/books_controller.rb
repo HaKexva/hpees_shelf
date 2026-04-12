@@ -13,7 +13,7 @@ class BooksController < ApplicationController
     @batch_years = BatchYear.by_number_desc
     @filter_batch_year_id = params[:batch_year_id]
     @filter_q = params[:q].to_s.strip.presence
-    @filter_source = params[:source].presence
+    @filter_source = _canonical_books_list_source_param(params[:source])
     @filter_status = params[:status].presence
     @inventory_sort = params[:inventory_sort].presence_in(INVENTORY_SORT_KEYS) || "isbn"
     teacher_ids = Book.where(source: :owned_by_teacher).where.not(user_id: nil).distinct.pluck(:user_id)
@@ -688,7 +688,15 @@ class BooksController < ApplicationController
       params.permit(:batch_year_id, :q, :source, :status, :sort, :inventory_sort).to_h.compact_blank
     end
 
-    # List + CSV export: `source` matches enum keys, or `teachers_all`, or `teacher:<user_id>` (same as inventory PDF).
+    # Legacy list URL `source=owned_by_teacher` (generic label) matches `teachers_all`; the index dropdown only offers 所有老師的書 + per-teacher.
+    def _canonical_books_list_source_param(raw)
+      s = raw.to_s.strip
+      return nil if s.blank?
+
+      (s == "owned_by_teacher") ? "teachers_all" : s
+    end
+
+    # List + CSV export: `source` matches enum keys (except teacher-owned; use `teachers_all` / `teacher:<id>`), or those two teacher keys (same as inventory PDF).
     def _filter_books_by_list_source_param(books, raw)
       s = raw.to_s.strip
       return books if s.blank?
@@ -710,7 +718,9 @@ class BooksController < ApplicationController
       else
         books = books.where.not(status: Book::STATUS_RETURNED_LIBRARY)
       end
-      books = _filter_books_by_list_source_param(books, params[:source]) if params[:source].present?
+      if params[:source].present?
+        books = _filter_books_by_list_source_param(books, _canonical_books_list_source_param(params[:source]))
+      end
       books = books.where(batch_year_id: params[:batch_year_id]) if params[:batch_year_id].present?
       q_raw = params[:q].to_s.strip
       if q_raw.present?
@@ -789,7 +799,8 @@ class BooksController < ApplicationController
         :batch_year_id,
         :grade_id,
         :user_id,
-        :call_number
+        :call_number,
+        :relocation_behavior
       )
     end
 
