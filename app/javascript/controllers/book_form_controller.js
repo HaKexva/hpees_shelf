@@ -2,7 +2,7 @@ import { Controller } from "@hotwired/stimulus"
 
 // Toggles visibility of fields that depend on book source
 export default class extends Controller {
-  static targets = ["sourceSelect", "teacherField", "teacherSelect", "callNumberField", "totalField"]
+  static targets = ["sourceSelect", "teacherField", "teacherSelect", "callNumberField", "totalField", "relocationBehaviorField"]
 
   connect() {
     this.toggleFields()
@@ -12,6 +12,7 @@ export default class extends Controller {
     if (!this.hasSourceSelectTarget) return
     const isTeacher = this.sourceSelectTarget.value === "owned_by_teacher"
     const isLibrary = this.sourceSelectTarget.value === "owned_by_library"
+    const isClass = this.sourceSelectTarget.value === "owned_by_class"
 
     if (this.hasTeacherFieldTarget) {
       this.teacherFieldTarget.style.display = isTeacher ? "" : "none"
@@ -28,6 +29,10 @@ export default class extends Controller {
     // 圖書館館藏：總數固定為 1，不需要顯示欄位
     if (this.hasTotalFieldTarget) {
       this.totalFieldTarget.style.display = isLibrary ? "none" : ""
+    }
+
+    if (this.hasRelocationBehaviorFieldTarget) {
+      this.relocationBehaviorFieldTarget.style.display = isClass ? "" : "none"
     }
   }
 }

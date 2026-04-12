@@ -51,7 +51,8 @@
                                  [ "全部", "all" ],
                                  [ t("activerecord.enums.book.source.owned_by_library"), "owned_by_library" ],
                                  [ t("activerecord.enums.book.source.donated"), "donated" ],
-                                 [ t("activerecord.enums.book.source.owned_by_class"), "owned_by_class" ],
+                                 [ t("books.list_source.owned_by_class_stay"), Book::LIST_SOURCE_OWNED_BY_CLASS_STAY ],
+                                 [ t("books.list_source.owned_by_class_move_with_class"), Book::LIST_SOURCE_OWNED_BY_CLASS_MOVE ],
                                  [ "所有老師的書", "teachers_all" ]
                                ] + Array(@inventory_teacher_users).map { |u| [ "#{u.name}老師的書", "teacher:#{u.id}" ] },
                                "all"
@@ -153,7 +154,9 @@
         <div class="min-w-0 flex-1 sm:flex-initial sm:w-40">
           <label class="block text-sm font-medium text-gray-700 mb-2">來源</label>
           <% book_source_select_options =
-               Book.sources.keys.reject { |k| k == "owned_by_teacher" }.map { |k| [ t("activerecord.enums.book.source.#{k}"), k ] } +
+               Book.sources.keys.reject { |k| %w[owned_by_teacher owned_by_class].include?(k) }.map { |k| [ t("activerecord.enums.book.source.#{k}"), k ] } +
+               [ [ t("books.list_source.owned_by_class_stay"), Book::LIST_SOURCE_OWNED_BY_CLASS_STAY ],
+                 [ t("books.list_source.owned_by_class_move_with_class"), Book::LIST_SOURCE_OWNED_BY_CLASS_MOVE ] ] +
                [ [ "所有老師的書", "teachers_all" ] ] +
                Array(@inventory_teacher_users).map { |u| [ "#{u.name}老師的書", "teacher:#{u.id}" ] } %>
           <%= select_tag :source, options_for_select(book_source_select_options, @filter_source), { include_blank: "全部來源", class: "block w-full shadow-sm rounded-lg border border-gray-300 px-3 py-2.5 text-base", onchange: "this.form.submit()" } %>
@@ -227,6 +230,7 @@
               <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">書名</th>
               <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">屆數</th>
               <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">來源</th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap"><%= t("activerecord.attributes.book.relocation_behavior") %></th>
               <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">登錄號</th>
               <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">總數</th>
               <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">備註</th>
@@ -294,6 +298,13 @@
                       —
                     <% end %>
                   </td>
+                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    <% if book.owned_by_class? && book.relocation_behavior.present? %>
+                      <%= t("activerecord.enums.book.relocation_behavior_short.#{book.relocation_behavior}") %>
+                    <% else %>
+                      —
+                    <% end %>
+                  </td>
                   <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500"><%= book.call_number.presence || "—" %></td>
                   <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500"><%= book.total %></td>
                   <td class="px-6 py-4 text-sm text-gray-500 max-w-xs truncate"><%= book.note %></td>
@@ -308,7 +319,7 @@
               <% end %>
             <% else %>
               <tr>
-                <td colspan="13" class="px-6 py-10 text-center text-gray-500">找不到任何書籍。</td>
+                <td colspan="9" class="px-6 py-10 text-center text-gray-500">找不到任何書籍。</td>
               </tr>
             <% end %>
           </tbody>
@@ -358,6 +369,12 @@
                         <%= t("activerecord.enums.book.source.#{book.source}") %>
                       <% end %>
                     </span>
+                  </div>
+                <% end %>
+                <% if book.owned_by_class? && book.relocation_behavior.present? %>
+                  <div class="flex gap-1.5 col-span-2">
+                    <span class="text-gray-400 shrink-0"><%= t("activerecord.attributes.book.relocation_behavior") %></span>
+                    <span class="text-gray-700"><%= t("activerecord.enums.book.relocation_behavior_short.#{book.relocation_behavior}") %></span>
                   </div>
                 <% end %>
                 <% if book.isbn.present? %>

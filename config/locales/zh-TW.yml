@@ -29,6 +29,10 @@
 
 zh-TW:
   hello: "哈囉世界"
+  books:
+    list_source:
+      owned_by_class_stay: "班級的書——留班不動"
+      owned_by_class_move_with_class: "班級的書——隨班移動"
   errors:
     messages:
       required: "為必填"
@@ -75,6 +79,7 @@ zh-TW:
         batch_year_id: "屆數"
         source: "來源"
         user_id: "老師"
+        relocation_behavior: "班級書"
       user:
         name: "姓名"
         id_number: "學號"
@@ -88,6 +93,9 @@ zh-TW:
           donated: "捐贈的書"
           owned_by_class: "班級的書"
           owned_by_teacher: "老師的書"
+        relocation_behavior_short:
+          move_with_class: "隨班移動"
+          stay: "留班不動"
     errors:
       models:
         book:

@@ -26,6 +26,11 @@
     <%= form.select :source, Book.sources.keys.map { |k| [t("activerecord.enums.book.source.#{k}"), k] }, {}, { required: true, class: ["block shadow-sm rounded-md border px-3 py-2 mt-2 w-full", {"border-gray-400 focus:outline-blue-600": book.errors[:source].none?, "border-red-400 focus:outline-red-600": book.errors[:source].any?}], data: { required_field_target: "input", book_form_target: "sourceSelect", action: "blur->required-field#blur change->book-form#toggleFields" } } %>
   </div>
 
+  <div class="my-5" data-book-form-target="relocationBehaviorField" style="<%= 'display: none;' unless book.owned_by_class? %>">
+    <%= form.label :relocation_behavior %>
+    <%= form.select :relocation_behavior, Book.relocation_behaviors.keys.map { |k| [t("activerecord.enums.book.relocation_behavior_short.#{k}"), k] }, {}, { class: ["block shadow-sm rounded-md border px-3 py-2 mt-2 w-full", {"border-gray-400 focus:outline-blue-600": book.errors[:relocation_behavior].none?, "border-red-400 focus:outline-red-600": book.errors[:relocation_behavior].any?}] } %>
+  </div>
+
   <div class="my-5" data-book-form-target="teacherField" style="<%= 'display: none;' unless book.source == 'owned_by_teacher' %>">
     <%= form.label :user_id, "老師（必填）" %>
     <%= form.collection_select :user_id, @admin_users || [], :id, :name, { include_blank: "請選擇老師" }, { required: book.owned_by_teacher?, class: ["block shadow-sm rounded-md border px-3 py-2 mt-2 w-full", {"border-gray-400 focus:outline-blue-600": book.errors[:user_id].none?, "border-red-400 focus:outline-red-600": book.errors[:user_id].any?}], data: { book_form_target: "teacherSelect" } } %>
