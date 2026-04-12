@@ -1,7 +1,5 @@
 # HPEES Shelf
 
-![HPEES Shelf — project banner](docs/banner.svg)
-
 ## Quick links
 
 | | |
