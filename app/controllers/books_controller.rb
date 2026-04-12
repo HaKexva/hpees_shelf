@@ -515,13 +515,11 @@ class BooksController < ApplicationController
 
   # GET /books/return_to_library_batch — Choose which batch's library books to mark as returned (only available in return period; button is hidden otherwise)
   def return_to_library_batch
-    return redirect_to books_path(books_list_query_hash), status: :see_other unless Book.show_return_to_library_button?
     @batch_years = BatchYear.class_batches_by_number_desc
   end
 
   # POST /books/apply_return_to_library_batch — Save borrow history for each library book then delete the books
   def apply_return_to_library_batch
-    return redirect_to books_path(books_list_query_hash), status: :see_other unless Book.show_return_to_library_button?
     raw = params[:batch_year_id].to_s
     scope = Book.where(source: :owned_by_library)
     scope = scope.where(batch_year_id: raw.to_i) if raw.present? && raw != "all"

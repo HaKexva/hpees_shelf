@@ -6,8 +6,16 @@
 
     <%= render "form", book: @book, submit_in_page: true %>
 
-    <div class="mt-4 flex flex-row flex-nowrap gap-2 items-center">
+    <div class="mt-4 flex flex-wrap gap-2 items-center">
       <%= submit_tag "儲存", form: dom_id(@book), class: "inline-flex items-center justify-center rounded-md px-3.5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-medium cursor-pointer" %>
+      <% if @book.owned_by_library? && @book.status != Book::STATUS_RETURNED_LIBRARY %>
+        <%= button_to "歸還圖書館",
+                      return_to_library_book_path(@book),
+                      method: :post,
+                      form: { class: "inline" },
+                      class: "inline-flex items-center rounded-md px-3.5 py-2.5 bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 font-medium cursor-pointer",
+                      data: { turbo_confirm: "確定要將此書標記為「歸還圖書館」？" } %>
+      <% end %>
       <%= button_to "刪除書籍",
                     @book,
                     method: :delete,
