@@ -26,10 +26,24 @@ class Book < ApplicationRecord
   validates :user_id, presence: true, if: :owned_by_teacher?
   validate :isbn_must_be_valid_13_if_present
   enum :source, { owned_by_library: 0, donated: 1, owned_by_class: 2, owned_by_teacher: 3 }
+  enum :relocation_behavior, { move_with_class: "move_with_class", stay: "stay" }, default: :move_with_class
+  before_validation :normalize_relocation_behavior_for_source
   before_validation :normalize_total
+
+  # 原屆已「畢業」、仍待指定新屆數的書。班級的書且「留班不動」者由學年度切換另行處理，不進此清單（HAK-118）。
+  scope :needing_relocation_after_graduated_batch, -> {
+    class_key = Book.sources[:owned_by_class]
+    joins(:batch_year)
+      .where(batch_years: { grade_id: BatchYear::GRADE_GRADUATED, is_office: false })
+      .where("NOT (books.source = ? AND books.relocation_behavior = ?)", class_key, "stay")
+  }
 
   # GET /books ?sort= — 書名 uses ICU Traditional Chinese when available (筆畫／部首慣例).
   LIST_SORT_OPTIONS = %w[title_strokes source isbn].freeze
+
+  # Composite `source` param: 班級的書 split by relocation_behavior (list / CSV / inventory).
+  LIST_SOURCE_OWNED_BY_CLASS_STAY = "owned_by_class:stay".freeze
+  LIST_SOURCE_OWNED_BY_CLASS_MOVE = "owned_by_class:move_with_class".freeze
 
   def self.list_sort_from_param(raw)
     s = raw.to_s
@@ -335,5 +349,9 @@ class Book < ApplicationRecord
       # 其他來源：空白或 <= 0 時預設為 1
       self.total = 1
     end
+  end
+
+  def normalize_relocation_behavior_for_source
+    self.relocation_behavior = "move_with_class" unless owned_by_class?
   end
 end

@@ -156,6 +156,20 @@ class BatchYear < ApplicationRecord
     create!(batch_number: max + 1, grade_id: 1, name: "第#{max + 1}屆", is_office: false)
   end
 
+  # 班級的書且「留班不動」：每學年改掛「前一屆」屆數，書上 grade_id 不變（HAK-118）。
+  def self.shift_stay_class_owned_books_to_previous_batch!
+    Book.where(source: :owned_by_class, relocation_behavior: :stay).find_each do |book|
+      by = book.batch_year
+      next if by.blank? || by.is_office?
+      next if by.batch_number.blank? || by.batch_number <= 1
+
+      prev = class_batches.where(is_office: false).find_by(batch_number: by.batch_number - 1)
+      next if prev.blank?
+
+      book.update_columns(batch_year_id: prev.id)
+    end
+  end
+
   # Whether to show the "Switch to next school year" button: only show in July–September, and only when stored displayed year equals date-based current year (e.g. now 114學年度, in Jul–Sep button shows; after user clicks "切換學年度", stored becomes 115學年度 and button hides).
   def self.show_advance_school_year_button?
     return false unless (7..9).cover?(Date.current.month)

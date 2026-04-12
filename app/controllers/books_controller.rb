@@ -35,7 +35,7 @@ class BooksController < ApplicationController
     sort = Book.list_sort_from_param(params[:sort])
     books = filtered_books_scope.includes(:batch_year).merge(Book.ordered_for_list(sort))
     bom = "\uFEFF"
-    headers = %w[書名 ISBN 屆數ID 屆數 來源 登錄號 總數 冊數 備註 狀態]
+    headers = %w[書名 ISBN 屆數ID 屆數 來源 班級書 登錄號 總數 冊數 備註 狀態]
     csv = +""
     csv << bom
     csv << headers.map { |h| _csv_escape(h) }.join(",") << "\n"
@@ -46,6 +46,7 @@ class BooksController < ApplicationController
         book.batch_year_id.to_s,
         book.batch_year&.display_label_with_grade.to_s,
         book.source.present? ? I18n.t("activerecord.enums.book.source.#{book.source}") : "",
+        (book.owned_by_class? && book.relocation_behavior.present? ? I18n.t("activerecord.enums.book.relocation_behavior_short.#{book.relocation_behavior}") : ""),
         book.call_number.to_s,
         book.total.to_s,
         book.volume.to_s,
@@ -662,6 +663,10 @@ class BooksController < ApplicationController
         teacher = User.with_deleted.find_by(id: teacher_id)
         label = teacher&.name.present? ? "#{teacher.name}老師的書" : I18n.t("activerecord.enums.book.source.owned_by_teacher")
         [ books.where(source: :owned_by_teacher, user_id: teacher_id), label, true ]
+      when Book::LIST_SOURCE_OWNED_BY_CLASS_STAY
+        [ books.where(source: :owned_by_class, relocation_behavior: :stay), I18n.t("books.list_source.owned_by_class_stay"), true ]
+      when Book::LIST_SOURCE_OWNED_BY_CLASS_MOVE
+        [ books.where(source: :owned_by_class, relocation_behavior: :move_with_class), I18n.t("books.list_source.owned_by_class_move_with_class"), true ]
       else
         # Enum key (owned_by_library / donated / owned_by_class / owned_by_teacher)
         if Book.sources.key?(inventory_source)
@@ -696,7 +701,7 @@ class BooksController < ApplicationController
       (s == "owned_by_teacher") ? "teachers_all" : s
     end
 
-    # List + CSV export: `source` matches enum keys (except teacher-owned; use `teachers_all` / `teacher:<id>`), or those two teacher keys (same as inventory PDF).
+    # List + CSV export: `source` is enum keys, `teachers_all` / `teacher:<id>`, or `owned_by_class:stay` / `owned_by_class:move_with_class` (班級的書 × 切換; inventory PDF same).
     def _filter_books_by_list_source_param(books, raw)
       s = raw.to_s.strip
       return books if s.blank?
@@ -706,6 +711,10 @@ class BooksController < ApplicationController
         books.where(source: :owned_by_teacher)
       when /\Ateacher:(\d+)\z/
         books.where(source: :owned_by_teacher, user_id: Regexp.last_match(1).to_i)
+      when Book::LIST_SOURCE_OWNED_BY_CLASS_STAY
+        books.where(source: :owned_by_class, relocation_behavior: :stay)
+      when Book::LIST_SOURCE_OWNED_BY_CLASS_MOVE
+        books.where(source: :owned_by_class, relocation_behavior: :move_with_class)
       else
         Book.sources.key?(s) ? books.where(source: s) : books
       end

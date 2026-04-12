@@ -55,15 +55,17 @@ class BatchYearsController < ApplicationController
 
   def reassign_grades
     BatchYear.advance_to_next_school_year!
+    BatchYear.shift_stay_class_owned_books_to_previous_batch!
     next_roc = BatchYear.advance_stored_school_year!
-    # Books in graduated class batches need a new batch assignment
-    pending_book_ids = Book.joins(:batch_year).where(batch_years: { grade_id: BatchYear::GRADE_GRADUATED, is_office: false }).pluck(:id)
+    # Books in graduated class batches need a new batch assignment（「留班不動」班級書除外；已改掛前一屆）
+    pending_book_ids = Book.needing_relocation_after_graduated_batch.pluck(:id)
     pending_user_ids = []
 
     # Books in non-graduated batches: just sync grade_id
     Book.includes(:batch_year).find_each do |book|
       next if book.batch_year.blank?
       next if pending_book_ids.include?(book.id)
+      next if book.owned_by_class? && book.stay?
       book.update_column(:grade_id, book.batch_year.grade_id)
     end
 

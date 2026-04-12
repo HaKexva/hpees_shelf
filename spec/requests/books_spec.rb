@@ -33,6 +33,28 @@ RSpec.describe "Books", type: :request do
       expect(body).to include("sort=isbn")
     end
 
+    it "offers class source split by relocation in the source filter" do
+      get books_url
+      body = response.body
+      expect(body).to include(Book::LIST_SOURCE_OWNED_BY_CLASS_STAY)
+      expect(body).to include(Book::LIST_SOURCE_OWNED_BY_CLASS_MOVE)
+      expect(body).to include("班級的書——留班不動")
+      expect(body).to include("班級的書——隨班移動")
+    end
+
+    it "filters class books by composite source (班級的書——留班不動 / 隨班移動)" do
+      create(:book, batch_year: batch_year, title: "Class Stay Book", source: :owned_by_class, relocation_behavior: :stay, isbn: "9780000000026")
+      create(:book, batch_year: batch_year, title: "Class Move Book", source: :owned_by_class, relocation_behavior: :move_with_class, isbn: "9780000000033")
+
+      get books_url, params: { source: Book::LIST_SOURCE_OWNED_BY_CLASS_STAY }
+      expect(response.body).to include("Class Stay Book")
+      expect(response.body).not_to include("Class Move Book")
+
+      get books_url, params: { source: Book::LIST_SOURCE_OWNED_BY_CLASS_MOVE }
+      expect(response.body).to include("Class Move Book")
+      expect(response.body).not_to include("Class Stay Book")
+    end
+
     it "lists teacher source options and filters by teachers_all" do
       t1 = create(:user, :admin, batch_year: batch_year, name: "TeacherOne")
       t2 = create(:user, :admin, batch_year: batch_year, name: "TeacherTwo")
@@ -116,7 +138,7 @@ RSpec.describe "Books", type: :request do
     end
 
     it "redirects to the list with the same sort and filters as the last index visit (HAK-117)" do
-      get books_url, params: { sort: "isbn", source: "donated", q: "needle" }
+      get books_url, params: { sort: "isbn", source: Book::LIST_SOURCE_OWNED_BY_CLASS_STAY, q: "needle" }
       post books_url, params: {
         book: {
           batch_year_id: batch_year.id,
@@ -128,7 +150,7 @@ RSpec.describe "Books", type: :request do
           source: "donated"
         }
       }
-      expect(response).to redirect_to(books_url(q: "needle", source: "donated", sort: "isbn"))
+      expect(response).to redirect_to(books_url(q: "needle", source: Book::LIST_SOURCE_OWNED_BY_CLASS_STAY, sort: "isbn"))
     end
   end
 
@@ -184,6 +206,15 @@ RSpec.describe "Books", type: :request do
       expect(response.media_type).to eq("text/csv")
       expect(response.body).to include("HAK112 Donated Row")
       expect(response.body).not_to include("HAK112 Class Row")
+    end
+
+    it "returns CSV rows matching composite class source (留班不動 / 隨班移動)" do
+      create(:book, batch_year: batch_year, title: "Csv Stay", source: :owned_by_class, relocation_behavior: :stay, isbn: "9780000000026")
+      create(:book, batch_year: batch_year, title: "Csv Move", source: :owned_by_class, relocation_behavior: :move_with_class, isbn: "9780000000033")
+      get export_books_url, params: { source: Book::LIST_SOURCE_OWNED_BY_CLASS_STAY }
+      expect(response).to have_http_status(:success)
+      expect(response.body).to include("Csv Stay")
+      expect(response.body).not_to include("Csv Move")
     end
 
     it "includes only that teacher's rows when source=teacher:<id>" do
