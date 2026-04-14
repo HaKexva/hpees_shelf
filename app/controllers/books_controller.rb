@@ -494,7 +494,7 @@ class BooksController < ApplicationController
     redirect_to root_path, notice: "已還書：#{@book.title}。", status: :see_other
   end
 
-  # POST /books/1/return_to_library — Library books: save borrow history then delete the book
+  # POST /books/1/return_to_library — Library books: save borrow history then soft-delete the book (HAK-75)
   def return_to_library
     if @book.owned_by_library?
       LibraryLoanHistory.create!(
@@ -505,9 +505,8 @@ class BooksController < ApplicationController
         returned_at: Time.current,
         batch_year_id: @book.batch_year_id
       )
-      @book.circulation_records.where(returned_at: nil).update_all(returned_at: Time.current)
-      @book.update!(user_id: nil, status: Book::STATUS_RETURNED_LIBRARY, borrowed_at: nil)
-      redirect_to books_path(books_list_query_hash), notice: "已歸還圖書館，書籍狀態已標記為「歸還圖書館」，借閱紀錄已保留。", status: :see_other
+      @book.return_to_library_and_soft_delete!
+      redirect_to books_path(books_list_query_hash), notice: "已歸還圖書館；書籍已標記為「歸還圖書館」並自列表隱藏，借閱紀錄已保留。", status: :see_other
     else
       redirect_to @book, alert: "僅圖書館的書可執行此操作。", status: :see_other
     end
@@ -518,7 +517,7 @@ class BooksController < ApplicationController
     @batch_years = BatchYear.class_batches_by_number_desc
   end
 
-  # POST /books/apply_return_to_library_batch — Save borrow history for each library book then delete the books
+  # POST /books/apply_return_to_library_batch — Save borrow history for each library book then soft-delete (HAK-75)
   def apply_return_to_library_batch
     raw = params[:batch_year_id].to_s
     scope = Book.where(source: :owned_by_library)
@@ -540,14 +539,13 @@ class BooksController < ApplicationController
           returned_at: Time.current,
           batch_year_id: book.batch_year_id
         )
-        book.circulation_records.where(returned_at: nil).update_all(returned_at: Time.current)
-        book.update!(user_id: nil, status: Book::STATUS_RETURNED_LIBRARY, borrowed_at: nil)
+        book.return_to_library_and_soft_delete!
       end
       count += 1
     end
 
     label = raw == "all" ? "全部屆數" : "該屆"
-    redirect_to books_path(books_list_query_hash), notice: "已將#{label} #{count} 本圖書館的書歸還並刪除書籍資料，借閱紀錄已保留。", status: :see_other
+    redirect_to books_path(books_list_query_hash), notice: "已將#{label} #{count} 本圖書館的書歸還圖書館；書籍已自列表隱藏，借閱紀錄與資料已保留。", status: :see_other
   end
 
   # DELETE /books/bulk_destroy

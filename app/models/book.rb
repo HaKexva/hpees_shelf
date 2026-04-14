@@ -178,6 +178,19 @@ class Book < ApplicationRecord
     end
   end
 
+  # After `LibraryLoanHistory` is written: close open loans, mark 歸還圖書館, soft-delete so the row stays for FKs (HAK-75).
+  def return_to_library_and_soft_delete!
+    raise ArgumentError, "only library holdings support return-to-library" unless owned_by_library?
+
+    circulation_records.where(returned_at: nil).update_all(returned_at: Time.current)
+    update!(
+      user_id: nil,
+      status: STATUS_RETURNED_LIBRARY,
+      borrowed_at: nil,
+      deleted_at: Time.current
+    )
+  end
+
   # Soft delete: row remains so circulation_records and FKs stay valid; excluded from default Book scopes.
   def destroy
     return self if deleted_at.present?

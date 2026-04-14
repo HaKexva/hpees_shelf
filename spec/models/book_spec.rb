@@ -79,6 +79,13 @@ RSpec.describe Book do
     end
   end
 
+  describe "#return_to_library_and_soft_delete! (HAK-75)" do
+    it "raises for non-library books" do
+      b = create(:book, batch_year: batch_year, source: :donated, isbn: "9780000000064")
+      expect { b.return_to_library_and_soft_delete! }.to raise_error(ArgumentError, /only library holdings/)
+    end
+  end
+
   describe ".import_teacher_user_from_source_label (HAK-119)" do
     it "returns nil when the label does not match any admin" do
       create(:user, :admin, batch_year: batch_year, name: "SomeoneElse")
