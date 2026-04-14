@@ -14,6 +14,12 @@ RSpec.describe "Users list filters and redirects", type: :request do
       expect(response.body).to include(loan_history_path)
       expect(response.body).to include("借閱紀錄")
     end
+
+    it "includes per-user loan history link in the table" do
+      u = create(:user, batch_year: batch_year, name: "TableRowUser")
+      get users_url
+      expect(response.body).to include(loan_history_path(user_id: u.id))
+    end
   end
 
   describe "GET /users/:id/edit" do
