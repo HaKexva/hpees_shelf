@@ -19,6 +19,7 @@ Rails.application.routes.draw do
   end
   resources :books do
     member do
+      get :circulation_history
       post :return_to_library
       post :borrow
       post :return_shelf

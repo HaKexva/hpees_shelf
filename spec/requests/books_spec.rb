@@ -12,6 +12,12 @@ RSpec.describe "Books", type: :request do
       expect(response).to have_http_status(:success)
     end
 
+    it "includes per-book circulation history link in the table" do
+      listed = create(:book, batch_year: batch_year, title: "RowHistBook", isbn: "9780000000040")
+      get books_url
+      expect(response.body).to include(circulation_history_book_path(listed))
+    end
+
     it "accepts sort by isbn" do
       get books_url, params: { sort: "isbn" }
       expect(response).to have_http_status(:success)
@@ -177,6 +183,34 @@ RSpec.describe "Books", type: :request do
     it "does not include 歸還圖書館 for non-library books" do
       get edit_book_url(book)
       expect(response.body).not_to include("歸還圖書館")
+    end
+
+    it "includes link to circulation history" do
+      get edit_book_url(book)
+      expect(response.body).to include(circulation_history_book_path(book))
+    end
+  end
+
+  describe "GET /books/:id/circulation_history" do
+    it "returns success and lists circulation rows for the book" do
+      student = create(:user, batch_year: batch_year, name: "LoanStudent")
+      book.checkout_to_borrower!(student)
+      get circulation_history_book_url(book)
+      expect(response).to have_http_status(:success)
+      expect(response.body).to include("LoanStudent")
+      expect(response.body).to include("借出時間")
+    end
+
+    it "shows empty state when there are no circulation records" do
+      get circulation_history_book_url(book)
+      expect(response).to have_http_status(:success)
+      expect(response.body).to include("尚無借閱紀錄")
+    end
+
+    it "only offers 返回書籍列表 in the header" do
+      get circulation_history_book_url(book)
+      expect(response.body).to include("返回書籍列表")
+      expect(response.body).not_to include("返回編輯")
     end
   end
 
