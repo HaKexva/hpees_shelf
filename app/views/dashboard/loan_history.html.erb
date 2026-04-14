@@ -3,7 +3,12 @@
 <div class="w-full">
   <div class="flex flex-wrap items-center justify-between gap-4 mb-6">
     <h1 class="font-bold text-2xl sm:text-4xl text-gray-900">借閱紀錄</h1>
-    <%= link_to "返回借還書", root_path, class: "inline-flex items-center rounded-md px-3.5 py-2.5 bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 font-medium" %>
+    <div class="flex flex-wrap gap-2 items-center">
+      <% if current_user_admin? || current_user.nil? %>
+        <%= link_to "人員列表", users_path(users_list_query_hash), class: "inline-flex items-center rounded-md px-3.5 py-2.5 bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 font-medium" %>
+      <% end %>
+      <%= link_to "返回借還書", root_path, class: "inline-flex items-center rounded-md px-3.5 py-2.5 bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 font-medium" %>
+    </div>
   </div>
 
   <% if current_user_admin? || current_user.nil? %>
