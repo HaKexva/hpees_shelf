@@ -422,13 +422,7 @@ class BooksController < ApplicationController
           .includes(:batch_year, :borrowers)
           .to_a
 
-    book = candidates.find do |b|
-      if b.owned_by_library? && b.effective_total > 1
-        b.can_borrow_copy?
-      else
-        b.status == Book::STATUS_ON_SHELF
-      end
-    end
+    book = candidates.find(&:available_for_checkout?)
 
     unless book
       alert_msg =
@@ -461,16 +455,9 @@ class BooksController < ApplicationController
       redirect_to root_path, alert: "僅圖書館館藏可借閱。", status: :see_other
       return
     end
-    if @book.owned_by_library? && @book.effective_total > 1
-      unless @book.can_borrow_copy?
-        redirect_to root_path, alert: "此書已無可借冊數。", status: :see_other
-        return
-      end
-    else
-      if @book.status == Book::STATUS_BORROWED
-        redirect_to root_path, alert: "此書已借閱中。", status: :see_other
-        return
-      end
+    unless @book.available_for_checkout?
+      redirect_to root_path, alert: "此書已無可借冊數或不在架上。", status: :see_other
+      return
     end
     user_id = params[:user_id].presence&.to_i
     user = User.find_by(id: user_id)

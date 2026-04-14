@@ -158,6 +158,31 @@ class Book < ApplicationRecord
     available_copies.positive?
   end
 
+  # ISBN / 借還：總數大於 1 時只要尚有冊數就可再借（不必仍是「架上」）；單冊則須架上。
+  def available_for_checkout?
+    return false if status == STATUS_MISSING || status == STATUS_RETURNED_LIBRARY
+
+    effective_total > 1 ? can_borrow_copy? : (status == STATUS_ON_SHELF)
+  end
+
+  # Return one active loan for this user (oldest first). When no open loans remain, back to 架上.
+  def return_active_loan_for!(user)
+    return false if user.blank?
+
+    rec = circulation_records.where(user_id: user.id, returned_at: nil).order(:borrowed_at).first
+    return false unless rec
+
+    rec.update!(returned_at: Time.current)
+    return true if CirculationRecord.where(book_id: id, returned_at: nil).exists?
+
+    if owned_by_teacher?
+      update!(status: STATUS_ON_SHELF, borrowed_at: nil)
+    else
+      update!(user_id: nil, status: STATUS_ON_SHELF, borrowed_at: nil)
+    end
+    true
+  end
+
   # Single-copy checkout (not 圖書館多冊分流): records loan; for 老師的書 keeps `user_id` as the teacher.
   def checkout_to_borrower!(borrower)
     circulation_records.create!(user_id: borrower.id, borrowed_at: Time.current)
