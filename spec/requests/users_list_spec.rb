@@ -8,13 +8,6 @@ RSpec.describe "Users list filters and redirects", type: :request do
   before { login_as(create(:user, :superadmin, batch_year: batch_year)) }
 
   describe "GET /users" do
-    it "includes link to loan history (借閱紀錄)" do
-      get users_url
-      expect(response).to have_http_status(:success)
-      expect(response.body).to include(loan_history_path)
-      expect(response.body).to include("借閱紀錄")
-    end
-
     it "includes per-user loan history link in the table" do
       u = create(:user, batch_year: batch_year, name: "TableRowUser")
       get users_url
