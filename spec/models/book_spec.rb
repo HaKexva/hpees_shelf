@@ -79,6 +79,54 @@ RSpec.describe Book do
     end
   end
 
+  describe "teacher-owned book batch_year vs teacher batches" do
+    it "rejects when the book 屆數 is not assigned to the owning teacher" do
+      by_a = create(:batch_year, batch_number: 501)
+      by_b = create(:batch_year, batch_number: 502)
+      teacher = create(:user, :admin, batch_year: by_a, name: "T501")
+      book = build(
+        :book,
+        batch_year: by_b,
+        source: :owned_by_teacher,
+        user: teacher,
+        status: Book::STATUS_ON_SHELF,
+        isbn: "9780000000095"
+      )
+      expect(book).not_to be_valid
+      expect(book.errors[:batch_year_id]).to be_present
+    end
+
+    it "allows when the teacher has the book batch as an extra linked 屆數" do
+      by_a = create(:batch_year, batch_number: 511)
+      by_b = create(:batch_year, batch_number: 512)
+      teacher = create(:user, :admin, batch_year: by_a, extra_batch_years: [ by_b ], name: "T511")
+      book = build(
+        :book,
+        batch_year: by_b,
+        source: :owned_by_teacher,
+        user: teacher,
+        status: Book::STATUS_ON_SHELF,
+        isbn: "9780000000088"
+      )
+      expect(book).to be_valid
+    end
+
+    it "allows any batch when the owning teacher is superadmin" do
+      by_a = create(:batch_year, batch_number: 521)
+      by_b = create(:batch_year, batch_number: 522)
+      superuser = create(:user, :superadmin, batch_year: by_a)
+      book = build(
+        :book,
+        batch_year: by_b,
+        source: :owned_by_teacher,
+        user: superuser,
+        status: Book::STATUS_ON_SHELF,
+        isbn: "9780000000071"
+      )
+      expect(book).to be_valid
+    end
+  end
+
   describe "#available_for_checkout? / multi-copy non-library" do
     it "is true for donated total 2 when one copy is already borrowed (status 借閱中)" do
       s2 = create(:user, batch_year: batch_year, name: "SecondStudent")

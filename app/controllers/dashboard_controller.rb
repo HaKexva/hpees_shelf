@@ -82,7 +82,8 @@ class DashboardController < ApplicationController
         eff_total = b.total.to_i.positive? ? b.total.to_i : 1
         active = active_counts[b.id].to_i
         avail = [ eff_total - active, 0 ].max
-        borrowable_for_checkout = b.available_for_checkout?
+        batch_ok = borrower.blank? || borrower.superadmin? || borrower.may_borrow_from_batch?(b.batch_year_id)
+        borrowable_for_checkout = b.available_for_checkout? && batch_ok
         {
           id: b.id,
           title: b.title,
@@ -174,10 +175,10 @@ class DashboardController < ApplicationController
         return
       end
 
-      if action == "checkout" && !borrower.admin?
-        books = books.select { |b| b.batch_year_id == borrower.batch_year_id }
+      if action == "checkout" && borrower.present? && !borrower.superadmin?
+        books = books.select { |b| borrower.may_borrow_from_batch?(b.batch_year_id) }
         if books.empty?
-          redirect_to _borrow_return_home_path, alert: "此書與借閱人的屆數不同，無法借閱。", status: :see_other
+          redirect_to _borrow_return_home_path, alert: "此書的屆數不在借閱人可借範圍內，無法借閱。", status: :see_other
           return
         end
       end
@@ -226,8 +227,8 @@ class DashboardController < ApplicationController
             redirect_to _borrow_return_home_path, alert: "學生一次只能借一本書，請先歸還再借。", status: :see_other
             return
           end
-          if book.batch_year_id != borrower.batch_year_id
-            redirect_to _borrow_return_home_path, alert: "此書與您的屆數不同，無法借閱。", status: :see_other
+          unless borrower.may_borrow_from_batch?(book.batch_year_id)
+            redirect_to _borrow_return_home_path, alert: "此書不在您可借的屆數範圍內，無法借閱。", status: :see_other
             return
           end
         elsif book.status == Book::STATUS_BORROWED
@@ -244,12 +245,13 @@ class DashboardController < ApplicationController
       end
 
       books = books.select do |b|
-        next false if b.batch_year_id != borrower.batch_year_id
+        next true if b.borrowed_by?(borrower)
+        next false unless b.available_for_checkout?
 
-        (b.available_for_checkout?) || (b.status == Book::STATUS_BORROWED && b.borrowed_by?(borrower))
+        borrower.may_borrow_from_batch?(b.batch_year_id)
       end
       if books.empty?
-        redirect_to _borrow_return_home_path, alert: "沒有您可借或可還的書（此書與您的屆數不同或非您借閱）。", status: :see_other
+        redirect_to _borrow_return_home_path, alert: "沒有您可借或可還的書（屆數不符或非您借閱）。", status: :see_other
         return
       end
 

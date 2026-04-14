@@ -201,6 +201,18 @@ class User < ApplicationRecord
     resigned_at.present? && resigned_at >= 1.month.ago
   end
 
+  # Primary 屆數 plus extra 屆數 links (teachers). Used for borrow rules and teacher-book placement.
+  def member_batch_year_ids
+    ([ batch_year_id ] + extra_batch_year_ids).compact.uniq
+  end
+
+  def may_borrow_from_batch?(batch_year_id)
+    return true if superadmin?
+    return false if batch_year_id.blank?
+
+    member_batch_year_ids.include?(batch_year_id.to_i)
+  end
+
   private
 
   # Class batches copy batch_year.grade_id; admins/teachers are identified only by `admin` flag now.
