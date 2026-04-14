@@ -2,7 +2,19 @@
 
 <div class="w-full">
   <div class="flex flex-wrap items-center justify-between gap-4 mb-6">
-    <h1 class="font-bold text-2xl sm:text-4xl text-gray-900">借閱紀錄</h1>
+    <div>
+      <h1 class="font-bold text-2xl sm:text-4xl text-gray-900">借閱紀錄</h1>
+      <% if @filter_user.present? %>
+        <p class="mt-2 text-base text-gray-700">
+          <% if @filter_user.admin? %>
+            「<%= @filter_user.name %>（老師）」
+          <% else %>
+            「<%= @filter_user.name %>（<%= @filter_user.id_number.presence || '—' %>）」
+          <% end %>
+          <span class="text-gray-600">的借閱紀錄</span>
+        </p>
+      <% end %>
+    </div>
     <div class="flex flex-wrap gap-2 items-center">
       <% if current_user_admin? || current_user.nil? %>
         <%= link_to "人員列表", users_path(users_list_query_hash), class: "inline-flex items-center rounded-md px-3.5 py-2.5 bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 font-medium" %>
@@ -11,42 +23,26 @@
     </div>
   </div>
 
-  <% if current_user_admin? || current_user.nil? %>
-    <div class="bg-white rounded-xl shadow-md border border-gray-100 p-4 mb-6">
-      <div class="flex flex-col sm:flex-row sm:flex-wrap sm:items-center sm:justify-between gap-2 mb-3">
-        <p class="text-sm font-medium text-gray-700">借閱人（點姓名篩選）</p>
-        <% if @filter_user_id.present? %>
-          <%= link_to "清除選取", loan_history_path, class: "inline-flex text-sm text-indigo-600 hover:text-indigo-800 font-medium shrink-0" %>
-        <% end %>
-      </div>
-      <% if @users.blank? %>
-        <p class="text-sm text-gray-500">尚無人員資料。</p>
-      <% else %>
-        <div class="max-h-72 overflow-y-auto rounded-lg border border-gray-200 bg-gray-50/50">
-          <ul class="divide-y divide-gray-200">
-            <% @users.each do |u| %>
-              <% label = u.admin? ? "#{u.name}（老師）" : "#{u.name}（#{u.id_number.presence || '—'}）" %>
-              <% active = (@filter_user_id == u.id) %>
-              <li>
-                <%= link_to label, loan_history_path(user_id: u.id),
-                            class: "block px-3 py-2.5 text-sm text-gray-900 hover:bg-indigo-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500 #{'bg-indigo-100 font-medium border-l-4 border-l-indigo-600 pl-2.5' if active}" %>
-              </li>
-            <% end %>
-          </ul>
-        </div>
-        <p class="mt-2 text-xs text-gray-500">也可從人員列表該列右側的「借閱紀錄」直接開啟。</p>
-      <% end %>
+  <% if (current_user_admin? || current_user.nil?) && @filter_user_id.blank? %>
+    <div class="bg-white rounded-xl shadow-md border border-gray-100 p-6 text-sm text-gray-600">
+      請從<%= link_to "人員列表", users_path(users_list_query_hash), class: "text-indigo-600 hover:text-indigo-800 font-medium" %>點該人列的「借閱紀錄」查看。
     </div>
-  <% end %>
+  <% else %>
+    <% if (current_user_admin? || current_user.nil?) && @filter_user_id.present? && @filter_user.blank? %>
+      <div class="bg-amber-50 rounded-xl border border-amber-200 p-4 text-sm text-amber-900">
+        找不到此借閱人。
+      </div>
+    <% else %>
 
   <div class="bg-white rounded-xl shadow-md border border-gray-100 overflow-hidden">
     <% if @records.any? %>
+      <% show_borrower_column = @filter_user.blank? && (current_user_admin? || current_user.nil?) %>
       <!-- 桌機版表格 -->
       <div class="overflow-x-auto hidden md:block">
         <table class="min-w-full divide-y divide-gray-200">
           <thead class="bg-gray-50">
             <tr>
-              <% if current_user_admin? || current_user.nil? %>
+              <% if show_borrower_column %>
                 <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">借閱人</th>
               <% end %>
               <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">書名</th>
@@ -57,7 +53,7 @@
           <tbody class="divide-y divide-gray-200">
             <% @records.each do |r| %>
               <tr class="hover:bg-gray-50">
-                <% if current_user_admin? || current_user.nil? %>
+                <% if show_borrower_column %>
                   <td class="px-4 py-3 text-sm text-gray-900"><%= r.user&.name %><%= "（老師）" if r.user&.admin? %></td>
                 <% end %>
                 <td class="px-4 py-3 text-sm text-gray-900"><%= r.book&.title.presence || "—" %></td>
@@ -80,7 +76,7 @@
         <div class="divide-y divide-gray-100">
           <% @records.each do |r| %>
             <div class="px-4 py-3">
-              <% if current_user_admin? || current_user.nil? %>
+              <% if show_borrower_column %>
                 <p class="text-sm font-medium text-gray-900 mb-1">
                   <%= r.user&.name || "—" %><%= "（老師）" if r.user&.admin? %>
                 </p>
@@ -103,13 +99,13 @@
         <p class="px-4 py-2 text-xs text-gray-500 border-t border-gray-100">共 <%= @records.size %> 筆（最多顯示 500 筆）</p>
       </div>
     <% else %>
-      <p class="px-6 py-8 text-center text-gray-500">
-        <% if (current_user_admin? || current_user.nil?) && @filter_user_id.blank? %>
-          請在上方點選借閱人姓名；或從人員列表點該列的「借閱紀錄」。
-        <% else %>
-          尚無借閱紀錄。
-        <% end %>
-      </p>
+      <% if (current_user_admin? || current_user.nil?) && @filter_user_id.present? && @filter_user.present? %>
+        <p class="px-6 py-8 text-center text-gray-500">尚無借閱紀錄。</p>
+      <% elsif !(current_user_admin? || current_user.nil?) %>
+        <p class="px-6 py-8 text-center text-gray-500">尚無借閱紀錄。</p>
+      <% end %>
     <% end %>
   </div>
+    <% end %>
+  <% end %>
 </div>

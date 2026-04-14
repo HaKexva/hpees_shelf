@@ -20,18 +20,19 @@ class DashboardController < ApplicationController
 
   def loan_history
     if current_user_admin? || current_user.nil?
-      # Include all users (active, resigned, graduated) so admins can view anyone's loan history
-      @users = User.includes(:batch_year).order(:admin, :name)
       filter_user_id = params[:user_id].presence&.to_i
       if filter_user_id.present?
         @records = CirculationRecord.where(user_id: filter_user_id).includes(:book, :user).order(borrowed_at: :desc).limit(500)
         @filter_user_id = filter_user_id
+        @filter_user = User.with_deleted.find_by(id: filter_user_id)
       else
         @records = []
         @filter_user_id = nil
+        @filter_user = nil
       end
     else
       @records = current_user.circulation_records.includes(:book).order(borrowed_at: :desc).limit(500)
+      @filter_user = current_user
     end
   end
 
