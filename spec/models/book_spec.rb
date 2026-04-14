@@ -79,6 +79,53 @@ RSpec.describe Book do
     end
   end
 
+  describe "#available_for_checkout? / multi-copy non-library" do
+    it "is true for donated total 2 when one copy is already borrowed (status 借閱中)" do
+      s2 = create(:user, batch_year: batch_year, name: "SecondStudent")
+      book = create(
+        :book,
+        batch_year: batch_year,
+        source: :donated,
+        total: 2,
+        status: Book::STATUS_ON_SHELF,
+        isbn: "9780000000071"
+      )
+      book.checkout_to_borrower!(student)
+      book.reload
+      expect(book.status).to eq(Book::STATUS_BORROWED)
+      expect(book.available_for_checkout?).to be true
+      book.checkout_to_borrower!(s2)
+      book.reload
+      expect(book.available_for_checkout?).to be false
+      expect(book.active_loans_count).to eq(2)
+    end
+  end
+
+  describe "#return_active_loan_for!" do
+    it "returns one loan and keeps 借閱中 when another borrower still has a copy (total 2)" do
+      s2 = create(:user, batch_year: batch_year, name: "SecondStudent")
+      book = create(
+        :book,
+        batch_year: batch_year,
+        source: :donated,
+        total: 2,
+        status: Book::STATUS_ON_SHELF,
+        isbn: "9780000000088"
+      )
+      book.checkout_to_borrower!(student)
+      book.checkout_to_borrower!(s2)
+      book.reload
+      expect(book.return_active_loan_for!(student)).to be true
+      book.reload
+      expect(book.status).to eq(Book::STATUS_BORROWED)
+      expect(book.borrowed_by?(student)).to be false
+      expect(book.borrowed_by?(s2)).to be true
+      expect(book.return_active_loan_for!(s2)).to be true
+      book.reload
+      expect(book.status).to eq(Book::STATUS_ON_SHELF)
+    end
+  end
+
   describe "#return_to_library_and_soft_delete! (HAK-75)" do
     it "raises for non-library books" do
       b = create(:book, batch_year: batch_year, source: :donated, isbn: "9780000000064")
