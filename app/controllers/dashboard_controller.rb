@@ -280,19 +280,7 @@ class DashboardController < ApplicationController
       end
       @process_notice = "已登記借閱：#{book.title} → #{borrower.name}。"
     else
-      if book.owned_by_library? && book.effective_total > 1
-        rec = book.circulation_records.where(user_id: borrower.id, returned_at: nil).order(:borrowed_at).first
-        if rec
-          rec.update!(returned_at: Time.current)
-          if book.active_circulation_records.exists?
-            # 仍有其他人借閱，維持「借閱中」狀態
-          else
-            book.update!(user_id: nil, status: Book::STATUS_ON_SHELF, borrowed_at: nil)
-          end
-        end
-      else
-        book.return_from_single_copy_borrow!
-      end
+      book.return_active_loan_for!(borrower)
       @process_notice = "已還書：#{book.title}。"
     end
   end
@@ -311,19 +299,7 @@ class DashboardController < ApplicationController
       end
       @process_notice = "已登記借閱：#{book.title} → #{borrower.name}。"
     else
-      if book.owned_by_library? && book.effective_total > 1
-        rec = book.circulation_records.where(user_id: borrower.id, returned_at: nil).order(:borrowed_at).first
-        if rec
-          rec.update!(returned_at: Time.current)
-          if book.active_circulation_records.exists?
-            # 仍有其他人借閱，維持「借閱中」狀態
-          else
-            book.update!(user_id: nil, status: Book::STATUS_ON_SHELF, borrowed_at: nil)
-          end
-        end
-      else
-        book.return_from_single_copy_borrow!
-      end
+      book.return_active_loan_for!(borrower)
       @process_notice = "已還書：#{book.title}。"
     end
   end

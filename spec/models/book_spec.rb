@@ -79,6 +79,118 @@ RSpec.describe Book do
     end
   end
 
+  describe "#return_active_loan_for! (HAK-78)" do
+    let(:student_b) { create(:user, batch_year: batch_year, name: "BorrowerB") }
+
+    it "returns only this user's loan when two students borrowed a teacher-owned multi-copy book" do
+      book = create(
+        :book,
+        batch_year: batch_year,
+        source: :owned_by_teacher,
+        user: teacher,
+        status: Book::STATUS_ON_SHELF,
+        total: 2,
+        isbn: "9780000000071"
+      )
+
+      book.checkout_to_borrower!(student)
+      book.checkout_to_borrower!(student_b)
+      book.reload
+      expect(book.active_loans_count).to eq(2)
+      expect(book.status).to eq(Book::STATUS_BORROWED)
+
+      book.return_active_loan_for!(student)
+      book.reload
+      expect(book.active_loans_count).to eq(1)
+      expect(book.borrowers).to contain_exactly(student_b)
+      expect(book.status).to eq(Book::STATUS_BORROWED)
+      expect(book.user_id).to eq(teacher.id)
+
+      book.return_active_loan_for!(student_b)
+      book.reload
+      expect(book.active_loans_count).to eq(0)
+      expect(book.borrowers).to be_empty
+      expect(book.status).to eq(Book::STATUS_ON_SHELF)
+      expect(book.user_id).to eq(teacher.id)
+    end
+
+    it "returns only this user's loan for donated multi-copy with two borrowers" do
+      book = create(
+        :book,
+        batch_year: batch_year,
+        source: :donated,
+        user: nil,
+        total: 2,
+        isbn: "9780000000088"
+      )
+
+      book.checkout_to_borrower!(student)
+      book.checkout_to_borrower!(student_b)
+      book.reload
+      expect(book.active_loans_count).to eq(2)
+
+      book.return_active_loan_for!(student)
+      book.reload
+      expect(book.active_loans_count).to eq(1)
+      expect(book.status).to eq(Book::STATUS_BORROWED)
+
+      book.return_active_loan_for!(student_b)
+      book.reload
+      expect(book.status).to eq(Book::STATUS_ON_SHELF)
+      expect(book.borrowers).to be_empty
+    end
+
+    it "handles library multi-copy the same way when total was stored above 1" do
+      book = create(
+        :book,
+        batch_year: batch_year,
+        source: :owned_by_library,
+        status: Book::STATUS_ON_SHELF,
+        call_number: "87654321",
+        isbn: "9780000000095"
+      )
+      book.update_column(:total, 2)
+
+      book.checkout_to_borrower!(student)
+      book.checkout_to_borrower!(student_b)
+      book.reload
+      expect(book.active_loans_count).to eq(2)
+
+      book.return_active_loan_for!(student)
+      book.reload
+      expect(book.active_loans_count).to eq(1)
+      expect(book.status).to eq(Book::STATUS_BORROWED)
+
+      book.return_active_loan_for!(student_b)
+      book.reload
+      expect(book.status).to eq(Book::STATUS_ON_SHELF)
+      expect(book.borrowers).to be_empty
+    end
+
+    it "returns false when the user has no active loan" do
+      book = create(:book, batch_year: batch_year, source: :donated, isbn: "9780000000064")
+      expect(book.return_active_loan_for!(student)).to be false
+    end
+
+    it "still clears every open loan via return_from_single_copy_borrow! (admin-style)" do
+      book = create(
+        :book,
+        batch_year: batch_year,
+        source: :owned_by_teacher,
+        user: teacher,
+        status: Book::STATUS_ON_SHELF,
+        total: 2,
+        isbn: "9780000000033"
+      )
+      book.checkout_to_borrower!(student)
+      book.checkout_to_borrower!(student_b)
+      book.return_from_single_copy_borrow!
+      book.reload
+      expect(book.active_loans_count).to eq(0)
+      expect(book.status).to eq(Book::STATUS_ON_SHELF)
+    end
+  end
+
   describe "#return_to_library_and_soft_delete! (HAK-75)" do
     it "raises for non-library books" do
       b = create(:book, batch_year: batch_year, source: :donated, isbn: "9780000000064")
