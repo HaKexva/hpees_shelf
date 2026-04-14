@@ -335,16 +335,14 @@ class BooksController < ApplicationController
 
   # GET /books/new
   def new
-    BatchYear.ensure_office_exists!
     @book = Book.new
-    @batch_years = BatchYear.class_batches_by_number_desc
+    @batch_years = _batch_year_options_for_book_forms
     @admin_users = User.active.where(admin: true).order(:name)
   end
 
   # GET /books/1/edit
   def edit
-    BatchYear.ensure_office_exists!
-    @batch_years = BatchYear.class_batches_by_number_desc
+    @batch_years = _batch_year_options_for_book_forms
     @admin_users = User.active.where(admin: true).order(:name)
   end
 
@@ -360,8 +358,7 @@ class BooksController < ApplicationController
         format.html { redirect_to books_path(books_list_query_hash), notice: "書籍已建立。", status: :see_other }
         format.json { render :show, status: :created, location: @book }
       else
-        BatchYear.ensure_office_exists!
-        @batch_years = BatchYear.class_batches_by_number_desc
+        @batch_years = _batch_year_options_for_book_forms
         @admin_users = User.active.where(admin: true).order(:name)
         flash.now[:alert] = @book.errors.full_messages.join("；")
         format.html { render :new, status: :unprocessable_entity }
@@ -381,8 +378,7 @@ class BooksController < ApplicationController
         format.html { redirect_to books_path(books_list_query_hash), notice: "書籍已更新。", status: :see_other }
         format.json { render :show, status: :ok, location: @book }
       else
-        BatchYear.ensure_office_exists!
-        @batch_years = BatchYear.class_batches_by_number_desc
+        @batch_years = _batch_year_options_for_book_forms
         @admin_users = User.active.where(admin: true).order(:name)
         flash.now[:alert] = @book.errors.full_messages.join("；")
         format.html { render :edit, status: :unprocessable_entity }
@@ -422,14 +418,17 @@ class BooksController < ApplicationController
           .includes(:batch_year, :borrowers)
           .to_a
 
-    book = candidates.find(&:available_for_checkout?)
+    in_batch = candidates.select { |b| user.may_borrow_from_batch?(b.batch_year_id) }
+    book = in_batch.find(&:available_for_checkout?)
 
     unless book
       alert_msg =
-        if candidates.any?
-          "找不到架上且符合此 ISBN 的圖書館館藏（可能已無可借冊數）（ISBN：#{isbn}）。"
-        else
+        if candidates.empty?
           "找不到架上且符合此 ISBN 的圖書館館藏（ISBN：#{isbn}）。"
+        elsif in_batch.empty?
+          "找不到符合此 ISBN 且在借閱人可借屆數內的可借書籍（ISBN：#{isbn}）。"
+        else
+          "找不到架上且符合此 ISBN 的圖書館館藏（可能已無可借冊數）（ISBN：#{isbn}）。"
         end
       redirect_to root_path, alert: alert_msg, status: :see_other
       return
@@ -463,6 +462,10 @@ class BooksController < ApplicationController
     user = User.find_by(id: user_id)
     unless user
       redirect_to root_path, alert: "請選擇借閱人。", status: :see_other
+      return
+    end
+    unless user.may_borrow_from_batch?(@book.batch_year_id)
+      redirect_to root_path, alert: "此書的屆數不在借閱人可借範圍內。", status: :see_other
       return
     end
     if @book.owned_by_library? && @book.effective_total > 1
@@ -506,7 +509,7 @@ class BooksController < ApplicationController
 
   # GET /books/return_to_library_batch — Choose which batch's library books to mark as returned (only available in return period; button is hidden otherwise)
   def return_to_library_batch
-    @batch_years = BatchYear.class_batches_by_number_desc
+    @batch_years = _batch_year_options_for_book_forms
   end
 
   # POST /books/apply_return_to_library_batch — Save borrow history for each library book then soft-delete (HAK-75)
@@ -554,6 +557,15 @@ class BooksController < ApplicationController
   end
 
   private
+    def _batch_year_options_for_book_forms
+      BatchYear.ensure_office_exists!
+      return BatchYear.class_batches_by_number_desc if current_user.superadmin?
+
+      ids = current_user.member_batch_year_ids
+      ids = [ current_user.batch_year_id ].compact if ids.blank?
+      BatchYear.where(id: ids).order(batch_number: :desc)
+    end
+
     def _apply_import_row_edits!(import_data, edit_rows_param)
       return if import_data.blank? || edit_rows_param.blank?
 

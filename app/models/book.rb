@@ -25,6 +25,7 @@ class Book < ApplicationRecord
             if: :owned_by_library?
   validates :user_id, presence: true, if: :owned_by_teacher?
   validate :isbn_must_be_valid_13_if_present
+  validate :teacher_owned_book_batch_year_in_teacher_batches
   enum :source, { owned_by_library: 0, donated: 1, owned_by_class: 2, owned_by_teacher: 3 }
   enum :relocation_behavior, { move_with_class: "move_with_class", stay: "stay" }, default: :move_with_class
   before_validation :normalize_relocation_behavior_for_source
@@ -393,6 +394,18 @@ class Book < ApplicationRecord
     return if isbn.blank?
     return if self.class.valid_isbn13?(isbn)
     errors.add(:isbn, "應為 13 碼且校驗碼正確")
+  end
+
+  def teacher_owned_book_batch_year_in_teacher_batches
+    return unless owned_by_teacher?
+    return if user_id.blank? || batch_year_id.blank?
+
+    owner = User.with_deleted.find_by(id: user_id)
+    return if owner.blank?
+    return if owner.superadmin?
+    return if owner.member_batch_year_ids.include?(batch_year_id)
+
+    errors.add(:batch_year_id, "must be one of the owning teacher's assigned batches")
   end
 
   def normalize_total
