@@ -2,7 +2,7 @@ class BooksController < ApplicationController
   # 盤點表 PDF 排序（與列表「排序」選項一致：書名筆畫／來源／ISBN）
   INVENTORY_SORT_KEYS = %w[title_strokes source isbn].freeze
 
-  before_action :set_book, only: %i[ show edit update destroy return_to_library borrow return_shelf ]
+  before_action :set_book, only: %i[ show edit update destroy circulation_history return_to_library borrow return_shelf ]
 
   # GET /books or /books.json
   def index
@@ -326,6 +326,11 @@ class BooksController < ApplicationController
   # GET /books/1 or /books/1.json
   def show
     redirect_to edit_book_path(@book), status: :see_other
+  end
+
+  # GET /books/1/circulation_history — circulation rows for this book (借閱紀錄)
+  def circulation_history
+    @circulation_records = @book.circulation_records.includes(:user).order(borrowed_at: :desc).limit(500)
   end
 
   # GET /books/new

@@ -7,7 +7,7 @@ class ApplicationController < ActionController::Base
   stale_when_importmap_changes
 
   before_action :require_login
-  helper_method :current_user, :current_user_admin?
+  helper_method :current_user, :current_user_admin?, :books_list_query_hash
 
   def current_user
     @current_user ||= User.find_by(id: session[:user_id]) if session[:user_id]
