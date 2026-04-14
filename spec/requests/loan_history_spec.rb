@@ -14,6 +14,8 @@ RSpec.describe "Loan history (dashboard)", type: :request do
       expect(response).to have_http_status(:success)
       expect(response.body).to include("請從")
       expect(response.body).to include("人員列表")
+      expect(response.body).to include("返回人員列表")
+      expect(response.body).not_to include("返回借還書")
       expect(response.body).not_to include("NotListedHere")
     end
 

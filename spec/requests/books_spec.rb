@@ -206,6 +206,12 @@ RSpec.describe "Books", type: :request do
       expect(response).to have_http_status(:success)
       expect(response.body).to include("尚無借閱紀錄")
     end
+
+    it "only offers 返回書籍列表 in the header" do
+      get circulation_history_book_url(book)
+      expect(response.body).to include("返回書籍列表")
+      expect(response.body).not_to include("返回編輯")
+    end
   end
 
   describe "PATCH /books/:id" do

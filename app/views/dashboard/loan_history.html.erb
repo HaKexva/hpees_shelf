@@ -16,16 +16,13 @@
       <% end %>
     </div>
     <div class="flex flex-wrap gap-2 items-center">
-      <% if current_user_admin? || current_user.nil? %>
-        <%= link_to "人員列表", users_path(users_list_query_hash), class: "inline-flex items-center rounded-md px-3.5 py-2.5 bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 font-medium" %>
-      <% end %>
-      <%= link_to "返回借還書", root_path, class: "inline-flex items-center rounded-md px-3.5 py-2.5 bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 font-medium" %>
+      <%= link_to "返回人員列表", users_path(users_list_query_hash), class: "inline-flex items-center rounded-md px-3.5 py-2.5 bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 font-medium" %>
     </div>
   </div>
 
   <% if (current_user_admin? || current_user.nil?) && @filter_user_id.blank? %>
     <div class="bg-white rounded-xl shadow-md border border-gray-100 p-6 text-sm text-gray-600">
-      請從<%= link_to "人員列表", users_path(users_list_query_hash), class: "text-indigo-600 hover:text-indigo-800 font-medium" %>點該人列的「借閱紀錄」查看。
+      請從人員列表點該人列的「借閱紀錄」查看。
     </div>
   <% else %>
     <% if (current_user_admin? || current_user.nil?) && @filter_user_id.present? && @filter_user.blank? %>
