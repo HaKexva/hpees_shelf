@@ -1,0 +1,130 @@
+<% draft = @relocation_draft || {} %>
+<% relocation_by_opts = relocation_batch_year_select_options(@batch_years, staged_commit: @relocation_school_year_pending_commit) %>
+<%# 書籍：先說明可能須改掛的來源，再依實際待處理清單顯示表格；皆無則顯示無符合。 %>
+<div id="relocation-books" class="space-y-6" aria-labelledby="relocation-books-heading">
+  <div class="bg-white rounded-lg shadow p-6 border border-gray-100">
+    <h2 id="relocation-books-heading" class="font-semibold text-lg mb-2">書籍</h2>
+    <p class="text-sm text-gray-600 mb-3">升學年後，若書籍所屬屆數已標為「畢業」，下列來源的書可能須在本頁重新選擇新屆數（實際須處理者以下方清單為準）。</p>
+    <p class="text-sm font-medium text-gray-800 mb-1">會需要處理的來源（依下方清單為準）</p>
+    <ul class="list-disc list-inside text-sm text-gray-700 space-y-1.5 mb-4">
+      <li><span class="font-medium">老師的書（該老師教兩屆或以上）</span>：需針對每一本書分開選擇新屆數。</li>
+      <li><span class="font-medium">老師的書（老師教單一屆）</span>：不在此區逐本選擇，會與下方「人員」的該老師主屆數指定同步。</li>
+      <li><span class="font-medium">捐贈的書</span>：逐本選擇新屆數。</li>
+      <li><span class="font-medium">班級的書</span>：平時隨班自動移動；若班級屆數已畢業且仍需改掛，會在下方清單逐本選擇新屆數。</li>
+    </ul>
+    <p class="text-sm text-gray-600 mb-4"><span class="font-medium text-gray-800">圖書館的書</span>：此區提供歸還按鈕。</p>
+    <% if @any_library_books_to_return %>
+      <%= link_to "歸還圖書館書籍", return_to_library_batch_books_path, class: "inline-flex items-center rounded-md px-3.5 py-2.5 bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 font-medium" %>
+    <% else %>
+      <span class="inline-flex rounded-md px-3.5 py-2.5 bg-gray-100 text-gray-600 text-sm font-medium">已歸還完成</span>
+    <% end %>
+  </div>
+
+  <% if @pending_books.any? %>
+    <% if @pending_teacher_books_multi.present? %>
+      <div class="bg-white rounded-lg shadow p-6">
+        <h3 class="font-semibold text-lg mb-4">老師的書（該老師教兩屆或以上）：逐本指定新屆數</h3>
+        <p class="text-sm text-gray-600 mb-4">下列老師的書需要針對每一本書分開選擇新屆數。</p>
+        <div class="overflow-x-auto">
+          <table class="min-w-full divide-y divide-gray-200">
+            <thead class="bg-gray-50">
+              <tr>
+                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">老師</th>
+                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">書名</th>
+                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">新屆數</th>
+              </tr>
+            </thead>
+            <tbody class="bg-white divide-y divide-gray-200">
+              <% @pending_teacher_books_multi.sort_by { |uid, _| uid.to_i }.each do |user_id, books| %>
+                <% teacher = books.first&.user %>
+                <% allowed_ids = Array(draft.dig("teacher_batch_year_ids", user_id.to_s).presence || teacher&.member_batch_year_ids).reject(&:blank?).map(&:to_i).uniq %>
+                <% allowed_opts = relocation_batch_year_select_options_by_ids(allowed_ids, staged_commit: @relocation_school_year_pending_commit) %>
+                <% books.sort_by { |b| b.title.to_s }.each_with_index do |book, idx| %>
+                  <tr>
+                    <td class="px-4 py-2 text-sm font-medium text-gray-900"><%= idx == 0 ? (teacher&.name || "—") : "" %></td>
+                    <td class="px-4 py-2 text-sm text-gray-700"><%= book.title.presence || "（無書名）" %></td>
+                    <td class="px-4 py-2">
+                      <% selected = draft.dig("book_assignments", book.id.to_s).presence %>
+                      <%= select_tag "book_assignments[#{book.id}]", options_for_select(allowed_opts, selected), { include_blank: "請選擇", required: true, class: "block shadow-sm rounded-md border border-gray-300 px-3 py-2 text-sm w-48" } %>
+                    </td>
+                  </tr>
+                <% end %>
+              <% end %>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    <% end %>
+
+    <% if @pending_teacher_books_single.present? %>
+      <div class="bg-white rounded-lg shadow p-6">
+        <h3 class="font-semibold text-lg mb-2">老師的書（老師教單一屆）：與人員指定同步</h3>
+        <p class="text-sm text-gray-600">這些老師的書會跟隨下方「人員」區塊中該老師的主屆數指定一起更新，不在此區逐本選擇。</p>
+      </div>
+    <% end %>
+
+    <% if @pending_books_donated.present? %>
+      <div class="bg-white rounded-lg shadow p-6">
+        <h3 class="font-semibold text-lg mb-4">捐贈的書：逐本指定新屆數（<%= @pending_books_donated.size %> 本）</h3>
+        <div class="overflow-x-auto">
+          <table class="min-w-full divide-y divide-gray-200">
+            <thead class="bg-gray-50">
+              <tr>
+                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">書名</th>
+                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">目前屆數</th>
+                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">新屆數</th>
+              </tr>
+            </thead>
+            <tbody class="bg-white divide-y divide-gray-200">
+              <% @pending_books_donated.sort_by { |b| b.title.to_s }.each do |book| %>
+                <tr>
+                  <td class="px-4 py-2 text-sm font-medium text-gray-900"><%= book.title %></td>
+                  <td class="px-4 py-2 text-sm text-gray-600"><%= book.batch_year&.display_label_with_grade %></td>
+                  <td class="px-4 py-2">
+                    <% selected = draft.dig("book_assignments", book.id.to_s).presence %>
+                    <%= select_tag "book_assignments[#{book.id}]", options_for_select(relocation_by_opts, selected), { include_blank: "請選擇", required: true, class: "block shadow-sm rounded-md border border-gray-300 px-3 py-2 text-sm w-48" } %>
+                  </td>
+                </tr>
+              <% end %>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    <% end %>
+
+    <% if @pending_books_class.present? %>
+      <div class="bg-white rounded-lg shadow p-6">
+        <h3 class="font-semibold text-lg mb-4">班級的書：畢業後需改掛者逐本指定（<%= @pending_books_class.size %> 本）</h3>
+        <p class="text-sm text-gray-600 mb-4">平時班級的書會隨班自動移動；只有班級屆數已畢業且仍需改掛者，才會列在此處逐本指定。</p>
+        <div class="overflow-x-auto">
+          <table class="min-w-full divide-y divide-gray-200">
+            <thead class="bg-gray-50">
+              <tr>
+                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">書名</th>
+                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">目前屆數</th>
+                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">新屆數</th>
+              </tr>
+            </thead>
+            <tbody class="bg-white divide-y divide-gray-200">
+              <% @pending_books_class.sort_by { |b| b.title.to_s }.each do |book| %>
+                <tr>
+                  <td class="px-4 py-2 text-sm font-medium text-gray-900"><%= book.title %></td>
+                  <td class="px-4 py-2 text-sm text-gray-600"><%= book.batch_year&.display_label_with_grade %></td>
+                  <td class="px-4 py-2">
+                    <% selected = draft.dig("book_assignments", book.id.to_s).presence %>
+                    <%= select_tag "book_assignments[#{book.id}]", options_for_select(relocation_by_opts, selected), { include_blank: "請選擇", required: true, class: "block shadow-sm rounded-md border border-gray-300 px-3 py-2 text-sm w-48" } %>
+                  </td>
+                </tr>
+              <% end %>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    <% end %>
+  <% else %>
+    <div class="bg-gray-50 border border-gray-200 rounded-lg p-6" role="status">
+      <p class="text-sm text-gray-700 font-medium mb-1">無符合的書籍</p>
+      <p class="text-sm text-gray-600">目前沒有落在「已畢業屆數」且依規則須於本頁重新指定屆數的書籍；若您預期應有書目，請確認該書是否為「班級的書 · 留班不動」（由系統改掛前一屆）或尚未掛在畢業屆。</p>
+    </div>
+  <% end %>
+</div>
