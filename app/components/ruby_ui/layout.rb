@@ -125,21 +125,26 @@ module RubyUI
     end
 
     def render_sidebar_footer
+      demo = view_context.respond_to?(:demo_mode?) && view_context.demo_mode?
       div(class: "px-4 py-4 border-t") do
-        div(class: "text-xs text-muted-foreground truncate mb-2") do
-          plain view_context.current_user.name
+        unless demo
+          div(class: "text-xs text-muted-foreground truncate mb-2") do
+            plain view_context.current_user.name
+          end
         end
         render_switch_school_year_button
         render_rollback_school_year_button
-        form(action: view_context.logout_path, method: "post") do
-          input(type: "hidden", name: "_method", value: "delete")
-          input(type: "hidden", name: "authenticity_token", value: view_context.form_authenticity_token)
-          button(
-            type: "submit",
-            class: "w-full inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors " \
-                   "px-4 py-2 h-9 border border-input bg-background shadow-sm " \
-                   "hover:bg-accent hover:text-accent-foreground"
-          ) { "登出" }
+        unless demo
+          form(action: view_context.logout_path, method: "post") do
+            input(type: "hidden", name: "_method", value: "delete")
+            input(type: "hidden", name: "authenticity_token", value: view_context.form_authenticity_token)
+            button(
+              type: "submit",
+              class: "w-full inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors " \
+                     "px-4 py-2 h-9 border border-input bg-background shadow-sm " \
+                     "hover:bg-accent hover:text-accent-foreground"
+            ) { "登出" }
+          end
         end
       end
     end
