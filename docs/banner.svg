@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="640" viewBox="0 0 1280 640" role="img" aria-labelledby="title desc">
+  <title id="title">HPEES Shelf</title>
+  <desc id="desc">Banner: school library management  books, users, batch years</desc>
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#1e3a5f"/>
+      <stop offset="100%" style="stop-color:#0f172a"/>
+    </linearGradient>
+  </defs>
+  <rect width="1280" height="640" fill="url(#bg)"/>
+  <rect x="80" y="120" width="1120" height="400" rx="24" fill="#ffffff" fill-opacity="0.06" stroke="#ffffff" stroke-opacity="0.15"/>
+  <text x="120" y="280" font-family="system-ui, -apple-system, Segoe UI, sans-serif" font-size="72" font-weight="700" fill="#f8fafc">HPEES Shelf</text>
+  <text x="120" y="360" font-family="system-ui, -apple-system, Segoe UI, sans-serif" font-size="32" font-weight="400" fill="#94a3b8">School library · ø¡ · Rails 8</text>
+  <g fill="none" stroke="#38bdf8" stroke-width="3" stroke-linecap="round" opacity="0.9">
+    <path d="M980 200h120M980 240h90M980 280h120M980 320h75"/>
+    <rect x="940" y="380" width="200" height="120" rx="8" stroke="#64748b"/>
+  </g>
+</svg>

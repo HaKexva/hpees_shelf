@@ -20,18 +20,19 @@ class DashboardController < ApplicationController
 
   def loan_history
     if current_user_admin? || current_user.nil?
-      # Include all users (active, resigned, graduated) so admins can view anyone's loan history
-      @users = User.includes(:batch_year).order(:admin, :name)
       filter_user_id = params[:user_id].presence&.to_i
       if filter_user_id.present?
         @records = CirculationRecord.where(user_id: filter_user_id).includes(:book, :user).order(borrowed_at: :desc).limit(500)
         @filter_user_id = filter_user_id
+        @filter_user = User.with_deleted.find_by(id: filter_user_id)
       else
         @records = []
         @filter_user_id = nil
+        @filter_user = nil
       end
     else
       @records = current_user.circulation_records.includes(:book).order(borrowed_at: :desc).limit(500)
+      @filter_user = current_user
     end
   end
 
@@ -81,12 +82,8 @@ class DashboardController < ApplicationController
         eff_total = b.total.to_i.positive? ? b.total.to_i : 1
         active = active_counts[b.id].to_i
         avail = [ eff_total - active, 0 ].max
-        borrowable_for_checkout =
-          if b.owned_by_library? && eff_total > 1
-            avail.positive?
-          else
-            b.status == Book::STATUS_ON_SHELF
-          end
+        batch_ok = borrower.blank? || borrower.superadmin? || borrower.may_borrow_from_batch?(b.batch_year_id)
+        borrowable_for_checkout = b.available_for_checkout? && batch_ok
         {
           id: b.id,
           title: b.title,
@@ -138,17 +135,9 @@ class DashboardController < ApplicationController
             .to_a
             .select { |b| Book.isbn_match?(b.isbn, isbn) }
 
-      active_counts = CirculationRecord.where(book_id: base_books.map(&:id), returned_at: nil).group(:book_id).count
       books =
         if action == "checkout"
-          base_books.select do |b|
-            eff_total = b.total.to_i.positive? ? b.total.to_i : 1
-            if b.owned_by_library? && eff_total > 1
-              (eff_total - active_counts[b.id].to_i).positive?
-            else
-              b.status == Book::STATUS_ON_SHELF
-            end
-          end
+          base_books.select(&:available_for_checkout?)
         else
           base_books.select { |b| b.status == Book::STATUS_BORROWED }
         end
@@ -186,10 +175,10 @@ class DashboardController < ApplicationController
         return
       end
 
-      if action == "checkout" && !borrower.admin?
-        books = books.select { |b| b.batch_year_id == borrower.batch_year_id }
+      if action == "checkout" && borrower.present? && !borrower.superadmin?
+        books = books.select { |b| borrower.may_borrow_from_batch?(b.batch_year_id) }
         if books.empty?
-          redirect_to _borrow_return_home_path, alert: "此書與借閱人的屆數不同，無法借閱。", status: :see_other
+          redirect_to _borrow_return_home_path, alert: "此書的屆數不在借閱人可借範圍內，無法借閱。", status: :see_other
           return
         end
       end
@@ -231,16 +220,22 @@ class DashboardController < ApplicationController
 
       if books.size == 1
         book = books.first
-        if book.status == Book::STATUS_ON_SHELF && _student_at_borrow_limit?(borrower)
-          redirect_to _borrow_return_home_path, alert: "學生一次只能借一本書，請先歸還再借。", status: :see_other
-          return
-        end
-        if book.status == Book::STATUS_ON_SHELF && book.batch_year_id != borrower.batch_year_id
-          redirect_to _borrow_return_home_path, alert: "此書與您的屆數不同，無法借閱。", status: :see_other
-          return
-        end
-        if book.status == Book::STATUS_BORROWED && !book.borrowed_by?(borrower)
+        if book.borrowed_by?(borrower)
+          # 有未還紀錄則視為還書（多冊同時可借時，不與「再借一冊」混淆）
+        elsif book.available_for_checkout?
+          if _student_at_borrow_limit?(borrower)
+            redirect_to _borrow_return_home_path, alert: "學生一次只能借一本書，請先歸還再借。", status: :see_other
+            return
+          end
+          unless borrower.may_borrow_from_batch?(book.batch_year_id)
+            redirect_to _borrow_return_home_path, alert: "此書不在您可借的屆數範圍內，無法借閱。", status: :see_other
+            return
+          end
+        elsif book.status == Book::STATUS_BORROWED
           redirect_to _borrow_return_home_path, alert: "此書不是您借閱的，無法歸還。", status: :see_other
+          return
+        else
+          redirect_to _borrow_return_home_path, alert: "此書目前無法借閱。", status: :see_other
           return
         end
         _do_borrow_or_return_by_status(book, borrower)
@@ -250,11 +245,13 @@ class DashboardController < ApplicationController
       end
 
       books = books.select do |b|
-        (b.status == Book::STATUS_ON_SHELF && b.batch_year_id == borrower.batch_year_id) ||
-          (b.status == Book::STATUS_BORROWED && b.borrowed_by?(borrower))
+        next true if b.borrowed_by?(borrower)
+        next false unless b.available_for_checkout?
+
+        borrower.may_borrow_from_batch?(b.batch_year_id)
       end
       if books.empty?
-        redirect_to _borrow_return_home_path, alert: "沒有您可借或可還的書（此書與您的屆數不同或非您借閱）。", status: :see_other
+        redirect_to _borrow_return_home_path, alert: "沒有您可借或可還的書（屆數不符或非您借閱）。", status: :see_other
         return
       end
 
@@ -280,16 +277,8 @@ class DashboardController < ApplicationController
       end
       @process_notice = "已登記借閱：#{book.title} → #{borrower.name}。"
     else
-      if book.owned_by_library? && book.effective_total > 1
-        rec = book.circulation_records.where(user_id: borrower.id, returned_at: nil).order(:borrowed_at).first
-        if rec
-          rec.update!(returned_at: Time.current)
-          if book.active_circulation_records.exists?
-            # 仍有其他人借閱，維持「借閱中」狀態
-          else
-            book.update!(user_id: nil, status: Book::STATUS_ON_SHELF, borrowed_at: nil)
-          end
-        end
+      if book.effective_total > 1
+        book.return_active_loan_for!(borrower)
       else
         book.return_from_single_copy_borrow!
       end
@@ -298,7 +287,10 @@ class DashboardController < ApplicationController
   end
 
   def _do_borrow_or_return_by_status(book, borrower)
-    if book.status == Book::STATUS_ON_SHELF
+    if book.borrowed_by?(borrower)
+      book.return_active_loan_for!(borrower)
+      @process_notice = "已還書：#{book.title}。"
+    elsif book.available_for_checkout?
       if book.owned_by_library? && book.effective_total > 1
         if book.can_borrow_copy?
           book.circulation_records.create!(user_id: borrower.id, borrowed_at: Time.current)
@@ -311,20 +303,7 @@ class DashboardController < ApplicationController
       end
       @process_notice = "已登記借閱：#{book.title} → #{borrower.name}。"
     else
-      if book.owned_by_library? && book.effective_total > 1
-        rec = book.circulation_records.where(user_id: borrower.id, returned_at: nil).order(:borrowed_at).first
-        if rec
-          rec.update!(returned_at: Time.current)
-          if book.active_circulation_records.exists?
-            # 仍有其他人借閱，維持「借閱中」狀態
-          else
-            book.update!(user_id: nil, status: Book::STATUS_ON_SHELF, borrowed_at: nil)
-          end
-        end
-      else
-        book.return_from_single_copy_borrow!
-      end
-      @process_notice = "已還書：#{book.title}。"
+      raise ActiveRecord::RecordInvalid, "cannot borrow or return"
     end
   end
 

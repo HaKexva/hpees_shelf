@@ -66,6 +66,19 @@ RSpec.describe User, ".find_by_google_auth" do
       end
     end
 
+    context "when auto-provisioning Ray and 第4屆 exists" do
+      let(:email) { "ray120424@gmail.com" }
+      let!(:by4) { create(:batch_year, batch_number: 4) }
+
+      before { create(:batch_year, batch_number: 1) }
+
+      it "assigns batch_number 4 as primary batch_year" do
+        user = User.find_by_google_auth(auth_hash)
+        expect(user).to be_persisted
+        expect(user.batch_year).to eq(by4)
+      end
+    end
+
     context "when no user record AND no batch_years exist" do
       it "auto-provisions user and creates a batch_year" do
         expect(BatchYear.count).to eq(0)
