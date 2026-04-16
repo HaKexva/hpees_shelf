@@ -16,7 +16,9 @@ class User < ApplicationRecord
   has_many :loan_records, -> { where(returned_at: nil) }, class_name: "CirculationRecord"
   has_many :borrowed_books, class_name: "Book", through: :loan_records, source: :book
 
+  before_validation :clear_student_id_fields_if_admin
   before_save :sync_grade_id_from_batch_year
+  after_save :attach_previous_primary_batch_to_extras_for_admins
 
   validates :id_number,
             format: {
@@ -92,6 +94,13 @@ class User < ApplicationRecord
 
   SUPERADMIN_EMAILS = %w[ray120424@gmail.com tubaxenor@gmail.com].freeze
 
+  # Ray's primary 屆數: 第4屆 (`batch_number` 4) when it exists; otherwise fourth row by `batch_number` ascending.
+  def self.default_batch_year_for_superadmin_provision(email)
+    return unless email.to_s.downcase.strip == "ray120424@gmail.com"
+
+    BatchYear.find_by(batch_number: 4) || BatchYear.order(:batch_number).offset(3).first
+  end
+
   def self.find_by_google_auth(auth)
     info = auth["info"] || {}
     uid = auth["uid"]
@@ -106,7 +115,9 @@ class User < ApplicationRecord
 
     # Auto-provision superadmins who don't have a User record yet
     if user.nil? && is_superadmin
-      batch_year = BatchYear.order(:id).first ||
+      batch_year =
+        default_batch_year_for_superadmin_provision(email) ||
+        BatchYear.order(:id).first ||
         BatchYear.create!(batch_number: 1, grade_id: 1, name: "第1屆")
       user = create!(
         name: info["name"] || email.split("@").first,
@@ -201,11 +212,47 @@ class User < ApplicationRecord
     resigned_at.present? && resigned_at >= 1.month.ago
   end
 
+  # Primary 屆數 plus extra 屆數 links (teachers). Used for borrow rules and teacher-book placement.
+  def member_batch_year_ids
+    ([ batch_year_id ] + extra_batch_year_ids).compact.uniq
+  end
+
+  def may_borrow_from_batch?(batch_year_id)
+    return true if superadmin?
+    return false if batch_year_id.blank?
+
+    member_batch_year_ids.include?(batch_year_id.to_i)
+  end
+
   private
+
+  def clear_student_id_fields_if_admin
+    return unless admin?
+
+    self.id_number = nil
+    self.seat_number = nil
+  end
 
   # Class batches copy batch_year.grade_id; admins/teachers are identified only by `admin` flag now.
   def sync_grade_id_from_batch_year
     return unless batch_year
     self.grade_id = batch_year.grade_id
+  end
+
+  # When a teacher's primary 屆數 changes (e.g. their class cohort graduated and they take a new class),
+  # keep the old 屆數 on `extra_batch_years` instead of only overwriting `batch_year_id`, so borrowing
+  # and teacher-book rules (`member_batch_year_ids`) still include the graduated 屆.
+  def attach_previous_primary_batch_to_extras_for_admins
+    return unless admin?
+    return unless saved_change_to_batch_year_id?
+
+    old_id, new_batch_id = saved_change_to_batch_year_id
+    return if old_id.blank? || old_id == new_batch_id
+    return if extra_batch_year_ids.include?(old_id)
+
+    prev = BatchYear.find_by(id: old_id)
+    return if prev.blank?
+
+    extra_batch_years << prev
   end
 end
