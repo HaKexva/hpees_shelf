@@ -157,8 +157,6 @@ Do **not** use `db:reset`, `db:drop`, or `db:schema:load` in production or in an
 
 For maintainers: see **`AGENTS.md`** (Cursor / Linear / branch → PR → merge to `main`). Do not push feature work directly to `main`.
 
-**Continue:** [繁體中文](#readme-zh)
-
 ---
 
 <a id="readme-zh"></a>
