@@ -15,7 +15,8 @@
       <% end %>
     </div>
     <div class="flex flex-wrap gap-2 shrink-0">
-      <%= link_to "返回書籍列表", books_path(books_list_query_hash), class: "inline-flex items-center rounded-md px-3.5 py-2.5 bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 font-medium" %>
+      <%= link_to "返回編輯", edit_book_path(@book), class: "inline-flex items-center rounded-md px-3.5 py-2.5 bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 font-medium" %>
+      <%= link_to "書籍列表", books_path(books_list_query_hash), class: "inline-flex items-center rounded-md px-3.5 py-2.5 bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 font-medium" %>
     </div>
   </div>
 
