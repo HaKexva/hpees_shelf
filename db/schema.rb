@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_04_11_150000) do
+ActiveRecord::Schema[8.1].define(version: 2026_04_16_110221) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -151,11 +151,19 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_11_150000) do
     t.string "seat_number"
     t.datetime "updated_at", null: false
     t.index ["deleted_at"], name: "index_users_on_deleted_at"
-    t.index ["email"], name: "index_users_on_email", unique: true
+    t.index ["google_uid"], name: "index_users_on_google_uid", unique: true
   end
 
   create_table "users_batch_years", force: :cascade do |t|
     t.integer "batch_year_id", null: false
     t.integer "user_id", null: false
   end
+
+  add_foreign_key "books", "batch_years"
+  add_foreign_key "circulation_records", "books"
+  add_foreign_key "circulation_records", "users"
+  add_foreign_key "library_loan_histories", "batch_years"
+  add_foreign_key "tag_rule_options", "tag_rule_groups"
+  add_foreign_key "taggings", "tags"
+  add_foreign_key "users", "batch_years"
 end
