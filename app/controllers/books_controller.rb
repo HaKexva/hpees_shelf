@@ -20,7 +20,9 @@ class BooksController < ApplicationController
     @inventory_teacher_users = User.with_deleted.where(id: teacher_ids).order(:name)
     @invalid_books = @books.select { |b| b.missing_required_fields.any? }
     @books_with_invalid_isbn = @books.select(&:invalid_isbn?)
-    @any_library_books_to_return = Book.where(source: :owned_by_library).where.not(status: Book::STATUS_RETURNED_LIBRARY).exists?
+    @any_library_books_to_return = @filter_batch_year_id.present? &&
+      Book.where(source: :owned_by_library, batch_year_id: @filter_batch_year_id)
+          .where.not(status: Book::STATUS_RETURNED_LIBRARY).exists?
     # 借閱超過一天視為失蹤，在頁面上方列出
     @missing_books = Book.where.not(title: [ nil, "" ])
                          .where.not(status: Book::STATUS_RETURNED_LIBRARY)
