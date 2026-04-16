@@ -125,20 +125,61 @@ module RubyUI
     end
 
     def render_sidebar_footer
+      demo = view_context.respond_to?(:demo_mode?) && view_context.demo_mode?
       div(class: "px-4 py-4 border-t") do
-        div(class: "text-xs text-muted-foreground truncate mb-2") do
-          plain view_context.current_user.name
+        unless demo
+          div(class: "text-xs text-muted-foreground truncate mb-2") do
+            plain view_context.current_user.name
+          end
         end
-        form(action: view_context.logout_path, method: "post") do
-          input(type: "hidden", name: "_method", value: "delete")
-          input(type: "hidden", name: "authenticity_token", value: view_context.form_authenticity_token)
-          button(
-            type: "submit",
-            class: "w-full inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors " \
-                   "px-4 py-2 h-9 border border-input bg-background shadow-sm " \
-                   "hover:bg-accent hover:text-accent-foreground"
-          ) { "登出" }
+        render_switch_school_year_button
+        render_rollback_school_year_button
+        unless demo
+          form(action: view_context.logout_path, method: "post") do
+            input(type: "hidden", name: "_method", value: "delete")
+            input(type: "hidden", name: "authenticity_token", value: view_context.form_authenticity_token)
+            button(
+              type: "submit",
+              class: "w-full inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors " \
+                     "px-4 py-2 h-9 border border-input bg-background shadow-sm " \
+                     "hover:bg-accent hover:text-accent-foreground"
+            ) { "登出" }
+          end
         end
+      end
+    end
+
+    def render_switch_school_year_button
+      return unless view_context.current_user_admin?
+      return unless BatchYear.show_advance_school_year_button?
+
+      next_roc = BatchYear.display_current_school_year_roc + 1
+      form(action: view_context.reassign_grades_batch_years_path, method: "post", class: "mb-2") do
+        input(type: "hidden", name: "authenticity_token", value: view_context.form_authenticity_token)
+        button(
+          type: "submit",
+          class: "w-full inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors " \
+                 "px-4 py-2 h-9 border border-input bg-background shadow-sm " \
+                 "hover:bg-accent hover:text-accent-foreground",
+          data: { turbo_confirm: "將開啟指定屆數頁面；學年度會在您送出「儲存屆數指定」後才更新。確定？" }
+        ) { "切換至#{next_roc}學年度" }
+      end
+    end
+
+    def render_rollback_school_year_button
+      return unless view_context.current_user_admin?
+      return unless BatchYear.can_rollback_school_year?
+
+      prev_roc = BatchYear.display_current_school_year_roc - 1
+      form(action: view_context.rollback_school_year_batch_years_path, method: "post", class: "mb-2") do
+        input(type: "hidden", name: "authenticity_token", value: view_context.form_authenticity_token)
+        button(
+          type: "submit",
+          class: "w-full inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors " \
+                 "px-4 py-2 h-9 border border-input bg-background shadow-sm " \
+                 "hover:bg-accent hover:text-accent-foreground",
+          data: { turbo_confirm: "將退回至#{prev_roc}學年度，並刪除屆數編號最大的一屆、重算年級。確定？" }
+        ) { "返回前一學年度" }
       end
     end
 
