@@ -27,6 +27,7 @@ test:
   primary:
     <<: *default
     database: hpees_shelf_test
+    url: <%= ENV["DATABASE_URL"] %>
   demo:
     <<: *default
     database: hpees_shelf_test_demo
