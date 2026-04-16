@@ -1,18 +1,6 @@
 # HPEES Shelf
 
-## Quick links
-
-| | |
-|:---|:---|
-| **Live demo** | *No hosted demo yet.* Run locally with `bin/dev` (see [Local development setup](#local-development-setup)) or deploy (e.g. [Railway](#deployment--railway)), then add your public URL here and in the repo **About → Website**. |
-| **Source code** | [https://github.com/HaKexva/hpees_shelf](https://github.com/HaKexva/hpees_shelf) |
-| **README on GitHub** | [Open `README.md` on `main`](https://github.com/HaKexva/hpees_shelf/blob/main/README.md) |
-| **Clone** | `git clone https://github.com/HaKexva/hpees_shelf.git` |
-| **Development log** | [docs/DEVLOG.md](docs/DEVLOG.md) (dated work sessions) |
-
-The repository must be **Public** on GitHub for anonymous `git clone` and for the links above to work for everyone. Owners: **Settings → General → Danger zone → Change repository visibility → Public**.
-
-**Language | 語言:** [English](#readme-en) · [繁體中文](#readme-zh)
+**Language  語言:** [English](#readme-en) · [繁體中文](#readme-zh)
 
 ---
 
