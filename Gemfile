@@ -91,7 +91,7 @@ gem "omniauth-google-oauth2"
 
 gem "roo", "~> 2.10"
 
-gem "roo-xls", "~> 1.2"
+gem "roo-xls", "~> 2.0"
 
 gem "prawn", "~> 2.5"
 gem "prawn-table", "~> 0.2"
