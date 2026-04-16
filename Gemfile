@@ -43,6 +43,9 @@ gem "thruster", require: false
 gem "image_processing", "~> 1.2"
 
 group :development, :test do
+  # Load `.env` into ENV (file is gitignored); see `.env.example`.
+  gem "dotenv-rails"
+
   # See https://guides.rubyonrails.org/debugging_rails_applications.html#debugging-with-the-debug-gem
   gem "debug", platforms: %i[ mri windows ], require: "debug/prelude"
 
@@ -91,7 +94,7 @@ gem "omniauth-google-oauth2"
 
 gem "roo", "~> 2.10"
 
-gem "roo-xls", "~> 1.2"
+gem "roo-xls", "~> 2.0"
 
 gem "prawn", "~> 2.5"
 gem "prawn-table", "~> 0.2"

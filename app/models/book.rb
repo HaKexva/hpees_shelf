@@ -25,6 +25,7 @@ class Book < ApplicationRecord
             if: :owned_by_library?
   validates :user_id, presence: true, if: :owned_by_teacher?
   validate :isbn_must_be_valid_13_if_present
+  validate :teacher_owned_book_batch_year_in_teacher_batches
   enum :source, { owned_by_library: 0, donated: 1, owned_by_class: 2, owned_by_teacher: 3 }
   enum :relocation_behavior, { move_with_class: "move_with_class", stay: "stay" }, default: :move_with_class
   before_validation :normalize_relocation_behavior_for_source
@@ -158,6 +159,31 @@ class Book < ApplicationRecord
     available_copies.positive?
   end
 
+  # ISBN / 借還：總數大於 1 時只要尚有冊數就可再借（不必仍是「架上」）；單冊則須架上。
+  def available_for_checkout?
+    return false if status == STATUS_MISSING || status == STATUS_RETURNED_LIBRARY
+
+    effective_total > 1 ? can_borrow_copy? : (status == STATUS_ON_SHELF)
+  end
+
+  # Return one active loan for this user (oldest first). When no open loans remain, back to 架上.
+  def return_active_loan_for!(user)
+    return false if user.blank?
+
+    rec = circulation_records.where(user_id: user.id, returned_at: nil).order(:borrowed_at).first
+    return false unless rec
+
+    rec.update!(returned_at: Time.current)
+    return true if CirculationRecord.where(book_id: id, returned_at: nil).exists?
+
+    if owned_by_teacher?
+      update!(status: STATUS_ON_SHELF, borrowed_at: nil)
+    else
+      update!(user_id: nil, status: STATUS_ON_SHELF, borrowed_at: nil)
+    end
+    true
+  end
+
   # Single-copy checkout (not 圖書館多冊分流): records loan; for 老師的書 keeps `user_id` as the teacher.
   def checkout_to_borrower!(borrower)
     circulation_records.create!(user_id: borrower.id, borrowed_at: Time.current)
@@ -176,6 +202,19 @@ class Book < ApplicationRecord
     else
       update!(user_id: nil, status: STATUS_ON_SHELF, borrowed_at: nil)
     end
+  end
+
+  # After `LibraryLoanHistory` is written: close open loans, mark 歸還圖書館, soft-delete so the row stays for FKs (HAK-75).
+  def return_to_library_and_soft_delete!
+    raise ArgumentError, "only library holdings support return-to-library" unless owned_by_library?
+
+    circulation_records.where(returned_at: nil).update_all(returned_at: Time.current)
+    update!(
+      user_id: nil,
+      status: STATUS_RETURNED_LIBRARY,
+      borrowed_at: nil,
+      deleted_at: Time.current
+    )
   end
 
   # Soft delete: row remains so circulation_records and FKs stay valid; excluded from default Book scopes.
@@ -208,11 +247,6 @@ class Book < ApplicationRecord
       cutoff: one_day_ago
     )
   }
-
-  # The "Return to library" button is only shown during 7–9 (Jul–Sep) and 12–2 (Dec–Feb); hidden in other months
-  def self.show_return_to_library_button?
-    [ 1, 2, 7, 8, 9, 12 ].include?(Date.current.month)
-  end
 
   # Normalize ISBN to 13 digits only (strip hyphens/spaces) for comparison. Returns nil if not 13 digits.
   def self.normalize_isbn13(raw)
@@ -360,6 +394,18 @@ class Book < ApplicationRecord
     return if isbn.blank?
     return if self.class.valid_isbn13?(isbn)
     errors.add(:isbn, "應為 13 碼且校驗碼正確")
+  end
+
+  def teacher_owned_book_batch_year_in_teacher_batches
+    return unless owned_by_teacher?
+    return if user_id.blank? || batch_year_id.blank?
+
+    owner = User.with_deleted.find_by(id: user_id)
+    return if owner.blank?
+    return if owner.superadmin?
+    return if owner.member_batch_year_ids.include?(batch_year_id)
+
+    errors.add(:batch_year_id, "must be one of the owning teacher's assigned batches")
   end
 
   def normalize_total

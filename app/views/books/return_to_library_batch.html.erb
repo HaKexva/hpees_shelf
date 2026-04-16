@@ -13,7 +13,7 @@
       </div>
       <div class="flex flex-wrap gap-2 items-center">
         <%= f.submit "確定歸還", class: "inline-flex items-center rounded-md px-3.5 py-2.5 bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 font-medium cursor-pointer" %>
-        <%= link_to "取消", books_path, class: "inline-flex items-center rounded-md px-3.5 py-2.5 bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 font-medium" %>
+        <%= link_to "取消", (params[:batch_year_id].present? ? books_path(batch_year_id: params[:batch_year_id]) : books_path), class: "inline-flex items-center rounded-md px-3.5 py-2.5 bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 font-medium" %>
       </div>
     <% end %>
   </div>

@@ -2,69 +2,44 @@
 
 <div class="w-full">
   <div class="flex flex-wrap items-center justify-between gap-4 mb-6">
-    <h1 class="font-bold text-2xl sm:text-4xl text-gray-900">借閱紀錄</h1>
-    <%= link_to "返回借還書", root_path, class: "inline-flex items-center rounded-md px-3.5 py-2.5 bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 font-medium" %>
-  </div>
-
-  <% if current_user_admin? || current_user.nil? %>
-    <div class="bg-white rounded-xl shadow-md border border-gray-100 p-4 mb-6">
-      <%= form_with url: loan_history_path, method: :get, local: true, class: "flex flex-wrap items-end gap-3", id: "loan-history-filter-form" do |f| %>
-        <div class="min-w-0 flex-1 sm:max-w-xs relative" data-controller="student-search" data-student-search-placeholder-value="搜尋姓名或學號…">
-          <label class="block text-sm font-medium text-gray-700 mb-1">借閱人（姓名／學號）</label>
-          <input type="hidden" name="user_id" data-student-search-target="hidden" value="<%= @filter_user_id %>">
-          <input
-            type="text"
-            data-student-search-target="input"
-            placeholder="搜尋姓名或學號…"
-            autocomplete="off"
-            class="block w-full shadow-sm rounded-lg border border-gray-300 px-3 py-2 text-sm"
-            data-action="focus->student-search#open input->student-search#filter"
-          >
-          <div
-            data-student-search-target="list"
-            class="hidden absolute z-10 mt-1 w-full rounded-lg border border-gray-200 bg-white shadow-lg max-h-60 overflow-auto"
-            role="listbox"
-          >
-            <% if @users.present? %>
-              <% @users.each do |u| %>
-                <% if u.admin? %>
-                  <% label = "#{u.name}（老師）" %>
-                  <% search_text = "#{u.name} 老師" %>
-                <% else %>
-                  <% label = "#{u.name}（#{u.id_number.presence || '—'}）" %>
-                  <% search_text = "#{u.name} #{u.id_number}" %>
-                <% end %>
-                <div
-                  data-student-search-target="item"
-                  data-user-id="<%= u.id %>"
-                  data-label="<%= label %>"
-                  data-search-text="<%= search_text %>"
-                  class="cursor-pointer px-3 py-2.5 text-sm text-gray-900 hover:bg-gray-100 border-b border-gray-50 last:border-0"
-                  role="option"
-                  data-action="click->student-search#select"
-                >
-                  <%= label %>
-                </div>
-              <% end %>
-              <p data-student-search-target="emptyHint" class="hidden px-3 py-2.5 text-sm text-gray-500">無符合的學生</p>
-            <% else %>
-              <p class="px-3 py-2.5 text-sm text-gray-500">尚無學生資料</p>
-            <% end %>
-          </div>
-        </div>
-        <%= f.submit "查詢", class: "inline-flex items-center rounded-md px-3.5 py-2 bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 font-medium cursor-pointer" %>
+    <div>
+      <h1 class="font-bold text-2xl sm:text-4xl text-gray-900">借閱紀錄</h1>
+      <% if @filter_user.present? %>
+        <p class="mt-2 text-base text-gray-700">
+          <% if @filter_user.admin? %>
+            「<%= @filter_user.name %>（老師）」
+          <% else %>
+            「<%= @filter_user.name %>（<%= @filter_user.id_number.presence || '—' %>）」
+          <% end %>
+          <span class="text-gray-600">的借閱紀錄</span>
+        </p>
       <% end %>
     </div>
-  <% end %>
+    <div class="flex flex-wrap gap-2 items-center">
+      <%= link_to "返回人員列表", users_path(users_list_query_hash), class: "inline-flex items-center rounded-md px-3.5 py-2.5 bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 font-medium" %>
+    </div>
+  </div>
+
+  <% if (current_user_admin? || current_user.nil?) && @filter_user_id.blank? %>
+    <div class="bg-white rounded-xl shadow-md border border-gray-100 p-6 text-sm text-gray-600">
+      請從人員列表點該人列的「借閱紀錄」查看。
+    </div>
+  <% else %>
+    <% if (current_user_admin? || current_user.nil?) && @filter_user_id.present? && @filter_user.blank? %>
+      <div class="bg-amber-50 rounded-xl border border-amber-200 p-4 text-sm text-amber-900">
+        找不到此借閱人。
+      </div>
+    <% else %>
 
   <div class="bg-white rounded-xl shadow-md border border-gray-100 overflow-hidden">
     <% if @records.any? %>
+      <% show_borrower_column = @filter_user.blank? && (current_user_admin? || current_user.nil?) %>
       <!-- 桌機版表格 -->
       <div class="overflow-x-auto hidden md:block">
         <table class="min-w-full divide-y divide-gray-200">
           <thead class="bg-gray-50">
             <tr>
-              <% if current_user_admin? || current_user.nil? %>
+              <% if show_borrower_column %>
                 <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">借閱人</th>
               <% end %>
               <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">書名</th>
@@ -75,7 +50,7 @@
           <tbody class="divide-y divide-gray-200">
             <% @records.each do |r| %>
               <tr class="hover:bg-gray-50">
-                <% if current_user_admin? || current_user.nil? %>
+                <% if show_borrower_column %>
                   <td class="px-4 py-3 text-sm text-gray-900"><%= r.user&.name %><%= "（老師）" if r.user&.admin? %></td>
                 <% end %>
                 <td class="px-4 py-3 text-sm text-gray-900"><%= r.book&.title.presence || "—" %></td>
@@ -98,7 +73,7 @@
         <div class="divide-y divide-gray-100">
           <% @records.each do |r| %>
             <div class="px-4 py-3">
-              <% if current_user_admin? || current_user.nil? %>
+              <% if show_borrower_column %>
                 <p class="text-sm font-medium text-gray-900 mb-1">
                   <%= r.user&.name || "—" %><%= "（老師）" if r.user&.admin? %>
                 </p>
@@ -121,13 +96,13 @@
         <p class="px-4 py-2 text-xs text-gray-500 border-t border-gray-100">共 <%= @records.size %> 筆（最多顯示 500 筆）</p>
       </div>
     <% else %>
-      <p class="px-6 py-8 text-center text-gray-500">
-        <% if (current_user_admin? || current_user.nil?) && @filter_user_id.blank? %>
-          請選擇借閱人以查看紀錄。
-        <% else %>
-          尚無借閱紀錄。
-        <% end %>
-      </p>
+      <% if (current_user_admin? || current_user.nil?) && @filter_user_id.present? && @filter_user.present? %>
+        <p class="px-6 py-8 text-center text-gray-500">尚無借閱紀錄。</p>
+      <% elsif !(current_user_admin? || current_user.nil?) %>
+        <p class="px-6 py-8 text-center text-gray-500">尚無借閱紀錄。</p>
+      <% end %>
     <% end %>
   </div>
+    <% end %>
+  <% end %>
 </div>

@@ -12,6 +12,12 @@ RSpec.describe "Books", type: :request do
       expect(response).to have_http_status(:success)
     end
 
+    it "includes per-book circulation history link in the table" do
+      listed = create(:book, batch_year: batch_year, title: "RowHistBook", isbn: "9780000000040")
+      get books_url
+      expect(response.body).to include(circulation_history_book_path(listed))
+    end
+
     it "accepts sort by isbn" do
       get books_url, params: { sort: "isbn" }
       expect(response).to have_http_status(:success)
@@ -21,6 +27,27 @@ RSpec.describe "Books", type: :request do
       create(:book, batch_year: batch_year, title: "Unique Title XYZ", isbn: "9789861817286")
       get books_url, params: { q: "978-986-181" }
       expect(response.body).to include("Unique Title XYZ")
+    end
+
+    it "shows return-to-library batch link when batch year filter is set and that batch has library books" do
+      create(:book, batch_year: batch_year, source: :owned_by_library, call_number: "87654321", title: "LibIdx", isbn: "9780000000026")
+      get books_url, params: { batch_year_id: batch_year.id }
+      body = response.body
+      expect(body).to include("歸還圖書館書籍")
+      expect(body).to include("batch_year_id=#{batch_year.id}")
+    end
+
+    it "does not show return-to-library batch link without batch year filter" do
+      create(:book, batch_year: batch_year, source: :owned_by_library, call_number: "87654321", title: "LibIdx2", isbn: "9780000000033")
+      get books_url
+      expect(response.body).not_to include("歸還圖書館書籍")
+    end
+
+    it "does not show return-to-library batch link when filtered batch has no returnable library books" do
+      other = create(:batch_year)
+      create(:book, batch_year: batch_year, source: :owned_by_library, call_number: "11111111", isbn: "9780000000040", title: "OnBy")
+      get books_url, params: { batch_year_id: other.id }
+      expect(response.body).not_to include("歸還圖書館書籍")
     end
 
     it "includes CSV export link with current filter params" do
@@ -179,10 +206,32 @@ RSpec.describe "Books", type: :request do
       expect(response.body).not_to include("歸還圖書館")
     end
 
-    it "does not include 歸還圖書館 when already marked 歸還圖書館" do
-      lib = create(:book, batch_year: batch_year, source: :owned_by_library, call_number: "11111111", isbn: "9780000000033", status: Book::STATUS_RETURNED_LIBRARY)
-      get edit_book_url(lib)
-      expect(response.body).not_to include("歸還圖書館")
+    it "includes link to circulation history" do
+      get edit_book_url(book)
+      expect(response.body).to include(circulation_history_book_path(book))
+    end
+  end
+
+  describe "GET /books/:id/circulation_history" do
+    it "returns success and lists circulation rows for the book" do
+      student = create(:user, batch_year: batch_year, name: "LoanStudent")
+      book.checkout_to_borrower!(student)
+      get circulation_history_book_url(book)
+      expect(response).to have_http_status(:success)
+      expect(response.body).to include("LoanStudent")
+      expect(response.body).to include("借出時間")
+    end
+
+    it "shows empty state when there are no circulation records" do
+      get circulation_history_book_url(book)
+      expect(response).to have_http_status(:success)
+      expect(response.body).to include("尚無借閱紀錄")
+    end
+
+    it "only offers 返回書籍列表 in the header" do
+      get circulation_history_book_url(book)
+      expect(response.body).to include("返回書籍列表")
+      expect(response.body).not_to include("返回編輯")
     end
   end
 
@@ -212,6 +261,54 @@ RSpec.describe "Books", type: :request do
       }.to change(Book, :count).by(-1)
 
       expect(response).to redirect_to(books_url)
+    end
+  end
+
+  describe "POST /books/:id/return_to_library and apply_return_to_library_batch (HAK-75)" do
+    include ActiveSupport::Testing::TimeHelpers
+
+    let(:lib_book) do
+      create(
+        :book,
+        batch_year: batch_year,
+        source: :owned_by_library,
+        call_number: "87654321",
+        title: "HAK75 Lib Copy",
+        isbn: "9780000000095"
+      )
+    end
+
+    around do |example|
+      travel_to(Time.zone.local(2026, 7, 10, 12, 0, 0)) { example.run }
+    end
+
+    it "soft-deletes the library book and writes LibraryLoanHistory" do
+      expect {
+        post return_to_library_book_url(lib_book)
+      }.to change(LibraryLoanHistory, :count).by(1)
+
+      expect(response).to redirect_to(books_url)
+      saved = Book.unscoped.find(lib_book.id)
+      expect(saved.deleted_at).to be_present
+      expect(saved.status).to eq(Book::STATUS_RETURNED_LIBRARY)
+      expect(Book.find_by(id: lib_book.id)).to be_nil
+    end
+
+    it "soft-deletes only scoped library books on batch apply" do
+      other_year = create(:batch_year)
+      b1 = create(:book, batch_year: batch_year, source: :owned_by_library, call_number: "11111111", isbn: "9780000000026", title: "H75 B1")
+      b2 = create(:book, batch_year: batch_year, source: :owned_by_library, call_number: "22222222", isbn: "9780000000033", title: "H75 B2")
+      create(:book, batch_year: batch_year, source: :donated, isbn: "9780000000040", title: "H75 Don")
+      create(:book, batch_year: other_year, source: :owned_by_library, call_number: "33333333", isbn: "9780000000057", title: "H75 Other")
+
+      expect {
+        post apply_return_to_library_batch_books_url, params: { batch_year_id: batch_year.id }
+      }.to change(LibraryLoanHistory, :count).by(2)
+
+      expect(Book.unscoped.find(b1.id).deleted_at).to be_present
+      expect(Book.unscoped.find(b2.id).deleted_at).to be_present
+      expect(Book.find_by(isbn: "9780000000040")).to be_present
+      expect(Book.unscoped.find_by(isbn: "9780000000057").deleted_at).to be_nil
     end
   end
 
