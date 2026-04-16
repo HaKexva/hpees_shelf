@@ -29,6 +29,27 @@ RSpec.describe "Books", type: :request do
       expect(response.body).to include("Unique Title XYZ")
     end
 
+    it "shows return-to-library batch link when batch year filter is set and that batch has library books" do
+      create(:book, batch_year: batch_year, source: :owned_by_library, call_number: "87654321", title: "LibIdx", isbn: "9780000000026")
+      get books_url, params: { batch_year_id: batch_year.id }
+      body = response.body
+      expect(body).to include("歸還圖書館書籍")
+      expect(body).to include("batch_year_id=#{batch_year.id}")
+    end
+
+    it "does not show return-to-library batch link without batch year filter" do
+      create(:book, batch_year: batch_year, source: :owned_by_library, call_number: "87654321", title: "LibIdx2", isbn: "9780000000033")
+      get books_url
+      expect(response.body).not_to include("歸還圖書館書籍")
+    end
+
+    it "does not show return-to-library batch link when filtered batch has no returnable library books" do
+      other = create(:batch_year)
+      create(:book, batch_year: batch_year, source: :owned_by_library, call_number: "11111111", isbn: "9780000000040", title: "OnBy")
+      get books_url, params: { batch_year_id: other.id }
+      expect(response.body).not_to include("歸還圖書館書籍")
+    end
+
     it "includes CSV export link with current filter params" do
       get books_url, params: { source: "donated", q: "Hello", sort: "isbn" }
       expect(response).to have_http_status(:success)
