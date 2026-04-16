@@ -507,7 +507,7 @@ class BooksController < ApplicationController
     end
   end
 
-  # GET /books/return_to_library_batch — Choose which batch's library books to mark as returned (only available in return period; button is hidden otherwise)
+  # GET /books/return_to_library_batch — Choose which batch's library books to mark as returned
   def return_to_library_batch
     @batch_years = _batch_year_options_for_book_forms
   end
