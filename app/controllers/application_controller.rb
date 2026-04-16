@@ -6,8 +6,9 @@ class ApplicationController < ActionController::Base
   # Changes to the importmap will invalidate the etag for HTML responses
   stale_when_importmap_changes
 
+  before_action :auto_login_demo_admin
   before_action :require_login
-  helper_method :current_user, :current_user_admin?
+  helper_method :current_user, :current_user_admin?, :users_list_query_hash, :books_list_query_hash, :demo_mode?
 
   def current_user
     @current_user ||= User.find_by(id: session[:user_id]) if session[:user_id]
@@ -17,13 +18,31 @@ class ApplicationController < ActionController::Base
     current_user&.admin?
   end
 
+  def demo_mode?
+    ENV["DEMO_MODE"].to_s == "1"
+  end
+
   def require_login
+    return if demo_mode? && current_user.present?
     unless current_user
       redirect_to login_path
     end
   end
 
   private
+    def auto_login_demo_admin
+      return unless demo_mode?
+      return if session[:user_id].present?
+
+      demo_admin = User.where(admin: true).order(:id).first
+      if demo_admin.blank?
+        first_batch = BatchYear.order(:id).first || BatchYear.create!(batch_number: 1, grade_id: 1, name: "第1屆")
+        demo_admin = User.create!(name: "Demo Admin", admin: true, batch_year: first_batch, grade_id: first_batch.grade_id, email: "demo-admin@example.com")
+      end
+
+      session[:user_id] = demo_admin.id
+    end
+
     # Remember GET query on list pages so redirects after create/update/import/bulk keep filters + sort (HAK-117).
     BOOKS_LIST_QUERY_KEYS = %w[batch_year_id q source status sort inventory_sort].freeze
     USERS_LIST_QUERY_KEYS = %w[q_name q_seat_number q_id_number batch_year_id sort].freeze

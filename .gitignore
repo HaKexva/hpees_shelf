@@ -9,6 +9,7 @@
 # Ignore all environment files.
 /.env*
 !/.env*.erb
+!/.env.example
 
 # Ignore all logfiles and tempfiles.
 /log/*
@@ -79,3 +80,5 @@ yarn-debug.log*
 /CONTRIBUTING.md
 
 /.cursor
+
+.mcp.json

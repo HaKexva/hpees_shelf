@@ -1,0 +1,77 @@
+<% content_for :title, "借閱紀錄" %>
+
+<div class="w-full max-w-5xl mx-auto px-4 sm:px-0 pb-8">
+  <div class="flex flex-col sm:flex-row sm:flex-wrap sm:items-start sm:justify-between gap-4 mb-6">
+    <div class="min-w-0">
+      <h1 class="font-bold text-2xl sm:text-4xl text-gray-900">借閱紀錄</h1>
+      <p class="text-sm text-gray-600 mt-2 break-words">
+        <%= @book.title %>
+        <% if @book.volume.present? %>
+          （<%= @book.volume %>）
+        <% end %>
+      </p>
+      <% if @book.isbn.present? %>
+        <p class="text-xs text-gray-500 mt-1">ISBN <%= format_isbn13(@book.isbn) %></p>
+      <% end %>
+    </div>
+    <div class="flex flex-wrap gap-2 shrink-0">
+      <%= link_to "返回書籍列表", books_path(books_list_query_hash), class: "inline-flex items-center rounded-md px-3.5 py-2.5 bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 font-medium" %>
+    </div>
+  </div>
+
+  <div class="bg-white rounded-xl shadow-md border border-gray-100 overflow-hidden">
+    <% if @circulation_records.any? %>
+      <div class="overflow-x-auto hidden md:block">
+        <table class="min-w-full divide-y divide-gray-200">
+          <thead class="bg-gray-50">
+            <tr>
+              <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">借閱人</th>
+              <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">借出時間</th>
+              <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">歸還時間</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-gray-200">
+            <% @circulation_records.each do |r| %>
+              <tr class="hover:bg-gray-50">
+                <td class="px-4 py-3 text-sm text-gray-900"><%= r.user&.name.presence || "—" %><%= "（老師）" if r.user&.admin? %></td>
+                <td class="px-4 py-3 text-sm text-gray-600"><%= r.borrowed_at&.strftime("%Y-%m-%d %H:%M") || "—" %></td>
+                <td class="px-4 py-3 text-sm text-gray-600">
+                  <% if r.returned_at.present? %>
+                    <%= r.returned_at.strftime("%Y-%m-%d %H:%M") %>
+                  <% else %>
+                    <span class="text-amber-600 font-medium">借閱中</span>
+                  <% end %>
+                </td>
+              </tr>
+            <% end %>
+          </tbody>
+        </table>
+        <p class="px-4 py-2 text-xs text-gray-500 border-t border-gray-100">共 <%= @circulation_records.size %> 筆（最多顯示 500 筆）</p>
+      </div>
+
+      <div class="block md:hidden divide-y divide-gray-100">
+        <% @circulation_records.each do |r| %>
+          <div class="px-4 py-3">
+            <p class="text-sm font-medium text-gray-900">
+              <%= r.user&.name.presence || "—" %><%= "（老師）" if r.user&.admin? %>
+            </p>
+            <div class="mt-2 space-y-0.5 text-xs text-gray-600">
+              <p><span class="text-gray-400">借出</span> <%= r.borrowed_at&.strftime("%Y-%m-%d %H:%M") || "—" %></p>
+              <p>
+                <span class="text-gray-400">歸還</span>
+                <% if r.returned_at.present? %>
+                  <%= r.returned_at.strftime("%Y-%m-%d %H:%M") %>
+                <% else %>
+                  <span class="text-amber-600 font-medium">借閱中</span>
+                <% end %>
+              </p>
+            </div>
+          </div>
+        <% end %>
+        <p class="px-4 py-2 text-xs text-gray-500 border-t border-gray-100">共 <%= @circulation_records.size %> 筆（最多顯示 500 筆）</p>
+      </div>
+    <% else %>
+      <p class="px-6 py-8 text-center text-gray-500">尚無借閱紀錄。</p>
+    <% end %>
+  </div>
+</div>
