@@ -2,13 +2,11 @@ class SessionsController < ApplicationController
   skip_before_action :require_login, only: %i[new create]
 
   def new
-    redirect_to root_path if demo_mode? || session[:user_id]
+    redirect_to root_path if session[:user_id]
   end
 
   # GET /google_auth_callback — OmniAuth sets request.env["omniauth.auth"]
   def create
-    redirect_to root_path and return if demo_mode?
-
     auth = request.env["omniauth.auth"]
     if auth.nil?
       redirect_to login_path, alert: "登入失敗，請重試。"
@@ -27,8 +25,6 @@ class SessionsController < ApplicationController
 
   # DELETE /logout
   def destroy
-    redirect_to root_path and return if demo_mode?
-
     reset_session
     redirect_to login_path, notice: "已登出。"
   end
