@@ -12,7 +12,6 @@ Rails.application.routes.draw do
       post :reassign_grades
       get :relocation
       post :apply_relocation
-      post :save_relocation_draft
       post :rollback_school_year
       delete :bulk_destroy
     end

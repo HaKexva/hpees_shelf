@@ -32,6 +32,27 @@ class BatchYear < ApplicationRecord
     "#{base}（#{grade_text}）"
   end
 
+  # Same grade rule as `advance_to_next_school_year!` (UI preview only; DB unchanged).
+  def grade_id_after_school_year_advance
+    return nil if grade_id.nil?
+
+    (grade_id == YEARS_UNTIL_GRADUATION || grade_id == GRADE_GRADUATED) ? GRADE_GRADUATED : (grade_id + 1)
+  end
+
+  def display_label_with_grade_after_school_year_advance
+    base = display_label
+    return base if base == "—"
+
+    g = grade_id_after_school_year_advance
+    return base if g.nil?
+
+    grade_text = case g
+    when GRADE_GRADUATED then "畢業"
+    else "#{g}年級"
+    end
+    "#{base}（#{grade_text}）"
+  end
+
   # Import / export round-trip: match CSV「屆數」to a class batch row (exact string == `display_label_with_grade`).
   def self.find_id_from_import_label(label)
     return nil if label.blank?
@@ -172,8 +193,7 @@ class BatchYear < ApplicationRecord
 
   # Whether to show the "Switch to next school year" button: only show in July–September, and only when stored displayed year equals date-based current year (e.g. now 114學年度, in Jul–Sep button shows; after user clicks "切換學年度", stored becomes 115學年度 and button hides).
   def self.show_advance_school_year_button?
-    return false unless (7..9).cover?(Date.current.month)
-    display_current_school_year_roc == current_school_year_roc
+    true
   end
 
   # Reset grade_ids based on batch_number ranking: the 6 largest class batches become grades 1–6, all others become graduated. Office batch excluded.

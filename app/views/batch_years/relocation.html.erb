@@ -1,101 +1,49 @@
-<% content_for :title, "指定屆數（學年度切換後）" %>
+<% content_for :title, "指定屆數" %>
 <% draft = @relocation_draft || {} %>
+<% next_roc_on_commit = BatchYear.display_current_school_year_roc + 1 %>
+<% relocation_by_opts = relocation_batch_year_select_options(@batch_years, staged_commit: @relocation_school_year_pending_commit) %>
+<% relocation_by_office_opts = relocation_batch_year_select_options(@batch_years_with_office, staged_commit: @relocation_school_year_pending_commit) %>
 
 <div class="w-full">
   <div class="mb-6">
     <h1 class="font-bold text-4xl">指定屆數</h1>
-    <p class="text-gray-600 mt-1">學年度已切換，請為下列書籍與人員指定新屆數（可選「老師」或班級屆數）。</p>
-    <% if @any_library_books_to_return %>
-      <%= link_to "歸還圖書館書籍", return_to_library_batch_books_path, class: "inline-flex items-center mt-3 rounded-md px-3.5 py-2.5 bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 font-medium" %>
+    <% if @relocation_school_year_pending_commit %>
+      <p class="text-gray-600 mt-1">學年度將於您送出「儲存屆數指定」後更新為 <%= next_roc_on_commit %> 學年度；儲存草稿不會變更學年度或屆數資料。書籍請見下方「書籍」區塊；須處理之書須從下拉選單重新選擇新屆數（不會沿用原屆數）。書籍區屆數下拉的「年級」為升學年後之預覽（與送出後相同），尚未寫入資料庫。</p>
     <% else %>
-      <span class="inline-block mt-3 rounded-md px-3.5 py-2.5 bg-gray-100 text-gray-600 text-sm font-medium">已歸還完成</span>
+      <p class="text-gray-600 mt-1">學年度已切換，請為下列人員指定新屆數；書籍請見下方「書籍」區塊。每本須處理之書皆須從下拉選單重新選擇新屆數（不會沿用原屆數）。</p>
     <% end %>
   </div>
 
-  <%= form_with url: apply_relocation_batch_years_path, method: :post, class: "space-y-8", data: { turbo: false }, id: "relocation-form" do |f| %>
-    <% if @pending_books_by_teacher.present? %>
-      <div class="bg-white rounded-lg shadow p-6">
-        <h2 class="font-semibold text-lg mb-4">老師的書需指定屆數（<%= @pending_books_by_teacher.sum { |_, books| books.size } %> 本，依老師選一屆數）</h2>
-        <p class="text-sm text-gray-600 mb-4">同一老師的書請選一個屆數，該老師的書會一併歸到該屆。</p>
-        <div class="overflow-x-auto">
-          <table class="min-w-full divide-y divide-gray-200">
-            <thead class="bg-gray-50">
-              <tr>
-                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">老師</th>
-                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">書本數</th>
-                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">新屆數</th>
-              </tr>
-            </thead>
-            <tbody class="bg-white divide-y divide-gray-200">
-              <% @pending_books_by_teacher.each do |user_id, books| %>
-                <% teacher = books.first&.user %>
-                <tr>
-                  <td class="px-4 py-2 text-sm font-medium text-gray-900"><%= teacher&.name || "—" %></td>
-                  <td class="px-4 py-2 text-sm text-gray-600"><%= books.size %></td>
-                  <td class="px-4 py-2">
-                    <% selected = draft.dig("teacher_book_assignments", user_id.to_s).presence || books.first&.batch_year_id %>
-                    <%= select_tag "teacher_book_assignments[#{user_id}]", options_from_collection_for_select(@batch_years, :id, :display_label_with_grade, selected), { include_blank: "請選擇", class: "block shadow-sm rounded-md border border-gray-300 px-3 py-2 text-sm w-48" } %>
-                  </td>
-                </tr>
-              <% end %>
-            </tbody>
-          </table>
-        </div>
-      </div>
-    <% end %>
-
-    <% if @pending_books_other.present? %>
-      <div class="bg-white rounded-lg shadow p-6">
-        <h2 class="font-semibold text-lg mb-4">捐贈的書／班級的書需指定屆數（<%= @pending_books_other.size %> 本，逐本選擇屆數）</h2>
-        <p class="text-sm text-gray-600 mb-4">請逐本選擇新屆數。</p>
-        <div class="overflow-x-auto">
-          <table class="min-w-full divide-y divide-gray-200">
-            <thead class="bg-gray-50">
-              <tr>
-                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">書名</th>
-                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">目前屆數</th>
-                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">新屆數</th>
-              </tr>
-            </thead>
-            <tbody class="bg-white divide-y divide-gray-200">
-              <% @pending_books_other.each do |book| %>
-                <tr>
-                  <td class="px-4 py-2 text-sm font-medium text-gray-900"><%= book.title %></td>
-                  <td class="px-4 py-2 text-sm text-gray-600"><%= book.batch_year&.display_label_with_grade %></td>
-                  <td class="px-4 py-2">
-                    <% selected = draft.dig("book_assignments", book.id.to_s).presence || book.batch_year_id %>
-                    <%= select_tag "book_assignments[#{book.id}]", options_from_collection_for_select(@batch_years, :id, :display_label_with_grade, selected), { include_blank: "請選擇", class: "block shadow-sm rounded-md border border-gray-300 px-3 py-2 text-sm w-48" } %>
-                  </td>
-                </tr>
-              <% end %>
-            </tbody>
-          </table>
-        </div>
-      </div>
-    <% end %>
+  <%= form_with url: apply_relocation_batch_years_path, method: :post, html: { class: "space-y-8", id: "relocation-form", data: { turbo: false } } do |f| %>
+    <%= render "relocation_books" %>
 
     <% if @pending_users.present? %>
       <div class="bg-white rounded-lg shadow p-6">
-        <h2 class="font-semibold text-lg mb-4">人員需指定屆數（<%= @pending_users.size %> 人）</h2>
-        <p class="text-sm text-gray-600 mb-4">原屬「老師」屆數的人員請選擇新屆數（可繼續選「老師」或改選班級屆數）；若已離職請選「離職」，離職後會歸在老師屆數以便查詢。</p>
+        <h2 class="font-semibold text-lg mb-4">人員（老師）</h2>
+        <p class="text-sm text-gray-600 mb-4">每位老師請用「複選」選擇其任教屆數（至少選 1 個）。</p>
         <div class="overflow-x-auto">
           <table class="min-w-full divide-y divide-gray-200">
             <thead class="bg-gray-50">
               <tr>
                 <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">姓名</th>
-                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">目前屆數</th>
-                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">新屆數或離職</th>
+                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">目前任教屆數</th>
+                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">任教屆數（複選）</th>
               </tr>
             </thead>
             <tbody class="bg-white divide-y divide-gray-200">
               <% @pending_users.each do |user| %>
                 <tr>
                   <td class="px-4 py-2 text-sm font-medium text-gray-900"><%= user.name %></td>
-                  <td class="px-4 py-2 text-sm text-gray-600"><%= user.batch_year&.display_label_with_grade %></td>
+                  <td class="px-4 py-2 text-sm text-gray-600"><%= user.member_batch_year_ids.map { |id| BatchYear.find_by(id: id)&.display_label_with_grade }.compact.join("、") %></td>
                   <td class="px-4 py-2">
-                    <% user_batch_options = [ [ "請選擇", "" ], [ "— 離職 —", "resigned" ] ] + @batch_years_with_office.map { |b| [ b.display_label_with_grade, b.id ] } %>
-                    <% selected = draft.dig("user_assignments", user.id.to_s).presence || user.batch_year_id %>
-                    <%= select_tag "user_assignments[#{user.id}]", options_for_select(user_batch_options, selected), { class: "block shadow-sm rounded-md border border-gray-300 px-3 py-2 text-sm w-48" } %>
+                    <% draft_ids = draft.dig("teacher_batch_year_ids", user.id.to_s) %>
+                    <% selected_ids = Array(draft_ids.presence || user.member_batch_year_ids).map(&:to_i) %>
+                    <%= select_tag "teacher_batch_year_ids[#{user.id}][]",
+                                   options_for_select(relocation_by_opts, selected_ids),
+                                   multiple: true,
+                                   required: true,
+                                   size: 6,
+                                   class: "block shadow-sm rounded-md border border-gray-300 px-3 py-2 text-sm w-72" %>
                   </td>
                 </tr>
               <% end %>
@@ -123,7 +71,7 @@
                   <td class="px-4 py-2 text-sm font-medium text-gray-900"><%= user.name %></td>
                   <td class="px-4 py-2">
                     <% selected = draft.dig("resigned_assignments", user.id.to_s).presence %>
-                    <%= select_tag "resigned_assignments[#{user.id}]", options_from_collection_for_select(@batch_years_with_office, :id, :display_label_with_grade, selected), { include_blank: "— 維持離職 —", class: "block shadow-sm rounded-md border border-gray-300 px-3 py-2 text-sm w-48" } %>
+                    <%= select_tag "resigned_assignments[#{user.id}]", options_for_select(relocation_by_office_opts, selected), { include_blank: "— 維持離職 —", class: "block shadow-sm rounded-md border border-gray-300 px-3 py-2 text-sm w-48" } %>
                   </td>
                 </tr>
               <% end %>
@@ -133,30 +81,37 @@
       </div>
     <% end %>
 
-    <div class="bg-white rounded-lg shadow p-6">
+    <div class="bg-white rounded-lg shadow p-6" data-controller="relocation-new-personnel">
       <h2 class="font-semibold text-lg mb-4">增加新進人員</h2>
-      <p class="text-sm text-gray-600 mb-4">可在此新增人員並指定屆數（學號為 6 碼數字，選填）。</p>
+      <p class="text-sm text-gray-600 mb-4">可在此新增學員並指定屆數（不需學號、座號）。預設三列；當每一列皆已填寫姓名與屆數時，會自動多開一列供繼續新增。若某一列改回全空白並離開該列（游標移到別處），該列會自動刪除，但總列數不會少於三列。</p>
       <div class="overflow-x-auto">
         <table class="min-w-full divide-y divide-gray-200">
           <thead class="bg-gray-50">
             <tr>
               <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">姓名</th>
-              <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">學號（6 碼）</th>
-              <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">屆數</th>
+              <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">屆數（複選）</th>
             </tr>
           </thead>
-          <tbody class="bg-white divide-y divide-gray-200" id="new-personnel-rows">
-            <% new_rows = (draft["new_personnel"].presence || [ {} ]) + [ {} ] %>
-            <% new_rows.each_with_index do |row, idx| %>
+          <tbody
+            class="bg-white divide-y divide-gray-200"
+            id="new-personnel-rows"
+            data-relocation-new-personnel-target="tbody"
+            data-action="input->relocation-new-personnel#handleInput change->relocation-new-personnel#handleInput focusout->relocation-new-personnel#handleFocusOut"
+          >
+            <% new_rows = relocation_new_personnel_rows_for_form(draft) %>
+            <% new_rows.each do |row| %>
               <tr class="new-personnel-row">
                 <td class="px-4 py-2">
                   <input type="text" name="new_personnel[][name]" value="<%= row["name"] %>" placeholder="姓名" aria-label="姓名" class="block shadow-sm rounded-md border border-gray-300 px-3 py-2 text-sm w-40" />
                 </td>
                 <td class="px-4 py-2">
-                  <input type="text" name="new_personnel[][id_number]" value="<%= row["id_number"] %>" placeholder="6 碼學號" maxlength="6" pattern="\d{6}" aria-label="學號" class="block shadow-sm rounded-md border border-gray-300 px-3 py-2 text-sm w-28" />
-                </td>
-                <td class="px-4 py-2">
-                  <%= select_tag "new_personnel[][batch_year_id]", options_from_collection_for_select(@batch_years_with_office, :id, :display_label_with_grade, row["batch_year_id"]), { include_blank: "請選擇", class: "block shadow-sm rounded-md border border-gray-300 px-3 py-2 text-sm w-48" } %>
+                  <% selected_ids = Array(row["batch_year_ids"].presence || row["batch_year_id"]).reject(&:blank?).map(&:to_i) %>
+                  <%= select_tag "new_personnel[][batch_year_ids][]",
+                                 options_for_select(relocation_by_office_opts, selected_ids),
+                                 multiple: true,
+                                 required: false,
+                                 size: 6,
+                                 class: "block shadow-sm rounded-md border border-gray-300 px-3 py-2 text-sm w-64" %>
                 </td>
               </tr>
             <% end %>
@@ -167,8 +122,9 @@
     </div>
 
     <div class="flex flex-wrap gap-2 items-center">
-      <%= f.submit "儲存屆數指定", class: "inline-flex items-center rounded-md px-3.5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-medium cursor-pointer" %>
-      <%= submit_tag "儲存草稿", formaction: save_relocation_draft_batch_years_path, class: "inline-flex items-center rounded-md px-3.5 py-2.5 bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 font-medium cursor-pointer", data: { turbo: false } %>
+      <% commit_submit_data = @relocation_school_year_pending_commit ? { turbo_confirm: "送出後將切換至#{next_roc_on_commit}學年度，且無法由此流程切回。確定？" } : {} %>
+      <%= f.submit "儲存屆數指定", class: "inline-flex items-center rounded-md px-3.5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-medium cursor-pointer", data: commit_submit_data %>
+      <%= f.submit "儲存草稿", class: "inline-flex items-center rounded-md px-3.5 py-2.5 bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 font-medium cursor-pointer" %>
       <%= link_to "返回屆數列表", batch_years_path, class: "inline-flex items-center rounded-md px-3.5 py-2.5 bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 font-medium" %>
     </div>
   <% end %>

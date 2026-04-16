@@ -27,4 +27,28 @@ RSpec.describe User, "batch access for borrowing" do
       expect(u.may_borrow_from_batch?(other.id)).to be true
     end
   end
+
+  describe "primary batch change for admins" do
+    it "adds the previous primary 屆數 to extra_batch_years when batch_year_id changes" do
+      u = create(:user, :admin, batch_year: by1)
+      u.update!(batch_year_id: by2.id)
+      u.reload
+      expect(u.batch_year_id).to eq(by2.id)
+      expect(u.extra_batch_year_ids).to include(by1.id)
+    end
+
+    it "does not duplicate when the old primary was already linked as extra" do
+      u = create(:user, :admin, batch_year: by1, extra_batch_years: [ by2 ])
+      u.update!(batch_year_id: by2.id)
+      u.reload
+      expect(u.extra_batch_year_ids).to contain_exactly(by1.id, by2.id)
+    end
+
+    it "does not add extras when a non-admin primary batch changes" do
+      u = create(:user, admin: false, batch_year: by1)
+      u.update!(batch_year_id: by2.id)
+      u.reload
+      expect(u.extra_batch_year_ids).to be_empty
+    end
+  end
 end
