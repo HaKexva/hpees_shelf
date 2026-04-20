@@ -19,7 +19,6 @@ development:
   primary_shard_demo:
     <<: *default
     database: hpees_shelf_demo_development
-    schema_dump: db/schema.rb
 
 # Warning: The database defined as "test" will be erased and
 # re-generated from your development database when you run "rake".
@@ -31,7 +30,6 @@ test:
   primary_shard_demo:
     <<: *default
     url: <%= ENV["DEMO_DATABASE_URL"].to_s.empty? ? ENV["DATABASE_URL"] : ENV["DEMO_DATABASE_URL"] %>
-    schema_dump: db/schema.rb
 
 # Production uses DATABASE_URL (auto-injected by Railway).
 # All Solid gem tables (cache, queue, cable) share the same database
@@ -43,7 +41,6 @@ production:
   primary_shard_demo:
     <<: *default
     url: <%= ENV["DEMO_DATABASE_URL"].to_s.empty? ? ENV["DATABASE_URL"] : ENV["DEMO_DATABASE_URL"] %>
-    schema_dump: db/schema.rb
   cache:
     <<: *default
     url: <%= ENV["DATABASE_URL"] %>
