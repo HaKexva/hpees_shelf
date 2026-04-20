@@ -26,10 +26,10 @@ development:
 test:
   primary:
     <<: *default
-    database: hpees_shelf_test
+    url: <%= ENV["DATABASE_URL"] %>
   primary_shard_demo:
     <<: *default
-    database: hpees_shelf_demo_test
+    url: <%= ENV["DEMO_DATABASE_URL"].to_s.empty? ? ENV["DATABASE_URL"] : ENV["DEMO_DATABASE_URL"] %>
 
 # Production uses DATABASE_URL (auto-injected by Railway).
 # All Solid gem tables (cache, queue, cable) share the same database

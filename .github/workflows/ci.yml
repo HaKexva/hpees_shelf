@@ -93,4 +93,5 @@ jobs:
         env:
           RAILS_ENV: test
           DATABASE_URL: postgres://postgres:postgres@localhost:5432/hpees_shelf_test
+          DEMO_DATABASE_URL: postgres://postgres:postgres@localhost:5432/hpees_shelf_demo_test
         run: bin/rails db:test:prepare && bin/rspec
