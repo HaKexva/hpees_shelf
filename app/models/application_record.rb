@@ -3,6 +3,6 @@ class ApplicationRecord < ActiveRecord::Base
 
   connects_to shards: {
     default: { writing: :primary },
-    demo: { writing: :primary_shard_demo },
+    demo: { writing: :primary_shard_demo }
   }
 end
