@@ -24,7 +24,6 @@ class DemoModeMiddleware
   private
 
   def not_found
-    [404, { "Content-Type" => "text/plain; charset=utf-8" }, ["Not Found"]]
+    [404, { "Content-Type" => "text/plain; charset=utf-8" }, [ "Not Found" ]]
   end
 end
-
