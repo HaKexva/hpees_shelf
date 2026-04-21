@@ -11,6 +11,8 @@ module RubyUI
 
         # 2. Main Content Area
         div(class: "flex flex-col flex-1 w-full") do
+          render_demo_mode_banner
+
           # 3. Mobile Header (Hidden on desktop)
           render_mobile_header
 
@@ -26,6 +28,27 @@ module RubyUI
     end
 
     private
+
+    def demo_mode?
+      view_context.respond_to?(:demo_mode?) && view_context.demo_mode?
+    end
+
+    def render_demo_mode_banner
+      return unless demo_mode?
+
+      div(
+        class: "shrink-0 border-b border-amber-200 bg-amber-50 text-amber-900",
+        data: { turbo_permanent: true }
+      ) do
+        div(class: "w-full max-w-6xl mx-auto px-4 sm:px-6 py-2 flex items-center justify-between gap-4") do
+          div(class: "text-sm font-medium truncate") { "展示模式 — 所有操作不影響正式資料" }
+          a(
+            href: "/",
+            class: "text-sm font-semibold underline underline-offset-4 hover:opacity-80 whitespace-nowrap"
+          ) { "離開展示模式" }
+        end
+      end
+    end
 
     def render_flash_messages
       required_alert = view_context.respond_to?(:required_fields_alert) ? view_context.required_fields_alert : nil
@@ -129,22 +152,36 @@ module RubyUI
         div(class: "text-xs text-muted-foreground truncate mb-2") do
           plain view_context.current_user.name
         end
-        render_switch_school_year_button
-        render_rollback_school_year_button
-        form(action: view_context.logout_path, method: "post") do
-          input(type: "hidden", name: "_method", value: "delete")
-          input(type: "hidden", name: "authenticity_token", value: view_context.form_authenticity_token)
-          button(
-            type: "submit",
+
+        unless demo_mode?
+          render_switch_school_year_button
+          render_rollback_school_year_button
+        end
+
+        if demo_mode?
+          a(
+            href: view_context.demo_login_path,
             class: "w-full inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors " \
                    "px-4 py-2 h-9 border border-input bg-background shadow-sm " \
                    "hover:bg-accent hover:text-accent-foreground"
-          ) { "登出" }
+          ) { "切換角色" }
+        else
+          form(action: view_context.logout_path, method: "post") do
+            input(type: "hidden", name: "_method", value: "delete")
+            input(type: "hidden", name: "authenticity_token", value: view_context.form_authenticity_token)
+            button(
+              type: "submit",
+              class: "w-full inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors " \
+                     "px-4 py-2 h-9 border border-input bg-background shadow-sm " \
+                     "hover:bg-accent hover:text-accent-foreground"
+            ) { "登出" }
+          end
         end
       end
     end
 
     def render_switch_school_year_button
+      return if demo_mode?
       return unless view_context.current_user_admin?
       return unless BatchYear.show_advance_school_year_button?
 
@@ -162,6 +199,7 @@ module RubyUI
     end
 
     def render_rollback_school_year_button
+      return if demo_mode?
       return unless view_context.current_user_admin?
       return unless BatchYear.can_rollback_school_year?
 
