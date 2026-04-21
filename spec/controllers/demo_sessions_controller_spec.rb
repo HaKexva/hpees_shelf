@@ -32,15 +32,9 @@ RSpec.describe DemoSessionsController, type: :controller do
   end
 
   describe "POST #create" do
-    it "requires a role" do
-      post :create
-      expect(response).to redirect_to(demo_login_path)
-      expect(flash[:alert]).to be_present
-    end
-
     it "creates admin user in demo shard and sets session[:demo_user_id]" do
       expect do
-        post :create, params: { role: "admin" }
+        post :create
       end.to change { session[:demo_user_id] }.from(nil)
 
       demo_id = session[:demo_user_id]

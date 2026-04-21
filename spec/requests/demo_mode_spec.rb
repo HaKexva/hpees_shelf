@@ -30,7 +30,7 @@ RSpec.describe "Demo mode", type: :request do
   end
 
   it "auto-login creates a demo user in demo shard only" do
-    post "/demo/demo_login", params: { role: "student" }
+    post "/demo/demo_login"
     expect(response).to have_http_status(:found)
 
     # After login, /demo/books should no longer bounce to demo_login.
@@ -52,7 +52,7 @@ RSpec.describe "Demo mode", type: :request do
   it "URL helpers generate /demo-prefixed paths in demo mode (SCRIPT_NAME)" do
     get "/demo/demo_login"
     expect(response).to have_http_status(:ok)
-    expect(response.body).to include('action="/demo/demo_login?role=admin"')
+    expect(response.body).to include('action="/demo/demo_login"')
   end
 
   it "demo:reset truncates and re-seeds demo shard" do
