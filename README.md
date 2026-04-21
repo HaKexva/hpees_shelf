@@ -54,6 +54,14 @@ HPEES Shelf is a **Rails 8.1** monolith for a school library: cataloging books, 
 - **Batch years** — Index, auto-create range, **advance school year** and relocation flow for graduated batches.
 - **Authentication** — Session-based login for admins (see `User` model and sessions controller).
 
+### Demo mode (`/demo`)
+
+Demo mode runs the app against a **separate demo database shard** and prefixes all routes with `/demo`.
+
+- **Enable**: set `DEMO_ENABLED=true`
+- **Entry point**: visit `/demo/demo_login` (auto-login as demo admin)
+- **Production demo DB**: set `DEMO_DATABASE_URL` (falls back to `DATABASE_URL` if unset)
+
 ### Local development setup
 
 #### Prerequisites
@@ -226,6 +234,14 @@ For maintainers: see **`AGENTS.md`** (Cursor / Linear / branch → PR → merge 
 - **使用者** — CRUD、匯入、屆數指定。
 - **屆數** — 列表、一鍵建立屆數、**切換學年度**與畢業屆之指定屆數流程。
 - **驗證** — 管理員以 Session 登入（見 `User` 與 sessions 相關程式）。
+
+### 展示模式（`/demo`）
+
+展示模式會把所有路徑加上 `/demo` 前綴，並切換到 **獨立的 demo 資料庫 shard**。
+
+- **啟用**：設定 `DEMO_ENABLED=true`
+- **入口**：瀏覽 `/demo/demo_login`（自動以示範管理員登入）
+- **正式環境 demo DB**：設定 `DEMO_DATABASE_URL`（未設定則 fallback 到 `DATABASE_URL`）
 
 ### 本機開發環境
 
