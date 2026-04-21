@@ -77,4 +77,3 @@ namespace :demo do
     Rake::Task["demo:seed"].invoke
   end
 end
-
