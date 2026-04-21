@@ -1,0 +1,23 @@
+<% content_for :title, "示範登入" %>
+
+<div class="flex items-center justify-center min-h-[60vh]">
+  <div class="w-full max-w-sm mx-auto px-4">
+    <h1 class="font-bold text-2xl text-gray-900 text-center mb-8">示範模式登入</h1>
+
+    <% if flash[:alert] %>
+      <div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-6 text-sm">
+        <%= flash[:alert] %>
+      </div>
+    <% end %>
+
+    <div class="space-y-3">
+      <%= button_to "管理員", demo_login_path(role: "admin"), method: :post, class: "w-full px-4 py-3 rounded-lg bg-gray-900 text-white font-medium hover:bg-gray-800 transition" %>
+      <%= button_to "學生", demo_login_path(role: "student"), method: :post, class: "w-full px-4 py-3 rounded-lg bg-white border border-gray-300 text-gray-800 font-medium hover:bg-gray-50 transition" %>
+    </div>
+
+    <p class="mt-6 text-xs text-gray-500 text-center">
+      此登入僅用於示範模式（/demo）。
+    </p>
+  </div>
+</div>
+

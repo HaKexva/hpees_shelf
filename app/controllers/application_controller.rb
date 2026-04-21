@@ -7,9 +7,25 @@ class ApplicationController < ActionController::Base
   stale_when_importmap_changes
 
   before_action :require_login
-  helper_method :current_user, :current_user_admin?, :users_list_query_hash, :books_list_query_hash
+  helper_method :current_user, :current_user_admin?, :users_list_query_hash, :books_list_query_hash, :demo_mode?
+
+  def demo_mode?
+    request.env["hpees.demo_mode"] == true
+  end
 
   def current_user
+    if demo_mode?
+      return @current_demo_user if defined?(@current_demo_user)
+
+      @current_demo_user =
+        if session[:demo_user_id]
+          ActiveRecord::Base.connected_to(shard: :demo) do
+            User.find_by(id: session[:demo_user_id])
+          end
+        end
+      return @current_demo_user
+    end
+
     @current_user ||= User.find_by(id: session[:user_id]) if session[:user_id]
   end
 
@@ -19,7 +35,7 @@ class ApplicationController < ActionController::Base
 
   def require_login
     unless current_user
-      redirect_to login_path
+      redirect_to(demo_mode? ? demo_login_path : login_path)
     end
   end
 
