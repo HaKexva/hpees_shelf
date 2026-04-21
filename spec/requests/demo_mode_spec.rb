@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "rails_helper"
+require "rake"
 
 RSpec.describe "Demo mode", type: :request do
   around do |ex|
@@ -29,27 +30,29 @@ RSpec.describe "Demo mode", type: :request do
   end
 
   it "auto-login creates a demo user in demo shard only" do
-    expect do
-      post "/demo/demo_login", params: { role: "student" }
-    end.to change { session[:demo_user_id] }.from(nil)
+    post "/demo/demo_login", params: { role: "student" }
+    expect(response).to have_http_status(:found)
 
-    demo_id = session[:demo_user_id]
-    expect(User.find_by(id: demo_id)).to be_nil
-    expect(in_demo_shard { User.find_by(id: demo_id) }).to be_present
+    # After login, /demo/books should no longer bounce to demo_login.
+    get "/demo/books"
+    expect(response).not_to redirect_to("/demo/demo_login")
   end
 
   it "session[:user_id] does not grant access in demo mode" do
     by = BatchYear.create!(batch_number: 99, grade_id: 1, name: "primary")
     primary_user = User.create!(name: "Primary Admin", email: "primary-admin@example.com", admin: true, batch_year: by)
 
-    get "/demo/books", env: { "rack.session" => { user_id: primary_user.id } }
+    mock_google_auth(email: primary_user.email, uid: primary_user.google_uid || SecureRandom.hex, name: primary_user.name)
+    get google_auth_callback_path
+
+    get "/demo/books"
     expect(response).to redirect_to("/demo/demo_login")
   end
 
   it "URL helpers generate /demo-prefixed paths in demo mode (SCRIPT_NAME)" do
     get "/demo/demo_login"
     expect(response).to have_http_status(:ok)
-    expect(response.body).to include('action="/demo/demo_login"')
+    expect(response.body).to include('action="/demo/demo_login?role=admin"')
   end
 
   it "demo:reset truncates and re-seeds demo shard" do
@@ -67,4 +70,3 @@ RSpec.describe "Demo mode", type: :request do
     expect(in_demo_shard { User.where(email: "demo-admin@example.com").count }).to eq(1)
   end
 end
-

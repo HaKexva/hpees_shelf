@@ -49,4 +49,3 @@ RSpec.describe DemoModeMiddleware do
     expect(body.join).to eq("/|/demo|true")
   end
 end
-

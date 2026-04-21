@@ -3,6 +3,8 @@
 require "rails_helper"
 
 RSpec.describe DemoSessionsController, type: :controller do
+  render_views
+
   around do |ex|
     old = ENV["DEMO_ENABLED"]
     ENV["DEMO_ENABLED"] = "true"
@@ -52,7 +54,12 @@ RSpec.describe DemoSessionsController, type: :controller do
 
   describe "DELETE #destroy" do
     it "clears demo session key only" do
-      session[:demo_user_id] = 1
+      demo_user_id = ActiveRecord::Base.connected_to(shard: :demo) do
+        by = BatchYear.create!(batch_number: 1, grade_id: 1, name: "demo")
+        User.create!(name: "Demo", email: "demo@example.com", admin: false, batch_year: by).id
+      end
+
+      session[:demo_user_id] = demo_user_id
       session[:user_id] = 2
       delete :destroy
       expect(session[:demo_user_id]).to be_nil
@@ -60,4 +67,3 @@ RSpec.describe DemoSessionsController, type: :controller do
     end
   end
 end
-
