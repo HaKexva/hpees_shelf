@@ -68,4 +68,8 @@ Rails.application.routes.draw do
   get "login", to: "sessions#new", as: :login
   get "google_auth_callback", to: "sessions#create", as: :google_auth_callback
   delete "logout", to: "sessions#destroy", as: :logout
+
+  get "demo_login", to: "demo_sessions#new", as: :demo_login
+  post "demo_login", to: "demo_sessions#create"
+  delete "demo_logout", to: "demo_sessions#destroy", as: :demo_logout
 end
