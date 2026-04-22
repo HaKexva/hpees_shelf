@@ -194,7 +194,7 @@ module RubyUI
         select(
           name: "batch_year_id",
           class: "w-full rounded-md text-sm border border-input bg-background px-3 py-2 shadow-sm",
-          onchange: "this.form.submit()"
+          data: { controller: "auto-submit", action: "change->auto-submit#submit" }
         ) do
           option(value: "all", selected: selected == "all") { "全部屆數" }
           years.each do |by|
