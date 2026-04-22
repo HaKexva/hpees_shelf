@@ -41,7 +41,6 @@
                 <%= hidden_field_tag :batch_year_id, current_batch_year_id %>
                 <div class="block w-full shadow-sm rounded-lg border border-gray-200 bg-gray-50 px-3 py-2.5 text-base text-gray-700">
                   <%= current_batch_year&.display_label_with_grade || "（已套用全域屆數）" %>
-                  <span class="text-xs text-gray-500">（全域）</span>
                 </div>
               <% else %>
                 <%= f.select :batch_year_id,
@@ -158,7 +157,6 @@
           <% if global_batch_year_locked? %>
             <div class="block w-full shadow-sm rounded-lg border border-gray-200 bg-gray-50 px-3 py-2.5 text-base text-gray-700">
               <%= current_batch_year&.display_label_with_grade || "（已套用全域屆數）" %>
-              <span class="text-xs text-gray-500">（全域）</span>
             </div>
           <% else %>
             <%= f.select :batch_year_id, options_from_collection_for_select(@batch_years, :id, :display_label_with_grade, @filter_batch_year_id), { include_blank: "全部屆數" }, { class: "block w-full shadow-sm rounded-lg border border-gray-300 px-3 py-2.5 text-base", onchange: "this.form.submit()" } %>
