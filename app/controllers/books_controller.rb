@@ -6,6 +6,7 @@ class BooksController < ApplicationController
 
   # GET /books or /books.json
   def index
+    apply_current_batch_year_filter!
     remember_books_list_query!
     BatchYear.ensure_office_exists!
     @list_sort = Book.list_sort_from_param(params[:sort])
@@ -33,6 +34,7 @@ class BooksController < ApplicationController
 
   # GET /books/export — CSV using `filtered_books_scope` + `sort` (same query params as `/books`).
   def export
+    apply_current_batch_year_filter!
     BatchYear.ensure_office_exists!
     sort = Book.list_sort_from_param(params[:sort])
     books = filtered_books_scope.includes(:batch_year).merge(Book.ordered_for_list(sort))
@@ -63,6 +65,7 @@ class BooksController < ApplicationController
 
   # GET /books/inventory_pdf — 盤點表 PDF（需選屆數；沿用列表篩選；排序見 inventory_sort）
   def inventory_pdf
+    apply_current_batch_year_filter!
     BatchYear.ensure_office_exists!
     batch_year_id = params[:batch_year_id].presence
     if batch_year_id.blank?

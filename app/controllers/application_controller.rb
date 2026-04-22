@@ -7,7 +7,14 @@ class ApplicationController < ActionController::Base
   stale_when_importmap_changes
 
   before_action :require_login
-  helper_method :current_user, :current_user_admin?, :users_list_query_hash, :books_list_query_hash, :demo_mode?
+  helper_method :current_user,
+                :current_user_admin?,
+                :users_list_query_hash,
+                :books_list_query_hash,
+                :demo_mode?,
+                :current_batch_year_id,
+                :global_batch_year_locked?,
+                :current_batch_year
 
   def demo_mode?
     request.env["hpees.demo_mode"] == true
@@ -40,6 +47,31 @@ class ApplicationController < ActionController::Base
   end
 
   private
+    def current_batch_year_id
+      v = session[:current_batch_year_id]
+      return "all" if v.blank? || v == "all"
+      v.to_i.positive? ? v.to_i : "all"
+    end
+
+    def global_batch_year_locked?
+      current_batch_year_id != "all"
+    end
+
+    def current_batch_year
+      id = current_batch_year_id
+      return nil if id == "all"
+
+      BatchYear.find_by(id: id)
+    end
+
+    def apply_current_batch_year_filter!(key = :batch_year_id)
+      return unless global_batch_year_locked?
+
+      # When a global batch year is selected, it becomes the canonical filter;
+      # page-level batch_year_id params are ignored/overridden.
+      params[key] = current_batch_year_id.to_s
+    end
+
     # Remember GET query on list pages so redirects after create/update/import/bulk keep filters + sort (HAK-117).
     BOOKS_LIST_QUERY_KEYS = %w[batch_year_id q source status sort inventory_sort].freeze
     USERS_LIST_QUERY_KEYS = %w[q_name q_seat_number q_id_number batch_year_id sort].freeze

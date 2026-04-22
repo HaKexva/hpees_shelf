@@ -153,6 +153,8 @@ module RubyUI
           plain view_context.current_user.name
         end
 
+        render_current_batch_year_switcher
+
         unless demo_mode?
           render_switch_school_year_button
           render_rollback_school_year_button
@@ -175,6 +177,28 @@ module RubyUI
                      "px-4 py-2 h-9 border border-input bg-background shadow-sm " \
                      "hover:bg-accent hover:text-accent-foreground"
             ) { "登出" }
+          end
+        end
+      end
+    end
+
+    def render_current_batch_year_switcher
+      return unless view_context.current_user_admin?
+
+      years = BatchYear.by_number_desc
+      selected = view_context.current_batch_year_id.to_s
+
+      form(action: view_context.current_batch_year_path, method: "post", class: "mb-2") do
+        input(type: "hidden", name: "authenticity_token", value: view_context.form_authenticity_token)
+
+        select(
+          name: "batch_year_id",
+          class: "w-full rounded-md text-sm border border-input bg-background px-3 py-2 shadow-sm",
+          data: { controller: "auto-submit", action: "change->auto-submit#submit" }
+        ) do
+          option(value: "all", selected: selected == "all") { "全部屆數" }
+          years.each do |by|
+            option(value: by.id.to_s, selected: selected == by.id.to_s) { by.display_label_with_grade.to_s }
           end
         end
       end
