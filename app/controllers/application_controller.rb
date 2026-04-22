@@ -12,7 +12,9 @@ class ApplicationController < ActionController::Base
                 :users_list_query_hash,
                 :books_list_query_hash,
                 :demo_mode?,
-                :current_batch_year_id
+                :current_batch_year_id,
+                :global_batch_year_locked?,
+                :current_batch_year
 
   def demo_mode?
     request.env["hpees.demo_mode"] == true
@@ -51,10 +53,22 @@ class ApplicationController < ActionController::Base
       v.to_i.positive? ? v.to_i : "all"
     end
 
-    def apply_current_batch_year_filter!(key = :batch_year_id)
-      return if params[key].present?
-      return if current_batch_year_id == "all"
+    def global_batch_year_locked?
+      current_batch_year_id != "all"
+    end
 
+    def current_batch_year
+      id = current_batch_year_id
+      return nil if id == "all"
+
+      BatchYear.find_by(id: id)
+    end
+
+    def apply_current_batch_year_filter!(key = :batch_year_id)
+      return unless global_batch_year_locked?
+
+      # When a global batch year is selected, it becomes the canonical filter;
+      # page-level batch_year_id params are ignored/overridden.
       params[key] = current_batch_year_id.to_s
     end
 
