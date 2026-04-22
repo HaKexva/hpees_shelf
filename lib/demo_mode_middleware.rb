@@ -14,7 +14,8 @@ class DemoModeMiddleware
     env["hpees.demo_mode"] = true
     env["SCRIPT_NAME"] = "#{env['SCRIPT_NAME']}#{DEMO_PREFIX}"
     env["PATH_INFO"] = path.delete_prefix(DEMO_PREFIX)
-    env["PATH_INFO"] = "/" if env["PATH_INFO"].empty?
+    # `/demo` should behave like a "logged-in landing" for demo mode.
+    env["PATH_INFO"] = "/demo_enter" if env["PATH_INFO"].empty? || env["PATH_INFO"] == "/"
 
     ActiveRecord::Base.connected_to(shard: :demo) do
       @app.call(env)

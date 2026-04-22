@@ -46,6 +46,6 @@ RSpec.describe DemoModeMiddleware do
   it "maps bare /demo to / for routing" do
     status, _headers, body = middleware.call({ "PATH_INFO" => "/demo", "SCRIPT_NAME" => "" })
     expect(status).to eq(200)
-    expect(body.join).to eq("/|/demo|true")
+    expect(body.join).to eq("/demo_enter|/demo|true")
   end
 end

@@ -55,6 +55,11 @@ RSpec.describe "Demo mode", type: :request do
     expect(response.body).to include('action="/demo/demo_login"')
   end
 
+  it "redirects /demo to the demo admin dashboard (auto-login)" do
+    get "/demo"
+    expect(response).to redirect_to("/demo/admin")
+  end
+
   it "demo:reset truncates and re-seeds demo shard" do
     in_demo_shard do
       BatchYear.create!(batch_number: 50, grade_id: 1, name: "wipe-me")

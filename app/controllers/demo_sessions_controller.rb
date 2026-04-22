@@ -1,5 +1,5 @@
 class DemoSessionsController < ApplicationController
-  skip_before_action :require_login, only: %i[new create]
+  skip_before_action :require_login, only: %i[new create enter]
 
   def new
     redirect_to root_path if session[:demo_user_id].present?
@@ -10,6 +10,14 @@ class DemoSessionsController < ApplicationController
     session[:demo_user_id] = user.id
 
     redirect_to admin_dashboard_path, notice: "已以示範模式登入：#{user.name}。"
+  end
+
+  # GET /demo/demo_enter — convenience entrypoint so `/demo` can land here and auto-login.
+  def enter
+    user = find_or_create_demo_admin_user!
+    session[:demo_user_id] = user.id
+
+    redirect_to admin_dashboard_path
   end
 
   def destroy

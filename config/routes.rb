@@ -73,5 +73,6 @@ Rails.application.routes.draw do
 
   get "demo_login", to: "demo_sessions#new", as: :demo_login
   post "demo_login", to: "demo_sessions#create"
+  get "demo_enter", to: "demo_sessions#enter", as: :demo_enter
   delete "demo_logout", to: "demo_sessions#destroy", as: :demo_logout
 end
