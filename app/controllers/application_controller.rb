@@ -41,6 +41,11 @@ class ApplicationController < ActionController::Base
   end
 
   def require_login
+    if demo_mode? && request.env["hpees.demo_auto_login"] == true && session[:demo_user_id].blank?
+      user = find_or_create_demo_admin_user!
+      session[:demo_user_id] = user.id
+    end
+
     unless current_user
       redirect_to(demo_mode? ? demo_login_path : login_path)
     end
@@ -116,5 +121,17 @@ class ApplicationController < ActionController::Base
       s = value.to_s
       return "\"#{s.gsub('"', '""')}\"" if s.include?(",") || s.include?("\"") || s.include?("\n") || s.include?("\r")
       s
+    end
+
+    def find_or_create_demo_admin_user!
+      ActiveRecord::Base.connected_to(shard: :demo) do
+        batch_year = BatchYear.order(:id).first || BatchYear.create!(batch_number: 1, grade_id: 1, name: "第1屆")
+
+        User.find_or_create_by!(email: "demo-admin@example.com") do |u|
+          u.name = "示範管理員"
+          u.admin = true
+          u.batch_year = batch_year
+        end
+      end
     end
 end
