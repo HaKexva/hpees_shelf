@@ -3,6 +3,7 @@ class UsersController < ApplicationController
 
   # GET /users or /users.json — only active (non-resigned) users are shown; resigned users can still log in.
   def index
+    apply_current_batch_year_filter!
     remember_users_list_query!
     @sort = User.list_sort_from_param(params[:sort])
     @users = filtered_users_scope.includes(:batch_year).merge(User.ordered_for_list(@sort))
@@ -15,6 +16,7 @@ class UsersController < ApplicationController
 
   # GET /users/export — CSV for current list filters (same as index)
   def export
+    apply_current_batch_year_filter!
     sort = User.list_sort_from_param(params[:sort])
     users = filtered_users_scope.includes(:batch_year).merge(User.ordered_for_list(sort))
     bom = "\uFEFF"
