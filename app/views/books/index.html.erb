@@ -229,6 +229,24 @@
         <button type="submit" class="inline-flex items-center rounded-md px-3.5 py-2.5 bg-red-600 hover:bg-red-500 text-white font-medium cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed" id="bulk-destroy-btn" disabled data-turbo-confirm="確定要刪除所選的書籍嗎？">
           刪除所選
         </button>
+        <div class="flex items-center gap-2">
+          <select id="bulk-source-select" class="block shadow-sm rounded-md border border-gray-300 px-3 py-2 text-sm">
+            <option value="">變更來源…</option>
+            <option value="owned_by_library"><%= t("activerecord.enums.book.source.owned_by_library") %></option>
+            <option value="donated"><%= t("activerecord.enums.book.source.donated") %></option>
+            <option value="owned_by_class"><%= t("activerecord.enums.book.source.owned_by_class") %></option>
+            <option value="owned_by_teacher"><%= t("activerecord.enums.book.source.owned_by_teacher") %></option>
+          </select>
+          <select id="bulk-teacher-select" class="hidden block shadow-sm rounded-md border border-gray-300 px-3 py-2 text-sm">
+            <option value="">選擇老師…</option>
+            <% (@bulk_source_teacher_users || []).each do |u| %>
+              <option value="<%= u.id %>"><%= u.name %></option>
+            <% end %>
+          </select>
+          <button type="button" class="inline-flex items-center rounded-md px-3.5 py-2.5 bg-gray-900 hover:bg-gray-800 text-white font-medium cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed" id="bulk-source-btn" disabled>
+            套用來源
+          </button>
+        </div>
         <span class="text-sm text-gray-500" id="bulk-destroy-count">已選 0 本</span>
       </div>
       <div class="overflow-x-auto">
@@ -433,11 +451,18 @@
       var selectAll = document.getElementById('select-all-books');
       var btn = document.getElementById('bulk-destroy-btn');
       var countEl = document.getElementById('bulk-destroy-count');
+      var sourceSelect = document.getElementById('bulk-source-select');
+      var sourceBtn = document.getElementById('bulk-source-btn');
+      var teacherSelect = document.getElementById('bulk-teacher-select');
 
       function updateState() {
         var n = form.querySelectorAll('.book-checkbox:checked').length;
         btn.disabled = n === 0;
         countEl.textContent = '已選 ' + n + ' 本';
+        var src = sourceSelect ? sourceSelect.value : '';
+        var needsTeacher = src === 'owned_by_teacher';
+        if (teacherSelect) teacherSelect.classList.toggle('hidden', !needsTeacher);
+        if (sourceBtn) sourceBtn.disabled = n === 0 || !sourceSelect || !src || (needsTeacher && (!teacherSelect || !teacherSelect.value));
         if (selectAll) selectAll.checked = n > 0 && n === checkboxes.length;
         if (selectAll) selectAll.indeterminate = n > 0 && n < checkboxes.length;
       }
@@ -446,6 +471,66 @@
       if (selectAll) selectAll.addEventListener('change', function() {
         checkboxes.forEach(function(cb) { cb.checked = selectAll.checked; });
         updateState();
+      });
+      if (sourceSelect) sourceSelect.addEventListener('change', updateState);
+      if (teacherSelect) teacherSelect.addEventListener('change', updateState);
+
+      if (sourceBtn) sourceBtn.addEventListener('click', function() {
+        var n = form.querySelectorAll('.book-checkbox:checked').length;
+        if (n === 0) return;
+        if (!sourceSelect || !sourceSelect.value) return;
+        if (sourceSelect.value === 'owned_by_teacher' && (!teacherSelect || !teacherSelect.value)) return;
+        if (!confirm('確定要更新所選書籍的來源嗎？')) return;
+
+        var actionForm = document.createElement('form');
+        actionForm.method = 'post';
+        actionForm.action = '<%= bulk_update_source_books_path %>';
+
+        var token = document.querySelector('meta[name="csrf-token"]');
+        if (token) {
+          var csrf = document.createElement('input');
+          csrf.type = 'hidden';
+          csrf.name = 'authenticity_token';
+          csrf.value = token.getAttribute('content');
+          actionForm.appendChild(csrf);
+        }
+
+        var newSource = document.createElement('input');
+        newSource.type = 'hidden';
+        newSource.name = 'new_source';
+        newSource.value = sourceSelect.value;
+        actionForm.appendChild(newSource);
+
+        if (sourceSelect.value === 'owned_by_teacher' && teacherSelect && teacherSelect.value) {
+          var teacherId = document.createElement('input');
+          teacherId.type = 'hidden';
+          teacherId.name = 'teacher_user_id';
+          teacherId.value = teacherSelect.value;
+          actionForm.appendChild(teacherId);
+        }
+
+        // keep list filters on redirect
+        ['batch_year_id','q','source','status','sort'].forEach(function(k) {
+          var el = form.querySelector('input[name=\"' + k + '\"]');
+          if (el && el.value) {
+            var h = document.createElement('input');
+            h.type = 'hidden';
+            h.name = k;
+            h.value = el.value;
+            actionForm.appendChild(h);
+          }
+        });
+
+        form.querySelectorAll('.book-checkbox:checked').forEach(function(cb) {
+          var h = document.createElement('input');
+          h.type = 'hidden';
+          h.name = 'book_ids[]';
+          h.value = cb.value;
+          actionForm.appendChild(h);
+        });
+
+        document.body.appendChild(actionForm);
+        actionForm.submit();
       });
       updateState();
     })();

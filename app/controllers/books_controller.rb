@@ -19,6 +19,7 @@ class BooksController < ApplicationController
     @inventory_sort = params[:inventory_sort].presence_in(INVENTORY_SORT_KEYS) || "isbn"
     teacher_ids = Book.where(source: :owned_by_teacher).where.not(user_id: nil).distinct.pluck(:user_id)
     @inventory_teacher_users = User.with_deleted.where(id: teacher_ids).order(:name)
+    @bulk_source_teacher_users = User.active.where(admin: true).order(:name)
     @invalid_books = @books.select { |b| b.missing_required_fields.any? }
     @books_with_invalid_isbn = @books.select(&:invalid_isbn?)
     @any_library_books_to_return = @filter_batch_year_id.present? &&
@@ -560,6 +561,58 @@ class BooksController < ApplicationController
     else
       redirect_to books_path(rq), alert: "請至少選擇一本書。", status: :see_other
     end
+  end
+
+  # POST /books/bulk_update_source
+  def bulk_update_source
+    ids = Array(params[:book_ids]).reject(&:blank?).map(&:to_i)
+    rq = books_bulk_redirect_query
+    source = params[:new_source].to_s.strip
+    teacher_user_id = params[:teacher_user_id].to_s.strip.to_i
+
+    allowed_sources = %w[owned_by_library donated owned_by_class owned_by_teacher].freeze
+    unless allowed_sources.include?(source)
+      redirect_to books_path(rq), alert: "請選擇可變更的來源。", status: :see_other
+      return
+    end
+
+    if ids.empty?
+      redirect_to books_path(rq), alert: "請至少選擇一本書。", status: :see_other
+      return
+    end
+
+    if Book.where(id: ids, status: Book::STATUS_BORROWED).exists?
+      redirect_to books_path(rq), alert: "借閱中的書不可批次變更來源。", status: :see_other
+      return
+    end
+
+    teacher =
+      if source == "owned_by_teacher"
+        User.active.find_by(id: teacher_user_id, admin: true)
+      end
+    if source == "owned_by_teacher" && teacher.blank?
+      redirect_to books_path(rq), alert: "請先選擇要指派的老師。", status: :see_other
+      return
+    end
+
+    now = Time.current
+    count = 0
+    begin
+      Book.where(id: ids).includes(:user).find_each do |book|
+        attrs = { source: source, updated_at: now }
+        if source == "owned_by_teacher"
+          attrs[:user_id] = teacher.id
+        elsif book.owned_by_teacher?
+          attrs[:user_id] = nil
+        end
+        book.update!(attrs)
+        count += 1
+      end
+    rescue ActiveRecord::RecordInvalid => e
+      redirect_to books_path(rq), alert: e.record.errors.full_messages.first.presence || "來源變更失敗。", status: :see_other
+      return
+    end
+    redirect_to books_path(rq), notice: "已更新 #{count} 本書的來源。", status: :see_other
   end
 
   private

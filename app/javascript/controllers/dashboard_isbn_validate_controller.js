@@ -146,6 +146,8 @@ export default class extends Controller {
     params.append("isbn", rawIsbn)
 
     if (form) {
+      const sourceSelect = form.querySelector("select[name='source']")
+      const batchSelect = form.querySelector("select[name='batch_year_id']")
       const hiddenUser    = form.querySelector("input[name='user_id']")
       const userSelect    = form.querySelector("select[name='user_id']")
       const idNumberInput = form.querySelector("input[name='id_number']")
@@ -163,6 +165,14 @@ export default class extends Controller {
 
       if (actionType) {
         params.append("action_type", actionType)
+      }
+
+      if (sourceSelect && sourceSelect.value && sourceSelect.value.trim() !== "") {
+        params.append("source", sourceSelect.value.trim())
+      }
+
+      if (batchSelect && batchSelect.value && batchSelect.value.trim() !== "") {
+        params.append("batch_year_id", batchSelect.value.trim())
       }
     }
 

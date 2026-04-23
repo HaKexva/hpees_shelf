@@ -32,6 +32,7 @@ Rails.application.routes.draw do
       get :return_to_library_batch
       post :apply_return_to_library_batch
       delete :bulk_destroy
+      post :bulk_update_source
     end
   end
   # Define your application routes per the DSL in https://guides.rubyonrails.org/routing.html
