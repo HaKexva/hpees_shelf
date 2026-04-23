@@ -79,6 +79,12 @@ class BatchYearsController < ApplicationController
     @batch_years_with_office = BatchYear.by_number_desc
     @any_library_books_to_return = Book.where(source: :owned_by_library).where.not(status: Book::STATUS_RETURNED_LIBRARY).exists?
     @relocation_draft = session[:relocation_draft] || {}
+    @relocation_draft_saved = session[:relocation_draft_saved].present?
+    @relocation_batch_year_grade_map =
+      BatchYear.by_number_desc.each_with_object({}) do |by, h|
+        g = @relocation_school_year_pending_commit ? by.grade_id_after_school_year_advance : by.grade_id
+        h[by.id.to_s] = g
+      end
     @resigned_restorable = User.where.not(resigned_at: nil).where("resigned_at >= ?", 1.month.ago).includes(:batch_year).order(:name)
 
     teacher_books = @pending_books.select { |b| b.owned_by_teacher? && b.user_id.present? }
@@ -98,6 +104,12 @@ class BatchYearsController < ApplicationController
     @pending_books_donated = @pending_books.select(&:donated?)
     @pending_books_class = @pending_books.select(&:owned_by_class?)
     @pending_books_library = @pending_books.select(&:owned_by_library?)
+    @donated_books_optional =
+      Book.where(source: :donated)
+          .where.not(status: Book::STATUS_RETURNED_LIBRARY)
+          .where.not(id: @pending_books_donated.map(&:id))
+          .includes(:batch_year)
+          .order(:title)
     if @pending_books.empty? && @pending_users.empty? && @resigned_restorable.empty?
       session.delete(:pending_relocation_book_ids)
       session.delete(:pending_relocation_user_ids)
@@ -112,11 +124,48 @@ class BatchYearsController < ApplicationController
   def apply_relocation
     if params[:commit].to_s == "儲存草稿"
       persist_relocation_draft!
+      session[:relocation_draft_saved] = true
       redirect_to relocation_batch_years_path, notice: "草稿已儲存。", status: :see_other
       return
     end
 
+    unless session[:relocation_draft_saved].present?
+      redirect_to relocation_batch_years_path, alert: "請先儲存草稿，確認書籍與老師勾選後才可移動。", status: :see_other
+      return
+    end
+
+    grade_teacher_ids = relocation_param_hash(:grade_teacher_ids)
+    required_grades = (1..6).map(&:to_s)
+    missing = required_grades.reject { |g| grade_teacher_ids[g].to_s.strip.present? }
+    if missing.any?
+      redirect_to relocation_batch_years_path, alert: "請為每個年級勾選 1 位老師後才可移動。", status: :see_other
+      return
+    end
+
     staged_commit = session[:relocation_school_year_pending_commit].present?
+
+    unless current_user&.superadmin?
+      picked_ids = required_grades.map { |g| grade_teacher_ids[g].to_s.strip }.uniq
+      if picked_ids.size != 1 || picked_ids.first != current_user.id.to_s
+        redirect_to relocation_batch_years_path, alert: "您只能勾選自己為年級負責老師。", status: :see_other
+        return
+      end
+    end
+
+    teacher_batch_h = relocation_param_hash(:teacher_batch_year_ids)
+    required_grades.each do |g|
+      tid = grade_teacher_ids[g].to_s.strip
+      raw_ids = teacher_batch_h[tid].presence || teacher_batch_h[tid.to_i] || []
+      batch_ids = Array(raw_ids).reject(&:blank?).map(&:to_i).uniq
+      grades =
+        BatchYear.where(id: batch_ids).map do |by|
+          staged_commit ? by.grade_id_after_school_year_advance : by.grade_id
+        end.compact.uniq
+      unless grades.include?(g.to_i)
+        redirect_to relocation_batch_years_path, alert: "年級負責老師必須有任教該年級（請先在下方為該老師勾選任教屆數，再重新儲存草稿）。", status: :see_other
+        return
+      end
+    end
     pending_book_ids = session[:pending_relocation_book_ids].to_a
     if (msg = relocation_book_assignments_error_message(pending_book_ids))
       redirect_to relocation_batch_years_path, alert: msg, status: :see_other
@@ -316,6 +365,7 @@ class BatchYearsController < ApplicationController
       session[:relocation_draft] = {
         "book_assignments" => relocation_param_hash(:book_assignments),
         "teacher_batch_year_ids" => relocation_param_hash(:teacher_batch_year_ids),
+        "grade_teacher_ids" => relocation_param_hash(:grade_teacher_ids),
         "resigned_assignments" => relocation_param_hash(:resigned_assignments),
         "new_personnel" => new_personnel
       }

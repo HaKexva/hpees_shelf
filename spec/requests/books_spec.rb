@@ -343,6 +343,7 @@ RSpec.describe "Books", type: :request do
       expect(response.media_type).to eq("text/csv")
       expect(response.body).to include("Csv Only T1")
       expect(response.body).not_to include("Csv Only T2")
+      expect(response.body).to include("CsvT1")
     end
   end
 

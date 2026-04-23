@@ -37,9 +37,9 @@ class BooksController < ApplicationController
     apply_current_batch_year_filter!
     BatchYear.ensure_office_exists!
     sort = Book.list_sort_from_param(params[:sort])
-    books = filtered_books_scope.includes(:batch_year).merge(Book.ordered_for_list(sort))
+    books = filtered_books_scope.includes(:batch_year, :user).merge(Book.ordered_for_list(sort))
     bom = "\uFEFF"
-    headers = %w[書名 ISBN 屆數ID 屆數 來源 班級書 登錄號 總數 冊數 備註 狀態]
+    headers = %w[書名 ISBN 屆數ID 屆數 來源 老師 班級書 登錄號 總數 冊數 備註 狀態]
     csv = +""
     csv << bom
     csv << headers.map { |h| _csv_escape(h) }.join(",") << "\n"
@@ -50,6 +50,7 @@ class BooksController < ApplicationController
         book.batch_year_id.to_s,
         book.batch_year&.display_label_with_grade.to_s,
         book.source.present? ? I18n.t("activerecord.enums.book.source.#{book.source}") : "",
+        (book.owned_by_teacher? && book.user.present? ? book.user.name.to_s : ""),
         (book.owned_by_class? && book.relocation_behavior.present? ? I18n.t("activerecord.enums.book.relocation_behavior_short.#{book.relocation_behavior}") : ""),
         book.call_number.to_s,
         book.total.to_s,
