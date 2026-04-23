@@ -25,30 +25,6 @@
         </div>
 
         <div>
-          <div data-controller="source-filter-buttons">
-            <label class="block text-sm font-medium text-gray-700 mb-2">來源（選填）</label>
-            <div class="flex flex-wrap gap-2 mb-2">
-              <% sources = [ [ "全部", "" ] ] + Book.sources.keys.map { |k| [ t("activerecord.enums.book.source.#{k}"), k ] } %>
-              <% sources.each do |label, val| %>
-                <button
-                  type="button"
-                  class="inline-flex items-center rounded-full border px-3 py-1.5 text-sm font-medium"
-                  data-source-filter-buttons-target="button"
-                  data-action="click->source-filter-buttons#pick"
-                  data-value="<%= val %>"
-                ><%= label %></button>
-              <% end %>
-            </div>
-            <select name="source" class="hidden" aria-hidden="true" tabindex="-1" data-source-filter-buttons-target="select" data-action="change->source-filter-buttons#syncFromSelect">
-              <option value="">全部來源</option>
-              <% Book.sources.keys.each do |k| %>
-                <option value="<%= k %>"><%= t("activerecord.enums.book.source.#{k}") %></option>
-              <% end %>
-            </select>
-          </div>
-        </div>
-
-        <div>
           <label class="block text-sm font-medium text-gray-700 mb-2">學號</label>
           <input type="text" name="id_number" placeholder="請輸入學號（6 位數字）" required autocomplete="off" class="block w-full max-w-md shadow-sm rounded-lg border border-gray-300 px-3 py-2.5 text-base" />
         </div>
