@@ -56,13 +56,25 @@ class DashboardController < ApplicationController
     else
       current_user
     end
-    # 借還系統看所有來源的書，只要不是「歸還圖書館」且有書名；每本都要檢查總數（含 circulation）
-    matching_books =
+    base_scope =
       Book.where.not(status: Book::STATUS_RETURNED_LIBRARY)
           .where.not(title: [ nil, "" ])
-          .includes(:batch_year, :user, :circulation_records)
-          .to_a
-          .select { |b| Book.isbn_match?(b.isbn, isbn) }
+
+    if params[:source].present?
+      src = params[:source].to_s
+      base_scope = base_scope.where(source: src) if Book.sources.key?(src)
+    end
+
+    if params[:batch_year_id].present?
+      bid = params[:batch_year_id].to_s.strip.to_i
+      base_scope = base_scope.where(batch_year_id: bid) if bid.positive?
+    end
+
+    # 借還系統看篩選後的書；每本都要檢查總數（含 circulation）
+    matching_books =
+      base_scope.includes(:batch_year, :user, :circulation_records)
+                .to_a
+                .select { |b| Book.isbn_match?(b.isbn, isbn) }
     book_exists = matching_books.any?
     # 直接查 DB 未還本數，確保總數 3 借出 1 本後仍顯示可借 2
     book_ids = matching_books.map(&:id)
@@ -128,12 +140,24 @@ class DashboardController < ApplicationController
     if current_user_admin? || (current_user.nil? && params[:action_type].present?)
       # Admin flow: can specify borrower, explicit checkout/return
       action = params[:action_type].to_s == "return" ? "return" : "checkout"
-      base_books =
+      base_scope =
         Book.where.not(status: Book::STATUS_RETURNED_LIBRARY)
             .where.not(title: [ nil, "" ])
-            .includes(:batch_year, :borrowers, :circulation_records)
-            .to_a
-            .select { |b| Book.isbn_match?(b.isbn, isbn) }
+
+      if params[:source].present?
+        src = params[:source].to_s
+        base_scope = base_scope.where(source: src) if Book.sources.key?(src)
+      end
+
+      if params[:batch_year_id].present?
+        bid = params[:batch_year_id].to_s.strip.to_i
+        base_scope = base_scope.where(batch_year_id: bid) if bid.positive?
+      end
+
+      base_books =
+        base_scope.includes(:batch_year, :borrowers, :circulation_records)
+                  .to_a
+                  .select { |b| Book.isbn_match?(b.isbn, isbn) }
 
       books =
         if action == "checkout"
@@ -204,11 +228,23 @@ class DashboardController < ApplicationController
       redirect_to _borrow_return_home_path, notice: @process_notice, status: :see_other
     else
       # Student flow: only operate on books this student can borrow/return
-      books = Book.where.not(status: Book::STATUS_RETURNED_LIBRARY)
-                  .where.not(title: [ nil, "" ])
-                  .includes(:batch_year, :borrowers, :circulation_records)
-                  .to_a
-                  .select { |b| Book.isbn_match?(b.isbn, isbn) }
+      scope =
+        Book.where.not(status: Book::STATUS_RETURNED_LIBRARY)
+            .where.not(title: [ nil, "" ])
+
+      if params[:source].present?
+        src = params[:source].to_s
+        scope = scope.where(source: src) if Book.sources.key?(src)
+      end
+
+      if params[:batch_year_id].present?
+        bid = params[:batch_year_id].to_s.strip.to_i
+        scope = scope.where(batch_year_id: bid) if bid.positive?
+      end
+
+      books = scope.includes(:batch_year, :borrowers, :circulation_records)
+                   .to_a
+                   .select { |b| Book.isbn_match?(b.isbn, isbn) }
 
       books = books.select { |b| b.id == pending_book_id } if pending_book_id.present?
 
