@@ -42,7 +42,7 @@ class BooksController < ApplicationController
     bom = "\uFEFF"
     # Keep export format identical to import format (same headers + order),
     # so users can export → edit → import without remapping columns.
-    headers = %w[書名 ISBN 屆數ID 屆數 總數 冊數 備註 來源 登錄號 狀態]
+    headers = %w[書名 ISBN 屆數ID 總數 冊數 備註 來源 登錄號 狀態]
     csv = +""
     csv << bom
     csv << headers.map { |h| _csv_escape(h) }.join(",") << "\n"
@@ -65,7 +65,6 @@ class BooksController < ApplicationController
         book.title,
         helpers.format_isbn13(book.isbn),
         book.batch_year_id.to_s,
-        book.batch_year&.display_label_with_grade.to_s,
         book.total.to_s,
         book.volume.to_s,
         book.note.to_s,
@@ -128,7 +127,7 @@ class BooksController < ApplicationController
     @imported_data = []
     @headers = []
     @required_columns = %w[title isbn source]
-    @expected_columns = %w[title isbn batch_year_id batch_year total volume note source call_number status]
+    @expected_columns = %w[title isbn batch_year_id total volume note source call_number status]
     @column_names_zh = {
       "title" => "書名",
       "isbn" => "ISBN",
@@ -171,7 +170,7 @@ class BooksController < ApplicationController
         }
       end
 
-      headers = %w[書名 ISBN 屆數ID 屆數 來源 登錄號 總數 冊數 備註 狀態]
+      headers = %w[書名 ISBN 屆數ID 來源 登錄號 總數 冊數 備註 狀態]
       bom = "\uFEFF"
       csv = +""
       csv << bom

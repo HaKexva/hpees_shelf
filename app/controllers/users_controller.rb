@@ -20,7 +20,7 @@ class UsersController < ApplicationController
     sort = User.list_sort_from_param(params[:sort])
     users = filtered_users_scope.includes(:batch_year).merge(User.ordered_for_list(sort))
     bom = "\uFEFF"
-    headers = %w[姓名 屆數ID 屆數 學號 座號 電子信箱 管理員]
+    headers = %w[姓名 屆數ID 學號 座號 電子信箱 管理員]
     csv = +""
     csv << bom
     csv << headers.map { |h| _csv_escape(h) }.join(",") << "\n"
@@ -28,7 +28,6 @@ class UsersController < ApplicationController
       row = [
         user.name,
         user.batch_year_id.to_s,
-        user.batch_year&.display_label_with_grade.to_s,
         user.admin ? "—" : (user.id_number || ""),
         user.admin ? "—" : (user.seat_number || ""),
         user.email.to_s,
