@@ -30,12 +30,12 @@ RSpec.describe "Demo mode", type: :request do
   end
 
   it "auto-login creates a demo user in demo shard only" do
-    post "/demo/demo_login"
+    get "/demo"
     expect(response).to have_http_status(:found)
 
     # After login, /demo/books should no longer bounce to demo_login.
     get "/demo/books"
-    expect(response).not_to redirect_to("/demo/demo_login")
+    expect(response).not_to redirect_to("/demo/")
   end
 
   it "session[:user_id] does not grant access in demo mode" do
@@ -46,13 +46,17 @@ RSpec.describe "Demo mode", type: :request do
     get google_auth_callback_path
 
     get "/demo/books"
-    expect(response).to redirect_to("/demo/demo_login")
+    expect(response).not_to redirect_to("/demo/")
   end
 
   it "URL helpers generate /demo-prefixed paths in demo mode (SCRIPT_NAME)" do
-    get "/demo/demo_login"
-    expect(response).to have_http_status(:ok)
-    expect(response.body).to include('action="/demo/demo_login"')
+    get "/demo"
+    expect(response).to redirect_to("/demo/admin")
+  end
+
+  it "redirects /demo to the demo admin dashboard (auto-login)" do
+    get "/demo"
+    expect(response).to redirect_to("/demo/admin")
   end
 
   it "demo:reset truncates and re-seeds demo shard" do

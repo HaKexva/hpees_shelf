@@ -89,8 +89,9 @@ RSpec.describe "Sessions", type: :request do
       expect(response.body).not_to include(loan_history_path)
     end
 
-    it "shows only borrow/return nav when logged out" do
+    it "shows borrow/return nav when logged out" do
       get login_path
+      expect(response.body).to include("管理員登入")
       expect(response.body).to include("借還書")
       expect(response.body).not_to include("書籍管理")
       expect(response.body).not_to include("屆數管理")

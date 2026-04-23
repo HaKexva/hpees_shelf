@@ -43,9 +43,15 @@ RSpec.describe DemoModeMiddleware do
     expect(body.join).to eq("/books|/demo|true")
   end
 
-  it "maps bare /demo to / for routing" do
-    status, _headers, body = middleware.call({ "PATH_INFO" => "/demo", "SCRIPT_NAME" => "" })
-    expect(status).to eq(200)
-    expect(body.join).to eq("/|/demo|true")
+  it "maps bare /demo to /admin for routing (auto-login entrypoint)" do
+    status, headers, _body = middleware.call({ "PATH_INFO" => "/demo", "SCRIPT_NAME" => "" })
+    expect(status).to eq(302)
+    expect(headers["Location"]).to eq("/demo/admin")
+  end
+
+  it "redirects /demo/login to /demo/admin (no demo login page)" do
+    status, headers, _body = middleware.call({ "PATH_INFO" => "/demo/login", "SCRIPT_NAME" => "" })
+    expect(status).to eq(302)
+    expect(headers["Location"]).to eq("/demo/admin")
   end
 end

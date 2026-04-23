@@ -71,7 +71,5 @@ Rails.application.routes.draw do
 
   post "current_batch_year", to: "current_batch_years#update", as: :current_batch_year
 
-  get "demo_login", to: "demo_sessions#new", as: :demo_login
-  post "demo_login", to: "demo_sessions#create"
   delete "demo_logout", to: "demo_sessions#destroy", as: :demo_logout
 end

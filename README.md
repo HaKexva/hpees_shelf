@@ -59,7 +59,7 @@ HPEES Shelf is a **Rails 8.1** monolith for a school library: cataloging books, 
 Demo mode runs the app against a **separate demo database shard** and prefixes all routes with `/demo`.
 
 - **Enable**: set `DEMO_ENABLED=true`
-- **Entry point**: visit `/demo/demo_login` (auto-login as demo admin)
+- **Entry point**: visit `/demo` (auto-login as demo admin)
 - **Production demo DB**: set `DEMO_DATABASE_URL` (falls back to `DATABASE_URL` if unset)
 
 ### Local development setup
@@ -240,7 +240,7 @@ For maintainers: see **`AGENTS.md`** (Cursor / Linear / branch → PR → merge 
 展示模式會把所有路徑加上 `/demo` 前綴，並切換到 **獨立的 demo 資料庫 shard**。
 
 - **啟用**：設定 `DEMO_ENABLED=true`
-- **入口**：瀏覽 `/demo/demo_login`（自動以示範管理員登入）
+- **入口**：瀏覽 `/demo`（自動以示範管理員登入）
 - **正式環境 demo DB**：設定 `DEMO_DATABASE_URL`（未設定則 fallback 到 `DATABASE_URL`）
 
 ### 本機開發環境
