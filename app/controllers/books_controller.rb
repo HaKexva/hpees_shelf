@@ -896,11 +896,17 @@ class BooksController < ApplicationController
       false
     end
 
-    # Find existing book in the same 屆數: same batch_year, title, isbn, source; for library also same call_number.
+    # Find existing book in the same 屆數:
+    # - same batch_year, title, isbn, source
+    # - same volume / edition_part (so 上下冊 are treated as different books)
+    # - for library also same call_number.
     def _import_find_existing(row, title, isbn, source_key, batch_year_id)
       return nil if batch_year_id.blank?
 
       scope = Book.where(title: title, isbn: isbn, source: source_key, batch_year_id: batch_year_id)
+      vol = _import_row_value(row, "volume", "Volume", "冊數").to_s.strip.presence
+      ed = _import_row_value(row, "edition_part", "Edition_part", "版次", "分冊").to_s.strip.presence
+      scope = scope.where(volume: vol, edition_part: ed)
       if source_key == "owned_by_library"
         call_num = _import_row_value(row, "call_number", "登錄號")
         scope = scope.where(call_number: call_num.to_s.strip.presence)

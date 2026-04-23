@@ -61,6 +61,13 @@ export default class extends Controller {
         const borrowable = allDuplicates.filter((b) => b.borrowable_for_checkout)
 
         if (actionType === "checkout") {
+          // If multiple books share this ISBN (e.g. 上下冊), always require the user to pick the exact volume/copy.
+          // Even if only one is currently borrowable, scanning should not silently select a different volume.
+          if (allDuplicates.length >= 2) {
+            this.renderDuplicates(allDuplicates)
+            this.setPendingBookId(null)
+            return
+          }
           if (borrowable.length === 0) {
             this.showMessage("格式正確，此幾本目前皆已借出，請稍後再試", false)
             this.setInputState(false)
@@ -215,7 +222,7 @@ export default class extends Controller {
 
     container.innerHTML = `
       <div class="mt-2 rounded-md border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
-        <p class="font-medium mb-1">有 <span class="font-bold">${duplicates.length}</span> 本相同 ISBN，請先選擇冊別：</p>
+        <p class="font-medium mb-1">找到 <span class="font-bold">${duplicates.length}</span> 本符合此 ISBN（可能是上下冊或多冊），請先選擇冊別：</p>
         <label class="block text-xs font-medium text-gray-700 mb-1" for="inline_pending_book_select">選擇書籍（冊別）</label>
         <select
           id="inline_pending_book_select"
