@@ -144,6 +144,11 @@ class DashboardController < ApplicationController
 
       books = books.select { |b| b.id == pending_book_id } if pending_book_id.present?
 
+      if pending_book_id.blank? && books.size > 1
+        redirect_to _borrow_return_home_path, alert: "此 ISBN 有多本符合（可能是上下冊），請先選擇冊別。", status: :see_other
+        return
+      end
+
       if books.empty?
         alert_msg =
           if action == "checkout"
@@ -252,6 +257,11 @@ class DashboardController < ApplicationController
       end
       if books.empty?
         redirect_to _borrow_return_home_path, alert: "沒有您可借或可還的書（屆數不符或非您借閱）。", status: :see_other
+        return
+      end
+
+      if pending_book_id.blank? && books.size > 1
+        redirect_to _borrow_return_home_path, alert: "此 ISBN 有多本符合（可能是上下冊），請先選擇冊別。", status: :see_other
         return
       end
 

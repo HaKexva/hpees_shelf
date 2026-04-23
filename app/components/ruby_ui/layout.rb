@@ -10,14 +10,14 @@ module RubyUI
         render_desktop_sidebar
 
         # 2. Main Content Area
-        div(class: "flex flex-col flex-1 w-full") do
+        div(class: "flex flex-col flex-1 w-full min-w-0") do
           render_demo_mode_banner
 
           # 3. Mobile Header (Hidden on desktop)
           render_mobile_header
 
           # 4. Page Content (unified width + padding for all pages and flash)
-          main(class: "flex-1 overflow-y-auto p-4") do
+          main(class: "flex-1 overflow-y-auto overflow-x-hidden p-4") do
             div(class: "w-full max-w-6xl mx-auto px-4 sm:px-6 space-y-4") do
               render_flash_messages
               block.call
