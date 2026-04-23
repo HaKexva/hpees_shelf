@@ -20,7 +20,7 @@
     <% end %>
   </div>
 
-  <% if @pending_books.any? %>
+  <% if @pending_books.any? || (@donated_books_optional.present? && @donated_books_optional.any?) %>
     <% if @pending_teacher_books_multi.present? %>
       <div class="bg-white rounded-lg shadow p-6">
         <h3 class="font-semibold text-lg mb-4">老師的書（該老師教兩屆或以上）：逐本指定新屆數</h3>
@@ -83,6 +83,38 @@
                   <td class="px-4 py-2">
                     <% selected = draft.dig("book_assignments", book.id.to_s).presence %>
                     <%= select_tag "book_assignments[#{book.id}]", options_for_select(relocation_by_opts, selected), { include_blank: "請選擇", required: true, class: "block shadow-sm rounded-md border border-gray-300 px-3 py-2 text-sm w-48" } %>
+                  </td>
+                </tr>
+              <% end %>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    <% end %>
+
+    <% if @donated_books_optional.present? %>
+      <div class="bg-white rounded-lg shadow p-6">
+        <h3 class="font-semibold text-lg mb-4">捐贈的書：可選擇重新指定屆數（未選則維持不變）（<%= @donated_books_optional.size %> 本）</h3>
+        <p class="text-sm text-gray-600 mb-4">這些捐贈書不一定落在「畢業屆數」流程中，但您可在此手動改掛。</p>
+        <div class="overflow-x-auto">
+          <table class="min-w-full divide-y divide-gray-200">
+            <thead class="bg-gray-50">
+              <tr>
+                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">書名</th>
+                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">目前屆數</th>
+                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">新屆數</th>
+              </tr>
+            </thead>
+            <tbody class="bg-white divide-y divide-gray-200">
+              <% @donated_books_optional.each do |book| %>
+                <tr>
+                  <td class="px-4 py-2 text-sm font-medium text-gray-900"><%= book.title %></td>
+                  <td class="px-4 py-2 text-sm text-gray-600"><%= book.batch_year&.display_label_with_grade %></td>
+                  <td class="px-4 py-2">
+                    <% selected = draft.dig("book_assignments", book.id.to_s).presence %>
+                    <%= select_tag "book_assignments[#{book.id}]",
+                                   options_for_select(relocation_by_opts, selected),
+                                   { include_blank: "— 不變 —", required: false, class: "block shadow-sm rounded-md border border-gray-300 px-3 py-2 text-sm w-48" } %>
                   </td>
                 </tr>
               <% end %>

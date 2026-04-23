@@ -14,8 +14,89 @@
     <% end %>
   </div>
 
-  <%= form_with url: apply_relocation_batch_years_path, method: :post, html: { class: "space-y-8", id: "relocation-form", data: { turbo: false } } do |f| %>
+  <%= form_with url: apply_relocation_batch_years_path,
+                method: :post,
+                html: {
+                  class: "space-y-8",
+                  id: "relocation-form",
+                  data: {
+                    turbo: false,
+                    controller: "relocation-guard",
+                    relocation_guard_draft_saved_value: (@relocation_draft_saved ? "true" : "false"),
+                    relocation_guard_batch_year_grade_map_value: (@relocation_batch_year_grade_map || {}).to_json,
+                    relocation_guard_current_user_id_value: current_user&.id.to_i,
+                    relocation_guard_superadmin_value: (current_user&.superadmin? ? "true" : "false"),
+                    action: "change->relocation-guard#onChange input->relocation-guard#onChange"
+                  }
+                } do |f| %>
     <%= render "relocation_books" %>
+
+    <div class="bg-white rounded-lg shadow p-6">
+      <h2 class="font-semibold text-lg mb-2">年級負責老師（每個年級 1 位）</h2>
+      <p class="text-sm text-gray-600 mb-4">請為每個年級勾選 1 位老師；且在完成書籍/老師屆數選擇後先按「儲存草稿」，才會開放移動。</p>
+      <div class="overflow-x-auto">
+        <table class="min-w-full divide-y divide-gray-200">
+          <thead class="bg-gray-50">
+            <tr>
+              <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">年級</th>
+              <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">老師</th>
+            </tr>
+          </thead>
+          <tbody class="bg-white divide-y divide-gray-200">
+            <% teachers = (@pending_users || []).to_a %>
+            <% grade_teacher_draft = draft["grade_teacher_ids"] || {} %>
+            <% teacher_batch_draft = draft["teacher_batch_year_ids"] || {} %>
+            <% (1..6).each do |g| %>
+              <tr>
+                <td class="px-4 py-2 text-sm font-medium text-gray-900"><%= g %> 年級</td>
+                <td class="px-4 py-2">
+                  <div class="flex flex-wrap gap-3">
+                    <% teachers.each do |t| %>
+                      <% checked = grade_teacher_draft[g.to_s].to_s == t.id.to_s %>
+                      <% # Initial render (no-JS / first paint): only show if this teacher currently covers this grade. %>
+                      <% selected_batch_ids =
+                           Array(teacher_batch_draft[t.id.to_s].presence || t.member_batch_year_ids)
+                             .reject(&:blank?).map(&:to_i).uniq %>
+                      <% grade_batch_labels =
+                           BatchYear.where(id: selected_batch_ids).order(batch_number: :desc).map do |by|
+                             gg = @relocation_school_year_pending_commit ? by.grade_id_after_school_year_advance : by.grade_id
+                             next nil unless gg == g
+                             @relocation_school_year_pending_commit ? by.display_label_with_grade_after_school_year_advance : by.display_label_with_grade
+                           end.compact %>
+                      <% visible = grade_batch_labels.any? %>
+                      <label
+                        class="inline-flex items-center gap-2 text-sm text-gray-800 hidden"
+                        style="display: <%= visible ? 'inline-flex' : 'none' %>;"
+                        data-relocation-guard-grade-teacher-label
+                        data-grade="<%= g %>"
+                        data-teacher-id="<%= t.id %>"
+                      >
+                        <input
+                          type="checkbox"
+                          name="grade_teacher_ids[<%= g %>]"
+                          value="<%= t.id %>"
+                          <%= "checked" if checked %>
+                          class="rounded border-gray-300 text-blue-600 focus:ring-blue-600"
+                          data-relocation-guard-grade-teacher-checkbox
+                          data-grade="<%= g %>"
+                          data-teacher-id="<%= t.id %>"
+                          <%= "disabled" if !current_user&.superadmin? && current_user&.id.to_i != t.id.to_i %>
+                        >
+                        <span><%= t.name %></span>
+                        <span class="hidden" data-relocation-guard-grade-teacher-batches></span>
+                      </label>
+                    <% end %>
+                  </div>
+                  <% if teachers.any? %>
+                    <p class="mt-2 text-xs text-gray-500">僅顯示有任教該年級的老師（依下方「任教屆數（複選）」）。</p>
+                  <% end %>
+                </td>
+              </tr>
+            <% end %>
+          </tbody>
+        </table>
+      </div>
+    </div>
 
     <% if @pending_users.present? %>
       <div class="bg-white rounded-lg shadow p-6">
@@ -38,12 +119,49 @@
                   <td class="px-4 py-2">
                     <% draft_ids = draft.dig("teacher_batch_year_ids", user.id.to_s) %>
                     <% selected_ids = Array(draft_ids.presence || user.member_batch_year_ids).map(&:to_i) %>
-                    <%= select_tag "teacher_batch_year_ids[#{user.id}][]",
-                                   options_for_select(relocation_by_opts, selected_ids),
-                                   multiple: true,
-                                   required: true,
-                                   size: 6,
-                                   class: "block shadow-sm rounded-md border border-gray-300 px-3 py-2 text-sm w-72" %>
+                    <div data-controller="extra-batch-select">
+                      <%= select_tag "teacher_batch_year_ids[#{user.id}][]",
+                                     options_for_select(relocation_by_opts, selected_ids),
+                                     multiple: true,
+                                     required: true,
+                                     class: "hidden",
+                                     data: { extra_batch_select_target: "select" } %>
+
+                      <div class="border border-gray-300 rounded-md px-3 py-2 bg-white w-72">
+                        <button type="button"
+                                class="w-full flex justify-between items-center text-sm text-gray-700"
+                                data-action="click->extra-batch-select#togglePanel"
+                                aria-haspopup="listbox">
+                          <span data-extra-batch-select-target="summary">尚未選擇屆數</span>
+                          <span class="text-gray-400 text-xs">▼</span>
+                        </button>
+                        <div class="mt-2 border-t border-gray-200 pt-2 hidden max-h-48 overflow-y-auto"
+                             data-extra-batch-select-target="panel">
+                          <div class="flex justify-between items-center mb-1">
+                            <span class="text-xs text-gray-500">勾選任教屆數</span>
+                            <button type="button"
+                                    class="text-xs text-gray-400 hover:text-gray-600"
+                                    data-action="click->extra-batch-select#clearAll">
+                              清除選取
+                            </button>
+                          </div>
+                          <div class="space-y-1 text-sm">
+                            <% @batch_years.each do |by| %>
+                              <% label = @relocation_school_year_pending_commit ? by.display_label_with_grade_after_school_year_advance : by.display_label_with_grade %>
+                              <label class="flex items-center gap-2">
+                                <input type="checkbox"
+                                       class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-600"
+                                       value="<%= by.id %>"
+                                       data-extra-batch-select-target="checkbox"
+                                       data-action="change->extra-batch-select#toggleOption"
+                                       <%= "checked" if selected_ids.include?(by.id) %>>
+                                <span class="text-gray-700"><%= label %></span>
+                              </label>
+                            <% end %>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
                   </td>
                 </tr>
               <% end %>
@@ -123,9 +241,14 @@
 
     <div class="flex flex-wrap gap-2 items-center">
       <% commit_submit_data = @relocation_school_year_pending_commit ? { turbo_confirm: "送出後將切換至#{next_roc_on_commit}學年度，且無法由此流程切回。確定？" } : {} %>
-      <%= f.submit "儲存屆數指定", class: "inline-flex items-center rounded-md px-3.5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-medium cursor-pointer", data: commit_submit_data %>
+      <%= f.submit "儲存屆數指定",
+                   class: "inline-flex items-center rounded-md px-3.5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-medium cursor-pointer",
+                   data: commit_submit_data,
+                   disabled: true,
+                   data: commit_submit_data.merge(relocation_guard_target: "commitButton") %>
       <%= f.submit "儲存草稿", class: "inline-flex items-center rounded-md px-3.5 py-2.5 bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 font-medium cursor-pointer" %>
       <%= link_to "返回屆數列表", batch_years_path, class: "inline-flex items-center rounded-md px-3.5 py-2.5 bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 font-medium" %>
+      <span class="text-sm text-amber-800" data-relocation-guard-target="hint"></span>
     </div>
   <% end %>
 </div>

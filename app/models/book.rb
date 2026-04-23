@@ -34,8 +34,11 @@ class Book < ApplicationRecord
   # 原屆已「畢業」、仍待指定新屆數的書。班級的書且「留班不動」者由學年度切換另行處理，不進此清單（HAK-118）。
   scope :needing_relocation_after_graduated_batch, -> {
     class_key = Book.sources[:owned_by_class]
+    donated_key = Book.sources[:donated]
     joins(:batch_year)
-      .where(batch_years: { grade_id: BatchYear::GRADE_GRADUATED, is_office: false })
+      .where(batch_years: { grade_id: BatchYear::GRADE_GRADUATED })
+      # Donated books may be temporarily parked under Office; still allow reassign on relocation page.
+      .where("batch_years.is_office = ? OR books.source = ?", false, donated_key)
       .where("NOT (books.source = ? AND books.relocation_behavior = ?)", class_key, "stay")
   }
 
