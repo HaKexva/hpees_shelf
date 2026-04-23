@@ -43,7 +43,7 @@ module RubyUI
         div(class: "w-full max-w-6xl mx-auto px-4 sm:px-6 py-2 flex items-center justify-between gap-4") do
           div(class: "text-sm font-medium truncate") { "展示模式 — 所有操作不影響正式資料" }
           a(
-            href: "/",
+            href: root_path,
             class: "text-sm font-semibold underline underline-offset-4 hover:opacity-80 whitespace-nowrap"
           ) { "離開展示模式" }
         end
@@ -129,12 +129,14 @@ module RubyUI
 
     # Shared navigation links to avoid duplication
     def render_nav_links
-      href = view_context.current_user ? view_context.admin_dashboard_path : root_path
-      nav_link(href: href) { "借還書" }
       if view_context.current_user
+        nav_link(href: view_context.admin_dashboard_path) { "借還書" }
         nav_link(href: books_path) { "書籍管理" }
         nav_link(href: batch_years_path) { "屆數管理" }
         nav_link(href: users_path) { "人員管理" }
+      else
+        nav_link(href: root_path) { "借還書" }
+        nav_link(href: view_context.login_path) { "管理員登入" }
       end
     end
 
@@ -162,11 +164,11 @@ module RubyUI
 
         if demo_mode?
           a(
-            href: view_context.demo_login_path,
+            href: view_context.admin_dashboard_path,
             class: "w-full inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors " \
                    "px-4 py-2 h-9 border border-input bg-background shadow-sm " \
                    "hover:bg-accent hover:text-accent-foreground"
-          ) { "切換角色" }
+          ) { "返回展示模式首頁" }
         else
           form(action: view_context.logout_path, method: "post") do
             input(type: "hidden", name: "_method", value: "delete")

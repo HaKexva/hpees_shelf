@@ -33,7 +33,11 @@ class ApplicationController < ActionController::Base
       return @current_demo_user
     end
 
-    @current_user ||= User.find_by(id: session[:user_id]) if session[:user_id]
+    if session[:user_id]
+      @current_user ||= User.find_by(id: session[:user_id])
+      session.delete(:user_id) if @current_user.nil?
+    end
+    @current_user
   end
 
   def current_user_admin?
@@ -41,13 +45,15 @@ class ApplicationController < ActionController::Base
   end
 
   def require_login
-    if demo_mode? && request.env["hpees.demo_auto_login"] == true && session[:demo_user_id].blank?
+    # In demo mode, always ensure a demo user exists (no explicit login step).
+    if demo_mode? && session[:demo_user_id].blank?
       user = find_or_create_demo_admin_user!
       session[:demo_user_id] = user.id
     end
 
     unless current_user
-      redirect_to(demo_mode? ? demo_login_path : login_path)
+      # Demo mode entry point is `/demo` (middleware maps it to `/demo/admin` and auto-logins).
+      redirect_to(demo_mode? ? root_path : login_path)
     end
   end
 
