@@ -40,24 +40,38 @@ class BooksController < ApplicationController
     sort = Book.list_sort_from_param(params[:sort])
     books = filtered_books_scope.includes(:batch_year, :user).merge(Book.ordered_for_list(sort))
     bom = "\uFEFF"
-    headers = %w[書名 ISBN 屆數ID 屆數 來源 老師 班級書 登錄號 總數 冊數 備註 狀態]
+    # Keep export format identical to import format (same headers + order),
+    # so users can export → edit → import without remapping columns.
+    headers = %w[書名 ISBN 屆數ID 屆數 總數 冊數 備註 來源 登錄號 狀態]
     csv = +""
     csv << bom
     csv << headers.map { |h| _csv_escape(h) }.join(",") << "\n"
     books.find_each do |book|
+      source_label =
+        case book.source&.to_s
+        when "owned_by_teacher"
+          name = book.user&.name.to_s.strip
+          name.present? ? "#{name}老師的書" : "老師的書"
+        when "owned_by_library"
+          "圖書館館藏"
+        when "donated"
+          "捐贈的書"
+        when "owned_by_class"
+          "班級的書"
+        else
+          book.source.to_s
+        end
       row = [
         book.title,
         helpers.format_isbn13(book.isbn),
         book.batch_year_id.to_s,
         book.batch_year&.display_label_with_grade.to_s,
-        book.source.present? ? I18n.t("activerecord.enums.book.source.#{book.source}") : "",
-        (book.owned_by_teacher? && book.user.present? ? book.user.name.to_s : ""),
-        (book.owned_by_class? && book.relocation_behavior.present? ? I18n.t("activerecord.enums.book.relocation_behavior_short.#{book.relocation_behavior}") : ""),
-        book.call_number.to_s,
         book.total.to_s,
         book.volume.to_s,
         book.note.to_s,
-        book.display_status
+        source_label,
+        book.call_number.to_s,
+        book.status.to_s
       ]
       csv << row.map { |c| _csv_escape(c) }.join(",") << "\n"
     end
