@@ -83,3 +83,5 @@ yarn-debug.log*
 
 .mcp.json
 /mcp.json
+
+/AGENT.md
