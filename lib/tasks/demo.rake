@@ -62,15 +62,30 @@ namespace :demo do
   task reset: :environment do
     ApplicationRecord.connected_to(shard: :demo) do
       conn = ApplicationRecord.connection
-      tables = conn.tables - %w[schema_migrations ar_internal_metadata]
+      cfg = ApplicationRecord.connection_db_config.configuration_hash
+      path = cfg[:schema_search_path] || cfg["schema_search_path"]
+      # Same DB as prod → only schema `demo`. Separate DEMO_DATABASE_URL → `public` on that DB.
+      target_schema =
+        if path.to_s.strip.present?
+          path.to_s.split(",").map(&:strip).first
+        else
+          "public"
+        end
+
+      tables = conn.select_values(
+        "SELECT tablename FROM pg_tables WHERE schemaname = #{conn.quote(target_schema)} ORDER BY tablename"
+      )
+      tables -= %w[schema_migrations ar_internal_metadata]
 
       if tables.empty?
-        puts "No tables to truncate."
+        puts "No tables to truncate in schema #{target_schema.inspect}."
       else
+        q = ->(name) { conn.quote_table_name(name) }
+        qualified = tables.map { |t| "#{q.call(target_schema)}.#{q.call(t)}" }
         conn.disable_referential_integrity do
-          conn.execute("TRUNCATE TABLE #{tables.map { |t| conn.quote_table_name(t) }.join(', ')} RESTART IDENTITY CASCADE")
+          conn.execute("TRUNCATE TABLE #{qualified.join(', ')} RESTART IDENTITY CASCADE")
         end
-        puts "Truncated demo tables: #{tables.join(', ')}"
+        puts "Truncated #{target_schema}.* tables: #{tables.join(', ')}"
       end
     end
 
