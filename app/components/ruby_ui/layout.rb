@@ -155,7 +155,7 @@ module RubyUI
           plain view_context.current_user.name
         end
 
-        render_current_batch_year_switcher
+        render_current_batch_year_switcher unless hide_global_batch_year_switcher_for_import?
 
         unless demo_mode?
           render_switch_school_year_button
@@ -182,6 +182,12 @@ module RubyUI
           end
         end
       end
+    end
+
+    # Sidebar「全部屆數／指定屆」與書籍／人員匯入頁自己的「屆數」下拉重複；匯入時只用表單（與 CSV 欄位）即可。
+    def hide_global_batch_year_switcher_for_import?
+      c = view_context.controller
+      c && %w[books users].include?(c.controller_name) && c.action_name == "import"
     end
 
     def render_current_batch_year_switcher
