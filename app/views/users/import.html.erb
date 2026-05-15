@@ -46,15 +46,13 @@
         <% if @missing_columns.blank? %>
           <% preview_ready = @user_import_preview_ready %>
           <% invalid_count = (@invalid_row_indices || []).size %>
-          <% duplicate_count = preview_ready ? ((@duplicate_row_indices || []) | (@existing_duplicate_row_indices || [])).size : 0 %>
-          <% new_count = preview_ready ? (@imported_data.size - invalid_count - duplicate_count) : nil %>
-          <% if preview_ready %>
-            <span class="text-green-600"><%= new_count %> 位將匯入</span>，
-            <span class="text-yellow-700"><%= duplicate_count %> 位重複</span>，
-            <span class="text-red-600"><%= invalid_count %> 位不符合</span>）
-          <% else %>
-            <span class="text-gray-600">請先選擇屆數並按「套用屆數更新預覽」，才會顯示將匯入／重複筆數。</span>
-            <span class="text-red-600">（<%= invalid_count %> 位不符合）</span>）
+          <% duplicate_count = ((@duplicate_row_indices || []) | (@existing_duplicate_row_indices || [])).size %>
+          <% new_count = @imported_data.size - invalid_count - duplicate_count %>
+          <span class="text-green-600"><%= new_count %> 位將匯入</span>，
+          <span class="text-yellow-700"><%= duplicate_count %> 位重複</span>，
+          <span class="text-red-600"><%= invalid_count %> 位不符合</span>）
+          <% unless preview_ready %>
+            <span class="text-gray-600 ml-1">（部分列若尚未指定屆數，可選下方屆數並按「套用屆數更新預覽」。檔案中<strong>屆數ID／屆數</strong>已有效的列會直接比對重複。）</span>
           <% end %>
         <% else %>
           — 請補齊「姓名」欄位後重新上傳）
@@ -90,7 +88,7 @@
         </div>
         <p class="text-gray-600 text-sm">請補齊缺少欄位後重新上傳 CSV，即可進行確認匯入。</p>
       <% else %>
-        <% preview_ready = @user_import_preview_ready %>
+        <% preview_fallback_batch = @preview_batch_year_id.presence || params[:batch_year_id].presence %>
         <%= form_with url: import_users_path, method: :post, data: { turbo: false }, id: "import-form" do |f| %>
           <input type="hidden" name="confirm" value="true">
           <%= hidden_field_tag :import_data, Base64.strict_encode64(@imported_data.to_json) %>
@@ -127,19 +125,20 @@
               <tbody class="bg-white divide-y divide-gray-200">
                 <% @imported_data.each_with_index do |row, index| %>
                   <% invalid = (@invalid_row_indices || []).include?(index) %>
-                  <% duplicate_in_file = preview_ready && !invalid && (@duplicate_row_indices || []).include?(index) %>
-                  <% duplicate_existing = preview_ready && !invalid && (@existing_duplicate_row_indices || []).include?(index) %>
+                  <% duplicate_in_file = !invalid && (@duplicate_row_indices || []).include?(index) %>
+                  <% duplicate_existing = !invalid && (@existing_duplicate_row_indices || []).include?(index) %>
+                  <% eff_for_row = user_import_row_effective_batch_year_id(row, preview_fallback_batch) %>
                   <tr class="<%= invalid ? 'bg-red-50' : ((duplicate_existing || duplicate_in_file) ? 'bg-yellow-50' : 'hover:bg-gray-50') %>">
                     <td class="px-4 py-2 text-sm">
                       <% if invalid %>
                         <% inv_tags = user_import_row_invalid_tags(row) %>
                         <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">不符合（<%= inv_tags.any? ? inv_tags.join("、") : "資料" %>）</span>
-                      <% elsif !preview_ready %>
-                        <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-700">待選屆數</span>
                       <% elsif duplicate_existing %>
                         <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">重複（已存在）</span>
                       <% elsif duplicate_in_file %>
                         <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">重複（同名）</span>
+                      <% elsif eff_for_row.nil? %>
+                        <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-700">待選屆數</span>
                       <% else %>
                         <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">新增</span>
                       <% end %>
@@ -165,7 +164,7 @@
           </div>
 
           <p class="mb-4 text-sm text-gray-600">
-            確認匯入時，「不符合」的列（缺姓名、學號／座號格式不符、電子信箱格式錯誤）會略過；其餘會依所選屆數匯入，重複人員將跳過。
+            確認匯入時，「不符合」的列會略過。其餘依每列的<strong>屆數ID／屆數</strong>（優先）或下方所選屆數寫入；重複人員將依選項跳過。
           </p>
 
           <div class="flex gap-2 items-center">

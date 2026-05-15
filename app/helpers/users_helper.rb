@@ -154,4 +154,27 @@ module UsersHelper
       false
     end
   end
+
+  # Matches UsersController#_user_import_batch_year_id_for_row for preview badges (新增 vs 待選屆數).
+  def user_import_row_effective_batch_year_id(row, fallback_id)
+    id_raw = user_import_preview_raw_for(row, "batch_year_id")
+    unless id_raw.nil?
+      parsed = User.import_coerce_batch_year_id_cell(id_raw)
+      cell_present = id_raw.is_a?(Numeric) || (id_raw.respond_to?(:to_s) && id_raw.to_s.strip.present?)
+      return parsed if parsed.present? && BatchYear.exists?(id: parsed)
+
+      return nil if cell_present
+    end
+
+    lab = user_import_preview_value_for(row, "batch_year")
+    if lab.present?
+      bid = BatchYear.find_id_from_import_label(lab)
+      return bid if bid.present?
+
+      return nil
+    end
+
+    fb = fallback_id.to_i
+    fb.positive? ? fb : nil
+  end
 end
