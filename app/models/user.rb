@@ -90,6 +90,37 @@ class User < ApplicationRecord
     s.match?(URI::MailTo::EMAIL_REGEXP)
   end
 
+  # Optional「屆數ID」: Roo may yield Integer/Float; "3.0" must not break duplicate preview vs DB.
+  def self.import_coerce_batch_year_id_cell(raw)
+    case raw
+    when nil
+      nil
+    when Integer
+      raw.positive? ? raw : nil
+    when Float, BigDecimal
+      return nil if raw.is_a?(Float) && (raw.nan? || raw.infinite?)
+
+      i = raw.to_i
+      return nil unless raw.to_f == i
+
+      i.positive? ? i : nil
+    else
+      return nil if import_user_import_optional_field_blank?(raw)
+
+      s = raw.to_s.strip
+      return nil if s.blank?
+
+      if s.match?(/\A\d+\z/)
+        i = s.to_i
+        i.positive? ? i : nil
+      elsif s.match?(/\A\d+\.\d+\z/)
+        f = s.to_f
+        i = f.to_i
+        (f == i && i.positive?) ? i : nil
+      end
+    end
+  end
+
   scope :active, -> { where(resigned_at: nil) }
 
   SUPERADMIN_EMAILS = %w[ray120424@gmail.com tubaxenor@gmail.com].freeze
