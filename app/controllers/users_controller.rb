@@ -443,17 +443,18 @@ class UsersController < ApplicationController
     end
 
     def _user_import_batch_year_id_for_row(row, fallback_id)
-      id_raw = _user_import_value(row, "batch_year_id", "屆數ID")
-      if id_raw.present?
-        stripped = id_raw.to_s.strip
-        if stripped.match?(/\A\d+\z/)
-          i = stripped.to_i
-          return i if i.positive? && BatchYear.exists?(id: i)
+      id_raw = _user_import_first_raw(row, "batch_year_id", "屆數ID")
+      unless id_raw.nil?
+        parsed = User.import_coerce_batch_year_id_cell(id_raw)
+        cell_effectively_present =
+          id_raw.is_a?(Numeric) ||
+          (id_raw.respond_to?(:to_s) && id_raw.to_s.strip.present?)
 
-          return -1
+        if parsed.present? && BatchYear.exists?(id: parsed)
+          return parsed
         end
 
-        return -1
+        return -1 if cell_effectively_present
       end
 
       lab = _user_import_value(row, "batch_year", "屆數")

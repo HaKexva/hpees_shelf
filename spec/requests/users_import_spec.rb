@@ -107,6 +107,25 @@ RSpec.describe "Users import preview", type: :request do
       expect(response.body).to include("0 位不符合")
     end
 
+    it "uses per-row 屆數ID as Float (Excel-style) for duplicate preview without dropdown 屆數" do
+      by = create(:batch_year)
+      create(:user, name: "Existing", id_number: "601234", batch_year: by, admin: false)
+
+      payload = [
+        { "姓名" => "Existing", "學號" => "601234", "屆數ID" => by.id.to_f },
+        { "姓名" => "NewStudent", "學號" => "601235", "屆數ID" => by.id.to_f }
+      ]
+      import_data = Base64.strict_encode64(payload.to_json)
+
+      post import_users_path, params: {
+        refresh_preview: "true",
+        import_data: import_data
+      }
+      expect(response).to have_http_status(:success)
+      expect(response.body).to include("1 位重複")
+      expect(response.body).to include("重複（已存在）")
+    end
+
     it "includes 電子信箱 in CSV export headers" do
       get export_users_path
       expect(response).to have_http_status(:success)

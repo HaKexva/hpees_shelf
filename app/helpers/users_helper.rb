@@ -76,6 +76,7 @@ module UsersHelper
       case semantic.to_s
       when "id_number" then "id_number"
       when "seat_number" then "seat_number"
+      when "batch_year_id" then "batch_year_id"
       when "email" then "email"
       else nil
       end
@@ -85,6 +86,7 @@ module UsersHelper
       case semantic.to_s
       when "id_number" then %w[id_number 學號]
       when "seat_number" then %w[seat_number 座號]
+      when "batch_year_id" then %w[batch_year_id 屆數ID]
       when "email" then %w[email 電子信箱 Email]
       else []
       end
@@ -116,12 +118,11 @@ module UsersHelper
     tags << "座號" unless User.import_seat_format_ok?(user_import_preview_raw_for(row, "seat_number"))
     tags << "電子信箱" unless User.import_email_format_ok?(user_import_preview_raw_for(row, "email"))
 
-    id_raw = user_import_preview_value_for(row, "batch_year_id")
-    if id_raw.present?
-      stripped = id_raw.to_s.strip
-      unless stripped.match?(/\A\d+\z/) && stripped.to_i.positive? && BatchYear.exists?(id: stripped.to_i)
-        tags << "屆數ID"
-      end
+    id_raw = user_import_preview_raw_for(row, "batch_year_id")
+    parsed = User.import_coerce_batch_year_id_cell(id_raw)
+    cell_present = id_raw.is_a?(Numeric) || (id_raw.respond_to?(:to_s) && id_raw.to_s.strip.present?)
+    if cell_present
+      tags << "屆數ID" unless parsed.present? && BatchYear.exists?(id: parsed)
     else
       lab = user_import_preview_value_for(row, "batch_year")
       tags << "屆數" if lab.present? && BatchYear.find_id_from_import_label(lab).blank?
@@ -142,8 +143,10 @@ module UsersHelper
     when "email"
       !User.import_email_format_ok?(user_import_preview_raw_for(row, "email"))
     when "batch_year_id"
-      id_raw = user_import_preview_value_for(row, "batch_year_id")
-      id_raw.present? && !(id_raw.to_s.strip.match?(/\A\d+\z/) && id_raw.to_s.strip.to_i.positive? && BatchYear.exists?(id: id_raw.to_s.strip.to_i))
+      raw = user_import_preview_raw_for(row, "batch_year_id")
+      parsed = User.import_coerce_batch_year_id_cell(raw)
+      cell_present = raw.is_a?(Numeric) || (raw.respond_to?(:to_s) && raw.to_s.strip.present?)
+      cell_present && !(parsed.present? && BatchYear.exists?(id: parsed))
     when "batch_year"
       lab = user_import_preview_value_for(row, "batch_year")
       lab.present? && BatchYear.find_id_from_import_label(lab).blank?
