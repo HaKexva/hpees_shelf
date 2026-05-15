@@ -115,6 +115,18 @@ module UsersHelper
     tags << "學號" unless User.import_student_id_format_ok?(user_import_preview_raw_for(row, "id_number"))
     tags << "座號" unless User.import_seat_format_ok?(user_import_preview_raw_for(row, "seat_number"))
     tags << "電子信箱" unless User.import_email_format_ok?(user_import_preview_raw_for(row, "email"))
+
+    id_raw = user_import_preview_value_for(row, "batch_year_id")
+    if id_raw.present?
+      stripped = id_raw.to_s.strip
+      unless stripped.match?(/\A\d+\z/) && stripped.to_i.positive? && BatchYear.exists?(id: stripped.to_i)
+        tags << "屆數ID"
+      end
+    else
+      lab = user_import_preview_value_for(row, "batch_year")
+      tags << "屆數" if lab.present? && BatchYear.find_id_from_import_label(lab).blank?
+    end
+
     tags
   end
 
@@ -129,6 +141,12 @@ module UsersHelper
       !User.import_seat_format_ok?(user_import_preview_raw_for(row, "seat_number"))
     when "email"
       !User.import_email_format_ok?(user_import_preview_raw_for(row, "email"))
+    when "batch_year_id"
+      id_raw = user_import_preview_value_for(row, "batch_year_id")
+      id_raw.present? && !(id_raw.to_s.strip.match?(/\A\d+\z/) && id_raw.to_s.strip.to_i.positive? && BatchYear.exists?(id: id_raw.to_s.strip.to_i))
+    when "batch_year"
+      lab = user_import_preview_value_for(row, "batch_year")
+      lab.present? && BatchYear.find_id_from_import_label(lab).blank?
     else
       false
     end

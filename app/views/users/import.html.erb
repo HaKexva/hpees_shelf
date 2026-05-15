@@ -9,8 +9,8 @@
   <div class="bg-white rounded-lg shadow p-6 mb-6">
     <h2 class="font-semibold text-lg mb-4">上傳 CSV 或 Excel 檔案</h2>
     <p class="text-gray-600 mb-4">
-      欄位可與<strong>人員列表匯出的 CSV</strong>一致（含 <code class="bg-gray-100 px-1 rounded">屆數ID</code>、<code class="bg-gray-100 px-1 rounded">電子信箱</code> 等）。上傳須含<strong>姓名</strong>；可選欄位：<code class="bg-gray-100 px-1 rounded">學號</code>（留空、<strong>6 位數字</strong>，或填「—」等占位符視同留空）、<code class="bg-gray-100 px-1 rounded">座號</code>（留空、<strong>1～2 位數字</strong>，或「—」視同留空）、<code class="bg-gray-100 px-1 rounded">電子信箱</code>（留空時若有學號則預設為 <code class="bg-gray-100 px-1 rounded">學號@hpees.tp.edu.tw</code>；有填則須為有效信箱格式）。Excel 若將學號存成數字，系統會自動轉成整數再檢查。管理員需要手動新增。<br>
-      可選擇<strong>屆數</strong>並按「套用屆數更新預覽」；若<strong>每一筆</strong>在檔案中已有有效的 <code class="bg-gray-100 px-1 rounded">屆數ID</code>，可不選下拉即可顯示重複狀態。<strong>不同屆數為不同人員</strong>；列上屆數ID與下拉不一致時，以<strong>列上</strong>為準。
+      欄位可與<strong>人員列表匯出的 CSV</strong>一致（含 <code class="bg-gray-100 px-1 rounded">屆數ID</code>、<code class="bg-gray-100 px-1 rounded">電子信箱</code> 等）。上傳須含<strong>姓名</strong>；<strong>選填</strong>：<code class="bg-gray-100 px-1 rounded">屆數ID</code>（列上若為有效編號，會<strong>優先於</strong>下方下拉）、<code class="bg-gray-100 px-1 rounded">屆數</code>（文字須與屆數表「顯示名＋年級」完全一致，無須同時填 ID）、<code class="bg-gray-100 px-1 rounded">學號</code>（留空、<strong>6 位數字</strong>，或填「—」等占位符視同留空）、<code class="bg-gray-100 px-1 rounded">座號</code>（留空、<strong>1～2 位數字</strong>，或「—」視同留空）、<code class="bg-gray-100 px-1 rounded">電子信箱</code>（留空時若有學號則預設為 <code class="bg-gray-100 px-1 rounded">學號@hpees.tp.edu.tw</code>；有填則須為有效信箱格式）。Excel 若將學號存成數字，系統會自動轉成整數再檢查。管理員需要手動新增。<br>
+      匯入預覽中以本頁<strong>表單的屆數</strong>為準（側邊欄的「全部屆數／指定屆」在此頁會隱藏，避免與匯入表單混淆）。可選擇<strong>屆數</strong>並按「套用屆數更新預覽」；若<strong>每一筆</strong>在檔案中已有有效的 <code class="bg-gray-100 px-1 rounded">屆數ID</code> 或可解析的 <code class="bg-gray-100 px-1 rounded">屆數</code>，可不選下拉即可顯示重複狀態。<strong>不同屆數為不同人員</strong>；列上屆數與下拉不一致時，以<strong>列上</strong>為準。
     </p>
 
     <%= form_with url: import_users_path, method: :post, multipart: true, class: "space-y-4", data: { turbo: false } do |f| %>
