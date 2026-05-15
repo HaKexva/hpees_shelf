@@ -17,7 +17,7 @@ RSpec.describe DemoSessionsController, type: :controller do
 
   describe "DELETE #destroy" do
     it "clears demo session key only" do
-      demo_user_id = ActiveRecord::Base.connected_to(shard: :demo) do
+      demo_user_id = ApplicationRecord.connected_to(shard: :demo) do
         by = BatchYear.create!(batch_number: 1, grade_id: 1, name: "demo")
         User.create!(name: "Demo", email: "demo@example.com", admin: false, batch_year: by).id
       end

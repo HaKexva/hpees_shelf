@@ -3,7 +3,7 @@
 namespace :demo do
   desc "Seed demo data (runs in demo shard). Idempotent via find_or_create_by!."
   task seed: :environment do
-    ActiveRecord::Base.connected_to(shard: :demo) do
+    ApplicationRecord.connected_to(shard: :demo) do
       batch1 =
         BatchYear.find_or_create_by!(batch_number: 1) do |by|
           by.grade_id = 1
@@ -60,8 +60,8 @@ namespace :demo do
 
   desc "Reset demo data (TRUNCATE CASCADE in demo shard) then reseed."
   task reset: :environment do
-    ActiveRecord::Base.connected_to(shard: :demo) do
-      conn = ActiveRecord::Base.connection
+    ApplicationRecord.connected_to(shard: :demo) do
+      conn = ApplicationRecord.connection
       tables = conn.tables - %w[schema_migrations ar_internal_metadata]
 
       if tables.empty?

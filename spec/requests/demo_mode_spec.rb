@@ -15,7 +15,7 @@ RSpec.describe "Demo mode", type: :request do
   let(:demo_enabled) { "true" }
 
   def in_demo_shard(&block)
-    ActiveRecord::Base.connected_to(shard: :demo, &block)
+    ApplicationRecord.connected_to(shard: :demo, &block)
   end
 
   it "returns 404 for /demo when DEMO_ENABLED is not true" do
