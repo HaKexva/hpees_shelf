@@ -56,11 +56,12 @@ HPEES Shelf is a **Rails 8.1** monolith for a school library: cataloging books, 
 
 ### Demo mode (`/demo`)
 
-Demo mode runs the app against a **separate demo database shard** and prefixes all routes with `/demo`.
+Demo mode uses a **second Active Record shard** (`:demo`) and prefixes all routes with `/demo`. On the default setup, the shard shares **`DATABASE_URL`** with primary and stores a **full duplicate of the schema** in the PostgreSQL schema **`demo`** (`demo.users`, `demo.books`, …); `public.*` stays the live app data.
 
 - **Enable**: set `DEMO_ENABLED=true`
 - **Entry point**: visit `/demo` (auto-login as demo admin)
-- **Production**: set `DEMO_DATABASE_URL` to a **second** Postgres database URL (required when `DEMO_ENABLED=true`; must **not** match `DATABASE_URL`, or the app will not boot)
+- **Optional**: set `DEMO_DATABASE_URL` to a **separate** Postgres database instead; migrations and data then use `public` on that database (no `demo` schema needed there).
+- After deploying schema changes, run migrations (e.g. deploy entrypoint `db:migrate`) so **both** primary and `primary_shard_demo` stay in sync.
 
 ### Local development setup
 
@@ -109,7 +110,7 @@ bundle install
 bin/rails db:prepare
 ```
 
-This creates `hpees_shelf_development` and runs all pending migrations.
+This creates `hpees_shelf_development`, runs migrations on **primary** (`public` tables), and on the **demo** shard (`demo` schema in the same database).
 
 #### 4. Start the dev server
 
@@ -152,10 +153,10 @@ Do **not** use `db:reset`, `db:drop`, or `db:schema:load` in production or in an
 
 ### Deployment – Railway
 
-1. Add a **PostgreSQL** plugin in your Railway project dashboard (this is the **primary** app database).
-2. In your Rails app service's **Variables** tab, add: `DATABASE_URL` = `${{Postgres.DATABASE_URL}}`.
-3. **Demo mode (`/demo`)**: add a **second** PostgreSQL plugin for demo-only data. Set `DEMO_DATABASE_URL` to that database's URL (use Railway's variable reference for the second plugin — it must **not** be the same value as `DATABASE_URL`). Set `DEMO_ENABLED=true`. Deploy runs `db:migrate`, which updates every configured database including `primary_shard_demo`.
-4. Push to deploy — migrations run via the Docker entrypoint.
+1. Add a **PostgreSQL** plugin in your Railway project dashboard (or reuse one Postgres instance).
+2. In your Rails app service's **Variables** tab, set `DATABASE_URL` = `${{Postgres.DATABASE_URL}}` (or your plugin reference).
+3. **Demo (`/demo`)**: you can rely on the **`demo` schema** inside the same database (no second plugin required). Set `DEMO_ENABLED=true`. Optionally add a second Postgres plugin and set `DEMO_DATABASE_URL` only if you want demo data in another database.
+4. Push to deploy — the Docker entrypoint runs `db:migrate` for all configured databases/shards.
 
 ### Docker and Kamal
 
@@ -238,11 +239,12 @@ For maintainers: see **`AGENTS.md`** (Cursor / Linear / branch → PR → merge 
 
 ### 展示模式（`/demo`）
 
-展示模式會把所有路徑加上 `/demo` 前綴，並切換到 **獨立的 demo 資料庫 shard**。
+展示模式會把所有路徑加上 `/demo` 前綴，並使用 **另一個 Active Record shard（`:demo`）**。預設與正式環境共用 **`DATABASE_URL`**（同一個 Postgres 資料庫），示範資料放在 PostgreSQL schema **`demo`**（與 `public.*` 一組對一組的**重複資料表**，例如 `demo.users`）；正式資料仍在 `public`。
 
 - **啟用**：設定 `DEMO_ENABLED=true`
 - **入口**：瀏覽 `/demo`（自動以示範管理員登入）
-- **正式環境**：`DEMO_ENABLED=true` 時必須設定 **另一個** PostgreSQL 的 `DEMO_DATABASE_URL`，且 **不得** 與 `DATABASE_URL` 相同，否則應用程式會拒絕啟動
+- **選用**：設定 `DEMO_DATABASE_URL` 指向**另一個** Postgres 資料庫時，示範資料改存在該库的 `public`（不必再用 `demo` schema）。
+- 部署後請讓 migration 跑滿 **primary** 與 **primary_shard_demo**（例如 entrypoint 的 `db:migrate`）。
 
 ### 本機開發環境
 
@@ -291,7 +293,7 @@ bundle install
 bin/rails db:prepare
 ```
 
-會建立 `hpees_shelf_development` 並套用 migration。
+會建立 `hpees_shelf_development`，並在 **primary**（`public` 資料表）與 **demo shard**（同庫的 `demo` schema）套用 migration。
 
 #### 4. 啟動開發伺服器
 
@@ -334,10 +336,10 @@ bundle exec rubocop
 
 ### 部署：Railway
 
-1. 在 Railway 專案中新增 **PostgreSQL** 外掛（**主要**應用程式資料庫）。
-2. 在 Rails 服務的 **Variables** 設定 `DATABASE_URL` = `${{Postgres.DATABASE_URL}}`。
-3. **展示模式（`/demo`）**：再新增 **第二個** PostgreSQL 外掛，僅供示範資料。設定 `DEMO_DATABASE_URL` 為該資料庫的連線 URL（請用 Railway 的變數參照指向第二個外掛，**不可**與 `DATABASE_URL` 相同）。並設定 `DEMO_ENABLED=true`。部署時 entrypoint 會執行 `db:migrate`，會一併更新含 `primary_shard_demo` 在內的資料庫。
-4. 推送部署後，entrypoint 會自動執行 migration。
+1. 在 Railway 專案中新增 **PostgreSQL** 外掛（或同一台 Postgres 即可）。
+2. 在 Rails 服務的 **Variables** 設定 `DATABASE_URL` = `${{Postgres.DATABASE_URL}}`（或你的外掛參照）。
+3. **展示（`/demo`）**：可只在同一資料庫內使用 **`demo` schema**（不必第二個外掛）。設定 `DEMO_ENABLED=true`。若要把示範資料放在另一資料庫，再新增第二個 Postgres 並設定 `DEMO_DATABASE_URL`。
+4. 推送部署後，entrypoint 會對所有 shard／資料庫執行 `db:migrate`。
 
 ### Docker 與 Kamal
 

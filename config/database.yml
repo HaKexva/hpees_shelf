@@ -7,10 +7,22 @@
 #   Ensure the pg gem is defined in your Gemfile
 #   gem "pg"
 #
+# Demo shard (:demo) usually shares DATABASE_URL with primary and stores data in the
+# PostgreSQL schema `demo` (duplicate table set). Optionally set DEMO_DATABASE_URL to
+# a separate database URL (tables then live in `public` on that database).
+#
 default: &default
   adapter: postgresql
   encoding: unicode
   pool: <%= ENV.fetch("RAILS_MAX_THREADS") { 5 } %>
+
+<%
+  demo_env_url = ENV["DEMO_DATABASE_URL"].to_s.strip
+  primary_env_url = ENV["DATABASE_URL"].to_s.strip
+  demo_shard_url = demo_env_url.presence || primary_env_url
+  # Same physical DB as primary → isolate demo via `demo` schema; separate URL → `public` on that DB.
+  demo_shard_uses_demo_schema = demo_env_url.empty? || (primary_env_url.present? && demo_env_url == primary_env_url)
+%>
 
 development:
   primary:
@@ -18,10 +30,11 @@ development:
     database: hpees_shelf_development
   primary_shard_demo:
     <<: *default
-    database: hpees_shelf_demo_development
+    database: hpees_shelf_development
+    schema_search_path: demo
 
 # Warning: The database defined as "test" will be erased and
-# re-generated from your development database when you run "rake".
+# re-generated from your development database when you run `rake`.
 # Do not set this db to the same as development or production.
 test:
   primary:
@@ -29,7 +42,9 @@ test:
     url: <%= ENV["DATABASE_URL"] %>
   primary_shard_demo:
     <<: *default
-    url: <%= ENV["DEMO_DATABASE_URL"].to_s.empty? ? ENV["DATABASE_URL"] : ENV["DEMO_DATABASE_URL"] %>
+    url: <%= demo_shard_url %>
+<% if demo_shard_uses_demo_schema %>    schema_search_path: demo
+<% end %>
 
 # Production uses DATABASE_URL (auto-injected by Railway).
 # All Solid gem tables (cache, queue, cable) share the same database
@@ -40,7 +55,9 @@ production:
     url: <%= ENV["DATABASE_URL"] %>
   primary_shard_demo:
     <<: *default
-    url: <%= ENV["DEMO_DATABASE_URL"].to_s.empty? ? ENV["DATABASE_URL"] : ENV["DEMO_DATABASE_URL"] %>
+    url: <%= demo_shard_url %>
+<% if demo_shard_uses_demo_schema %>    schema_search_path: demo
+<% end %>
   cache:
     <<: *default
     url: <%= ENV["DATABASE_URL"] %>
