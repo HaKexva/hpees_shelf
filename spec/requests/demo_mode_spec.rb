@@ -38,6 +38,20 @@ RSpec.describe "Demo mode", type: :request do
     expect(response).not_to redirect_to("/demo/")
   end
 
+  it "repairs stale session[:demo_user_id] after demo user row is removed" do
+    get "/demo"
+    follow_redirect!
+    expect(response).to be_successful
+
+    sid = session[:demo_user_id]
+    expect(sid).to be_present
+    in_demo_shard { User.find(sid).destroy! }
+
+    get "/demo/books"
+    expect(response).to be_successful
+    expect(session[:demo_user_id]).not_to eq(sid)
+  end
+
   it "session[:user_id] does not grant access in demo mode" do
     by = BatchYear.create!(batch_number: 99, grade_id: 1, name: "primary")
     primary_user = User.create!(name: "Primary Admin", email: "primary-admin@example.com", admin: true, batch_year: by)
