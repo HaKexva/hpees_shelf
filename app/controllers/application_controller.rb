@@ -49,12 +49,17 @@ class ApplicationController < ActionController::Base
     if demo_mode? && session[:demo_user_id].blank?
       user = find_or_create_demo_admin_user!
       session[:demo_user_id] = user.id
+      # `current_user` memoizes nil; clear so the session we just wrote is picked up in this request.
+      remove_instance_variable(:@current_demo_user) if instance_variable_defined?(:@current_demo_user)
     end
 
-    unless current_user
-      # Demo mode entry point is `/demo` (middleware maps it to `/demo/admin` and auto-logins).
-      redirect_to(demo_mode? ? root_path : login_path)
+    if current_user
+      return
     end
+
+    # Demo: admin dashboard is the logged-in surface (not `root_path`, which is the public借還 page and
+    # can lose SCRIPT_NAME in edge cases, causing redirect loops back to /demo/admin).
+    redirect_to(demo_mode? ? admin_dashboard_path : login_path)
   end
 
   private
