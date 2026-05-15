@@ -60,7 +60,7 @@ Demo mode runs the app against a **separate demo database shard** and prefixes a
 
 - **Enable**: set `DEMO_ENABLED=true`
 - **Entry point**: visit `/demo` (auto-login as demo admin)
-- **Production demo DB**: set `DEMO_DATABASE_URL` (falls back to `DATABASE_URL` if unset)
+- **Production**: set `DEMO_DATABASE_URL` to a **second** Postgres database URL (required when `DEMO_ENABLED=true`; must **not** match `DATABASE_URL`, or the app will not boot)
 
 ### Local development setup
 
@@ -152,9 +152,10 @@ Do **not** use `db:reset`, `db:drop`, or `db:schema:load` in production or in an
 
 ### Deployment – Railway
 
-1. Add a **PostgreSQL** plugin in your Railway project dashboard.
+1. Add a **PostgreSQL** plugin in your Railway project dashboard (this is the **primary** app database).
 2. In your Rails app service's **Variables** tab, add: `DATABASE_URL` = `${{Postgres.DATABASE_URL}}`.
-3. Push to deploy — `db:prepare` runs automatically via the Docker entrypoint.
+3. **Demo mode (`/demo`)**: add a **second** PostgreSQL plugin for demo-only data. Set `DEMO_DATABASE_URL` to that database's URL (use Railway's variable reference for the second plugin — it must **not** be the same value as `DATABASE_URL`). Set `DEMO_ENABLED=true`. Deploy runs `db:migrate`, which updates every configured database including `primary_shard_demo`.
+4. Push to deploy — migrations run via the Docker entrypoint.
 
 ### Docker and Kamal
 
@@ -241,7 +242,7 @@ For maintainers: see **`AGENTS.md`** (Cursor / Linear / branch → PR → merge 
 
 - **啟用**：設定 `DEMO_ENABLED=true`
 - **入口**：瀏覽 `/demo`（自動以示範管理員登入）
-- **正式環境 demo DB**：設定 `DEMO_DATABASE_URL`（未設定則 fallback 到 `DATABASE_URL`）
+- **正式環境**：`DEMO_ENABLED=true` 時必須設定 **另一個** PostgreSQL 的 `DEMO_DATABASE_URL`，且 **不得** 與 `DATABASE_URL` 相同，否則應用程式會拒絕啟動
 
 ### 本機開發環境
 
@@ -333,9 +334,10 @@ bundle exec rubocop
 
 ### 部署：Railway
 
-1. 在 Railway 專案中新增 **PostgreSQL** 外掛。
+1. 在 Railway 專案中新增 **PostgreSQL** 外掛（**主要**應用程式資料庫）。
 2. 在 Rails 服務的 **Variables** 設定 `DATABASE_URL` = `${{Postgres.DATABASE_URL}}`。
-3. 推送部署後，entrypoint 會自動執行 `db:prepare`。
+3. **展示模式（`/demo`）**：再新增 **第二個** PostgreSQL 外掛，僅供示範資料。設定 `DEMO_DATABASE_URL` 為該資料庫的連線 URL（請用 Railway 的變數參照指向第二個外掛，**不可**與 `DATABASE_URL` 相同）。並設定 `DEMO_ENABLED=true`。部署時 entrypoint 會執行 `db:migrate`，會一併更新含 `primary_shard_demo` 在內的資料庫。
+4. 推送部署後，entrypoint 會自動執行 migration。
 
 ### Docker 與 Kamal
 
