@@ -89,8 +89,10 @@ gem "tailwind_merge", "~> 1.4"
 gem "rouge", "~> 4.7"
 
 # Security: explicit constraints for vulnerable transitive dependencies
-# See GHSA-wx95-c6cv-8532
-gem "nokogiri", ">= 1.19.1"
+# See GHSA-wx95-c6cv-8532, GHSA-v2fc-qm4h-8hqv, GHSA-c4rq-3m3g-8wgx (>= 1.19.3)
+gem "nokogiri", ">= 1.19.3"
+# See GHSA-33qg-7wpp-89cq / CVE-2026-39324
+gem "rack-session", ">= 2.1.2"
 # See GHSA-mxw3-3hh2-x2mh and GHSA-whrj-4476-wvmp
 gem "rack", ">= 3.2.5"
 
