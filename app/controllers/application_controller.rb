@@ -45,13 +45,7 @@ class ApplicationController < ActionController::Base
   end
 
   def require_login
-    # In demo mode, always ensure a demo user exists (no explicit login step).
-    if demo_mode? && session[:demo_user_id].blank?
-      user = find_or_create_demo_admin_user!
-      session[:demo_user_id] = user.id
-      # `current_user` memoizes nil; clear so the session we just wrote is picked up in this request.
-      remove_instance_variable(:@current_demo_user) if instance_variable_defined?(:@current_demo_user)
-    end
+    ensure_valid_demo_session! if demo_mode?
 
     if current_user
       return
@@ -132,6 +126,24 @@ class ApplicationController < ActionController::Base
       s = value.to_s
       return "\"#{s.gsub('"', '""')}\"" if s.include?(",") || s.include?("\"") || s.include?("\n") || s.include?("\r")
       s
+    end
+
+    def ensure_valid_demo_session!
+      user_id = session[:demo_user_id]
+      user =
+        if user_id.present?
+          ApplicationRecord.connected_to(shard: :demo) do
+            User.find_by(id: user_id)
+          end
+        end
+
+      return if user
+
+      session.delete(:demo_user_id)
+      remove_instance_variable(:@current_demo_user) if instance_variable_defined?(:@current_demo_user)
+
+      admin = find_or_create_demo_admin_user!
+      session[:demo_user_id] = admin.id
     end
 
     def find_or_create_demo_admin_user!
