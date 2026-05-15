@@ -31,7 +31,7 @@ class DemoModeMiddleware
       env["hpees.demo_auto_login"] = true
     end
 
-    ActiveRecord::Base.connected_to(shard: :demo) do
+    ApplicationRecord.connected_to(shard: :demo) do
       @app.call(env)
     end
   end

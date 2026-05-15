@@ -26,7 +26,7 @@ class ApplicationController < ActionController::Base
 
       @current_demo_user =
         if session[:demo_user_id]
-          ActiveRecord::Base.connected_to(shard: :demo) do
+          ApplicationRecord.connected_to(shard: :demo) do
             User.find_by(id: session[:demo_user_id])
           end
         end
@@ -130,7 +130,7 @@ class ApplicationController < ActionController::Base
     end
 
     def find_or_create_demo_admin_user!
-      ActiveRecord::Base.connected_to(shard: :demo) do
+      ApplicationRecord.connected_to(shard: :demo) do
         batch_year = BatchYear.order(:id).first || BatchYear.create!(batch_number: 1, grade_id: 1, name: "第1屆")
 
         User.find_or_create_by!(email: "demo-admin@example.com") do |u|
