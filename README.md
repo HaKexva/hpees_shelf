@@ -62,6 +62,7 @@ Demo mode uses a **second Active Record shard** (`:demo`) and prefixes all route
 - **Entry point**: visit `/demo` (auto-login as demo admin)
 - **Optional**: set `DEMO_DATABASE_URL` to a **separate** Postgres database instead; migrations and data then use `public` on that database (no `demo` schema needed there).
 - After deploying schema changes, run migrations (e.g. deploy entrypoint `db:migrate`) so **both** primary and `primary_shard_demo` stay in sync.
+- **How this maps to migrations** (no `CREATE DATABASE` in Rails): see [docs/DEMO_SHARD.md](docs/DEMO_SHARD.md).
 
 ### Local development setup
 
@@ -245,6 +246,7 @@ For maintainers: see **`AGENTS.md`** (Cursor / Linear / branch → PR → merge 
 - **入口**：瀏覽 `/demo`（自動以示範管理員登入）
 - **選用**：設定 `DEMO_DATABASE_URL` 指向**另一個** Postgres 資料庫時，示範資料改存在該库的 `public`（不必再用 `demo` schema）。
 - 部署後請讓 migration 跑滿 **primary** 與 **primary_shard_demo**（例如 entrypoint 的 `db:migrate`）。
+- **與 migration 的對應**（Rails 不會在 migration 裡 `CREATE DATABASE`）：見 [docs/DEMO_SHARD.md](docs/DEMO_SHARD.md)。
 
 ### 本機開發環境
 
