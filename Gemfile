@@ -102,7 +102,7 @@ gem "net-imap", ">= 0.6.4"
 
 gem "omniauth-google-oauth2"
 
-gem "roo", "~> 2.10"
+gem "roo", "~> 3.0"
 
 gem "roo-xls", "~> 2.0"
 
