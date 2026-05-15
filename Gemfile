@@ -95,6 +95,10 @@ gem "nokogiri", ">= 1.19.3"
 gem "rack-session", ">= 2.1.2"
 # See GHSA-mxw3-3hh2-x2mh and GHSA-whrj-4476-wvmp
 gem "rack", ">= 3.2.5"
+# See GHSA-h27x-rffw-24p4 / CVE-2026-35611 (via capybara)
+gem "addressable", ">= 2.9.0"
+# See GHSA-q2mw-fvj9-vvcw and related (via mail → actionmailer)
+gem "net-imap", ">= 0.6.4"
 
 gem "omniauth-google-oauth2"
 
