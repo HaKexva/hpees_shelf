@@ -1,0 +1,59 @@
+<%# locals: (initial: "checkout") %>
+<div>
+  <label class="block text-sm font-medium text-gray-700 mb-2">借書 或 還書</label>
+  <div
+    class="relative inline-flex w-full max-w-xs rounded-lg border border-gray-200 bg-gray-100 p-1 shadow-inner"
+    role="group"
+    aria-label="借書或還書"
+    data-action-type-segment-target="track"
+  >
+    <span
+      class="pointer-events-none absolute inset-y-1 left-1 z-0 rounded-md bg-blue-600 shadow-sm transition-[transform,width,background-color] duration-200 ease-out will-change-transform"
+      data-action-type-segment-target="indicator"
+      aria-hidden="true"
+      style="opacity: 0"
+    ></span>
+    <button
+      type="button"
+      class="relative z-10 flex-1 rounded-md px-4 py-2 text-center text-sm font-medium text-white transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
+      data-action-type-value="checkout"
+      data-action-type-segment-target="button"
+      data-action="click->action-type-segment#pick"
+      aria-pressed="<%= initial == "checkout" ? "true" : "false" %>"
+    >
+      借書
+    </button>
+    <button
+      type="button"
+      class="relative z-10 flex-1 rounded-md px-4 py-2 text-center text-sm font-medium text-gray-600 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2"
+      data-action-type-value="return"
+      data-action-type-segment-target="button"
+      data-action="click->action-type-segment#pick"
+      aria-pressed="<%= initial == "return" ? "true" : "false" %>"
+    >
+      還書
+    </button>
+  </div>
+  <label class="sr-only">
+    <input
+      type="radio"
+      name="action_type"
+      value="checkout"
+      <%= "checked" if initial == "checkout" %>
+      class="sr-only"
+      data-action-type-segment-target="radio"
+    >
+    借書
+  </label>
+  <label class="sr-only">
+    <input
+      type="radio"
+      name="action_type"
+      value="return"
+      <%= "checked" if initial == "return" %>
+      class="sr-only"
+      data-action-type-segment-target="radio"
+    >
+    還書
+  </label>
+</div>
