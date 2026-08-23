@@ -13,7 +13,7 @@ group :development, :test, :production do
   gem "pg", "~> 1.5"
 end
 # Use the Puma web server [https://github.com/puma/puma]
-gem "puma", ">= 5.0"
+gem "puma", ">= 8.0.2"
 # Use JavaScript with ESM import maps [https://github.com/rails/importmap-rails]
 gem "importmap-rails"
 # Hotwire's SPA-like page accelerator [https://turbo.hotwired.dev]
@@ -98,7 +98,16 @@ gem "rack", ">= 3.2.5"
 # See GHSA-h27x-rffw-24p4 / CVE-2026-35611 (via capybara)
 gem "addressable", ">= 2.9.0"
 # See GHSA-q2mw-fvj9-vvcw and related (via mail → actionmailer)
-gem "net-imap", ">= 0.6.4"
+gem "net-imap", ">= 0.6.4.1"
+# GHSA-pp92-crg2-gfv9
+gem "oauth2", ">= 2.0.22"
+# GHSA-cj75-f6xr-r4g7
+gem "rails-html-sanitizer", ">= 1.7.1"
+# CVE-2026-54463 / CVE-2026-61666
+gem "websocket-driver", ">= 0.8.2"
+gem "concurrent-ruby", ">= 1.3.7"
+gem "erb", ">= 6.0.4"
+gem "msgpack", ">= 1.8.2"
 
 gem "omniauth-google-oauth2"
 

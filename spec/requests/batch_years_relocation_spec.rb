@@ -3,14 +3,12 @@ require "rails_helper"
 RSpec.describe "Batch year school-year switch", type: :request do
   let(:batch_year) { create(:batch_year) }
   let(:admin) { create(:user, :superadmin, batch_year: batch_year) }
+  let(:memory_cache) { ActiveSupport::Cache::MemoryStore.new }
 
-  around do |example|
-    cache = ActiveSupport::Cache::MemoryStore.new
-    allow(Rails).to receive(:cache).and_return(cache)
-    example.run
+  before do
+    allow(Rails).to receive(:cache).and_return(memory_cache)
+    login_as(admin)
   end
-
-  before { login_as(admin) }
 
   it "keeps a large pending-book list out of the cookie session" do
     book_ids = (1..1120).to_a
