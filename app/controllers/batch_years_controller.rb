@@ -138,26 +138,27 @@ class BatchYearsController < ApplicationController
     end
 
     grade_teacher_ids = relocation_param_hash(:grade_teacher_ids)
-    required_grades = (1..6).map(&:to_s)
+    teacher_batch_h = relocation_param_hash(:teacher_batch_year_ids)
+    staged_commit = relocation_state["pending_commit"].present?
+    required_grades = relocation_grades_requiring_teacher(teacher_batch_h, staged_commit: staged_commit)
     missing = required_grades.reject { |g| grade_teacher_ids[g].to_s.strip.present? }
     if missing.any?
-      redirect_to relocation_batch_years_path, alert: "請為每個年級勾選 1 位老師後才可移動。", status: :see_other
+      redirect_to relocation_batch_years_path, alert: "請為有任教老師的年級勾選 1 位老師後才可移動。", status: :see_other
       return
     end
 
-    staged_commit = relocation_state["pending_commit"].present?
-
     unless current_user&.superadmin?
-      picked_ids = required_grades.map { |g| grade_teacher_ids[g].to_s.strip }.uniq
-      if picked_ids.size != 1 || picked_ids.first != current_user.id.to_s
+      picked_ids = required_grades.map { |g| grade_teacher_ids[g].to_s.strip }.reject(&:blank?).uniq
+      if picked_ids.any? && (picked_ids.size != 1 || picked_ids.first != current_user.id.to_s)
         redirect_to relocation_batch_years_path, alert: "您只能勾選自己為年級負責老師。", status: :see_other
         return
       end
     end
 
-    teacher_batch_h = relocation_param_hash(:teacher_batch_year_ids)
     required_grades.each do |g|
       tid = grade_teacher_ids[g].to_s.strip
+      next if tid.blank?
+
       raw_ids = teacher_batch_h[tid].presence || teacher_batch_h[tid.to_i] || []
       grades = relocation_choice_grades(raw_ids, staged_commit: staged_commit)
       unless grades.include?(g.to_i)
@@ -312,6 +313,16 @@ class BatchYearsController < ApplicationController
 
     def drop_relocation_session_payload!
       RELOCATION_SESSION_KEYS.each { |key| session.delete(key) }
+    end
+
+    def relocation_grades_requiring_teacher(teacher_batch_h, staged_commit:)
+      users = User.where(id: Array(relocation_state["pending_user_ids"]))
+      (1..6).select do |g|
+        users.any? do |u|
+          raw = teacher_batch_h[u.id.to_s].presence || teacher_batch_h[u.id].presence || u.member_batch_year_ids
+          relocation_choice_grades(raw, staged_commit: staged_commit).include?(g)
+        end
+      end.map(&:to_s)
     end
 
     # Full advance + sync (persisted). Returns [pending_book_ids, pending_user_ids, next_roc].

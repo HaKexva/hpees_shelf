@@ -58,8 +58,11 @@ export default class extends Controller {
 
     if (count === 0) {
       this.summaryTarget.textContent = "尚未選擇屆數"
+      this.summaryTarget.removeAttribute("title")
     } else {
-      this.summaryTarget.textContent = `已選擇 ${count} 個屆數`
+      const labels = selectedOptions.map((opt) => (opt.textContent || "").trim()).filter(Boolean)
+      this.summaryTarget.textContent = labels.join("、")
+      this.summaryTarget.title = labels.join("、")
     }
   }
 }
