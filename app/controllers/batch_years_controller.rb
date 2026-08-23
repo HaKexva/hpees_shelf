@@ -272,7 +272,6 @@ class BatchYearsController < ApplicationController
   end
 
   private
-    RELOCATION_STATE_TTL = 12.hours
     RELOCATION_SESSION_KEYS = %i[
       pending_relocation_book_ids
       pending_relocation_user_ids
@@ -281,20 +280,23 @@ class BatchYearsController < ApplicationController
       relocation_school_year_pending_commit
     ].freeze
 
-    def relocation_state_cache_key
+    def relocation_state_key
       "relocation_workflow/#{demo_mode? ? "demo" : "main"}/#{current_user.id}"
     end
 
     def relocation_state
       return @relocation_state if defined?(@relocation_state) && @relocation_state
 
-      raw = Rails.cache.read(relocation_state_cache_key)
-      @relocation_state = (raw.presence || {}).stringify_keys
+      raw = AppSetting.get(relocation_state_key)
+      parsed = raw.present? ? JSON.parse(raw) : {}
+      @relocation_state = parsed.is_a?(Hash) ? parsed.stringify_keys : {}
+    rescue JSON::ParserError
+      @relocation_state = {}
     end
 
     def replace_relocation_state!(attrs)
       payload = attrs.deep_stringify_keys
-      Rails.cache.write(relocation_state_cache_key, payload, expires_in: RELOCATION_STATE_TTL)
+      AppSetting.set(relocation_state_key, payload.to_json)
       @relocation_state = payload
       drop_relocation_session_payload!
     end
@@ -304,7 +306,7 @@ class BatchYearsController < ApplicationController
     end
 
     def clear_relocation_state!
-      Rails.cache.delete(relocation_state_cache_key)
+      AppSetting.unset(relocation_state_key)
       remove_instance_variable(:@relocation_state) if defined?(@relocation_state)
       drop_relocation_session_payload!
     end
@@ -340,14 +342,16 @@ class BatchYearsController < ApplicationController
       [ pending_book_ids, pending_user_ids, next_roc ]
     end
 
-    # Runs advance + sync inside a transaction and rolls back so DB and stored 學年度 stay unchanged.
+    # Predict books/teachers that would need 指定屆數 after advancing, without writing the DB.
     def dry_run_relocation_pending_ids
-      pending_book_ids = nil
-      pending_user_ids = nil
-      ActiveRecord::Base.transaction do
-        pending_book_ids, pending_user_ids, = advance_school_year_and_sync!
-        raise ActiveRecord::Rollback
-      end
+      class_key = Book.sources[:owned_by_class]
+      donated_key = Book.sources[:donated]
+      pending_book_ids = Book.joins(:batch_year)
+        .where(batch_years: { grade_id: [ BatchYear::YEARS_UNTIL_GRADUATION, BatchYear::GRADE_GRADUATED ] })
+        .where("batch_years.is_office = ? OR books.source = ?", false, donated_key)
+        .where("NOT (books.source = ? AND books.relocation_behavior = ?)", class_key, "stay")
+        .pluck(:id)
+      pending_user_ids = User.where(admin: true).pluck(:id)
       [ pending_book_ids, pending_user_ids ]
     end
 
