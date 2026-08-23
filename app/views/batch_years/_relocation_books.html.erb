@@ -37,7 +37,7 @@
             <tbody class="bg-white divide-y divide-gray-200">
               <% @pending_teacher_books_multi.sort_by { |uid, _| uid.to_i }.each do |user_id, books| %>
                 <% teacher = books.first&.user %>
-                <% allowed_ids = Array(draft.dig("teacher_batch_year_ids", user_id.to_s).presence || teacher&.member_batch_year_ids).reject(&:blank?).map(&:to_i).uniq %>
+                <% allowed_ids = Array(draft.dig("teacher_batch_year_ids", user_id.to_s).presence || teacher&.member_batch_year_ids).reject(&:blank?).map(&:to_s).uniq %>
                 <% allowed_opts = relocation_batch_year_select_options_by_ids(allowed_ids, staged_commit: @relocation_school_year_pending_commit) %>
                 <% books.sort_by { |b| b.title.to_s }.each_with_index do |book, idx| %>
                   <tr>

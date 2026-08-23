@@ -91,6 +91,7 @@ class BatchYearsController < ApplicationController
         g = @relocation_school_year_pending_commit ? by.grade_id_after_school_year_advance : by.grade_id
         h[by.id.to_s] = g
       end
+    @relocation_batch_year_grade_map[INCOMING_GRADE1_KEY] = 1 if @relocation_school_year_pending_commit
     @resigned_restorable = User.where.not(resigned_at: nil).where("resigned_at >= ?", 1.month.ago).includes(:batch_year).order(:name)
 
     teacher_books = @pending_books.select { |b| b.owned_by_teacher? && b.user_id.present? }
@@ -159,11 +160,7 @@ class BatchYearsController < ApplicationController
     required_grades.each do |g|
       tid = grade_teacher_ids[g].to_s.strip
       raw_ids = teacher_batch_h[tid].presence || teacher_batch_h[tid.to_i] || []
-      batch_ids = Array(raw_ids).reject(&:blank?).map(&:to_i).uniq
-      grades =
-        BatchYear.where(id: batch_ids).map do |by|
-          staged_commit ? by.grade_id_after_school_year_advance : by.grade_id
-        end.compact.uniq
+      grades = relocation_choice_grades(raw_ids, staged_commit: staged_commit)
       unless grades.include?(g.to_i)
         redirect_to relocation_batch_years_path, alert: "年級負責老師必須有任教該年級（請先在下方為該老師勾選任教屆數，再重新儲存草稿）。", status: :see_other
         return
@@ -185,7 +182,7 @@ class BatchYearsController < ApplicationController
       book_assignments.each do |book_id, batch_year_id|
         next if batch_year_id.blank?
         book = Book.find_by(id: book_id)
-        batch_year = BatchYear.find_by(id: batch_year_id)
+        batch_year = BatchYear.find_by(id: resolve_relocation_batch_year_id(batch_year_id))
         next if book.blank? || batch_year.blank?
         book.update!(batch_year_id: batch_year.id, grade_id: batch_year.grade_id)
       end
@@ -198,7 +195,7 @@ class BatchYearsController < ApplicationController
         user = User.find_by(id: user_id)
         next if user.blank?
 
-        ids = Array(raw_ids).reject(&:blank?).map(&:to_i).uniq
+        ids = Array(raw_ids).reject(&:blank?).map { |v| resolve_relocation_batch_year_id(v) }.compact.uniq
         next if ids.blank?
 
         primary_id = ids.first
@@ -227,7 +224,7 @@ class BatchYearsController < ApplicationController
         next if batch_year_id.blank?
         user = User.find_by(id: user_id)
         next if user.blank? || !user.restore_allowed?
-        batch_year = BatchYear.find_by(id: batch_year_id)
+        batch_year = BatchYear.find_by(id: resolve_relocation_batch_year_id(batch_year_id))
         next if batch_year.blank?
         user.update!(batch_year_id: batch_year.id, grade_id: batch_year.grade_id, resigned_at: nil)
       end
@@ -236,8 +233,8 @@ class BatchYearsController < ApplicationController
       Array(params[:new_personnel]).each do |p|
         name = p[:name].to_s.strip
         next if name.blank?
-        ids = Array(p[:batch_year_ids]).reject(&:blank?).map(&:to_i).uniq
-        ids = [ p[:batch_year_id].to_s.strip.to_i ] if ids.blank? && p[:batch_year_id].to_s.strip.present?
+        ids = Array(p[:batch_year_ids]).reject(&:blank?).map { |v| resolve_relocation_batch_year_id(v) }.compact.uniq
+        ids = [ resolve_relocation_batch_year_id(p[:batch_year_id]) ].compact if ids.blank? && p[:batch_year_id].to_s.strip.present?
         next if ids.blank?
 
         by = BatchYear.find_by(id: ids.first)
@@ -383,12 +380,12 @@ class BatchYearsController < ApplicationController
         linked = teacher&.member_batch_year_ids.to_a
         if linked.size >= 2
           allowed = teacher_batch_h[uid.to_s] || teacher_batch_h[uid] || teacher&.member_batch_year_ids || []
-          allowed_ids = Array(allowed).reject(&:blank?).map(&:to_i).uniq
+          allowed_ids = Array(allowed).reject(&:blank?).map(&:to_s)
           return "請為每位老師選擇至少一個屆數。" if allowed_ids.blank?
           tbooks.each do |book|
             v = book_h[book.id.to_s].presence || book_h[book.id]
             return "請為老師的每一本書選擇新屆數。" if v.blank?
-            return "老師的書只能選擇該老師任教的屆數。" unless allowed_ids.include?(v.to_i)
+            return "老師的書只能選擇該老師任教的屆數。" unless allowed_ids.include?(v.to_s)
           end
         else
           raw_ids = teacher_batch_h[uid.to_s] || teacher_batch_h[uid] || []
