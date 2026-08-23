@@ -3,12 +3,8 @@ require "rails_helper"
 RSpec.describe "Batch year school-year switch", type: :request do
   let(:batch_year) { create(:batch_year) }
   let(:admin) { create(:user, :superadmin, batch_year: batch_year) }
-  let(:memory_cache) { ActiveSupport::Cache::MemoryStore.new }
 
-  before do
-    allow(Rails).to receive(:cache).and_return(memory_cache)
-    login_as(admin)
-  end
+  before { login_as(admin) }
 
   it "keeps a large pending-book list out of the cookie session" do
     book_ids = (1..1120).to_a
@@ -24,7 +20,7 @@ RSpec.describe "Batch year school-year switch", type: :request do
     expect(session[:pending_relocation_user_ids]).to be_blank
     expect(session[:relocation_draft]).to be_blank
 
-    stored = Rails.cache.read("relocation_workflow/main/#{admin.id}")
+    stored = JSON.parse(AppSetting.get("relocation_workflow/main/#{admin.id}"))
     expect(stored["pending_book_ids"].size).to eq(1120)
     expect(stored["pending_user_ids"]).to eq([ admin.id ])
     expect(stored["pending_commit"]).to eq(true)

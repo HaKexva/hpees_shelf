@@ -171,6 +171,8 @@ class BatchYear < ApplicationRecord
   def self.advance_to_next_school_year!
     max = class_batches.maximum(:batch_number) || 0
     class_batches.find_each do |by|
+      next if by.grade_id.nil?
+
       new_grade = (by.grade_id == YEARS_UNTIL_GRADUATION || by.grade_id == GRADE_GRADUATED) ? GRADE_GRADUATED : (by.grade_id + 1)
       by.update_column(:grade_id, new_grade)
     end

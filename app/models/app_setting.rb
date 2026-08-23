@@ -13,5 +13,9 @@ class AppSetting < ApplicationRecord
       record.update!(value: value.to_s)
       value
     end
+
+    def unset(key)
+      find_by(key: key)&.destroy
+    end
   end
 end
