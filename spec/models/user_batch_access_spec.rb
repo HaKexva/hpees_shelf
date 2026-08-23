@@ -51,4 +51,23 @@ RSpec.describe User, "batch access for borrowing" do
       expect(u.extra_batch_year_ids).to be_empty
     end
   end
+
+  describe "#teaching_batch_year_ids" do
+    it "excludes graduated 屆數 from the two-or-more teaching count" do
+      graduated = create(:batch_year, batch_number: 500, grade_id: BatchYear::GRADE_GRADUATED)
+      current = create(:batch_year, batch_number: 603, grade_id: 3)
+      u = create(:user, :admin, batch_year: current, extra_batch_years: [ graduated ])
+      expect(u.member_batch_year_ids).to contain_exactly(current.id, graduated.id)
+      expect(u.teaching_batch_year_ids).to contain_exactly(current.id)
+      expect(u.multi_cohort_teacher?).to be false
+    end
+
+    it "treats current grade 6 as graduated after school-year advance" do
+      g6 = create(:batch_year, batch_number: 604, grade_id: 6)
+      g5 = create(:batch_year, batch_number: 605, grade_id: 5)
+      u = create(:user, :admin, batch_year: g5, extra_batch_years: [ g6 ])
+      expect(u.multi_cohort_teacher?).to be true
+      expect(u.multi_cohort_teacher?(after_school_year_advance: true)).to be false
+    end
+  end
 end

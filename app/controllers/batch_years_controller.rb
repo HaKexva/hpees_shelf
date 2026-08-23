@@ -100,8 +100,7 @@ class BatchYearsController < ApplicationController
     @pending_teacher_books_single = {}
     grouped.each do |uid, books|
       teacher = books.first&.user
-      linked_ids = teacher&.member_batch_year_ids.to_a
-      if linked_ids.size >= 2
+      if teacher&.multi_cohort_teacher?(after_school_year_advance: @relocation_school_year_pending_commit)
         @pending_teacher_books_multi[uid] = books
       else
         @pending_teacher_books_single[uid] = books
@@ -167,7 +166,7 @@ class BatchYearsController < ApplicationController
       end
     end
     pending_book_ids = Array(relocation_state["pending_book_ids"])
-    if (msg = relocation_book_assignments_error_message(pending_book_ids))
+    if (msg = relocation_book_assignments_error_message(pending_book_ids, staged_commit: staged_commit))
       redirect_to relocation_batch_years_path, alert: msg, status: :see_other
       return
     end
@@ -211,7 +210,7 @@ class BatchYearsController < ApplicationController
       teacher_books.group_by(&:user_id).each do |_uid, books|
         teacher = books.first&.user
         next if teacher.blank?
-        next if teacher.member_batch_year_ids.size >= 2
+        next if teacher.multi_cohort_teacher?
         next if teacher.resigned?
         by = teacher.batch_year
         next if by.blank?
@@ -370,7 +369,7 @@ class BatchYearsController < ApplicationController
     end
 
     # Every pending book must have an explicit new 屆數 (no silent "keep current batch").
-    def relocation_book_assignments_error_message(pending_book_ids)
+    def relocation_book_assignments_error_message(pending_book_ids, staged_commit: false)
       return nil if pending_book_ids.blank?
 
       books = Book.where(id: pending_book_ids).to_a
@@ -381,8 +380,7 @@ class BatchYearsController < ApplicationController
 
       books.select { |b| b.owned_by_teacher? && b.user_id.present? }.group_by(&:user_id).each do |uid, tbooks|
         teacher = User.find_by(id: uid)
-        linked = teacher&.member_batch_year_ids.to_a
-        if linked.size >= 2
+        if teacher&.multi_cohort_teacher?(after_school_year_advance: staged_commit)
           allowed = teacher_batch_h[uid.to_s] || teacher_batch_h[uid] || teacher&.member_batch_year_ids || []
           allowed_ids = Array(allowed).reject(&:blank?).map(&:to_s)
           return "請為每位老師選擇至少一個屆數。" if allowed_ids.blank?
