@@ -1,7 +1,7 @@
 source "https://rubygems.org"
 
 # Bundle edge Rails instead: gem "rails", github: "rails/rails", branch: "main"
-gem "rails", "~> 8.1.1"
+gem "rails", "~> 8.1.1", ">= 8.1.3.1"
 # CSV parsing (no longer included by default in Ruby 3.4+)
 gem "csv"
 # The modern asset pipeline for Rails [https://github.com/rails/propshaft]
@@ -99,6 +99,7 @@ gem "rack", ">= 3.2.5"
 gem "addressable", ">= 2.9.0"
 # See GHSA-q2mw-fvj9-vvcw and related (via mail → actionmailer)
 gem "net-imap", ">= 0.6.4.1"
+gem "mail", ">= 2.9.1"
 # GHSA-pp92-crg2-gfv9
 gem "oauth2", ">= 2.0.22"
 # GHSA-cj75-f6xr-r4g7
