@@ -32,8 +32,8 @@
     <%= render "relocation_books" %>
 
     <div class="bg-white rounded-lg shadow p-6">
-      <h2 class="font-semibold text-lg mb-2">年級負責老師（每個年級 1 位）</h2>
-      <p class="text-sm text-gray-600 mb-4">請為每個年級勾選 1 位老師；且在完成書籍/老師屆數選擇後先按「儲存草稿」，才會開放移動。</p>
+      <h2 class="font-semibold text-lg mb-2">年級負責老師（每個有老師的年級 1 位）</h2>
+      <p class="text-sm text-gray-600 mb-4">請為「有任教老師」的年級勾選 1 位；沒有老師的年級會略過。完成書籍／老師屆數選擇後請先按「儲存草稿」，才會開放移動。</p>
       <div class="overflow-x-auto">
         <table class="min-w-full divide-y divide-gray-200">
           <thead class="bg-gray-50">
@@ -81,6 +81,7 @@
                       </label>
                     <% end %>
                   </div>
+                  <p class="mt-2 text-xs text-gray-400 hidden" data-relocation-guard-empty-grade data-grade="<%= g %>">此年級目前沒有任教老師，儲存時會略過。</p>
                   <% if teachers.any? %>
                     <p class="mt-2 text-xs text-gray-500">僅顯示有任教該年級的老師（依下方「任教屆數（複選）」）。</p>
                   <% end %>
@@ -122,12 +123,12 @@
                                      class: "hidden",
                                      data: { extra_batch_select_target: "select" } %>
 
-                      <div class="border border-gray-300 rounded-md px-3 py-2 bg-white w-72">
+                      <div class="border border-gray-300 rounded-md px-3 py-2 bg-white w-80">
                         <button type="button"
-                                class="w-full flex justify-between items-center text-sm text-gray-700"
+                                class="w-full flex justify-between items-start gap-2 text-sm text-gray-700"
                                 data-action="click->extra-batch-select#togglePanel"
                                 aria-haspopup="listbox">
-                          <span data-extra-batch-select-target="summary">尚未選擇屆數</span>
+                          <span data-extra-batch-select-target="summary" class="text-left flex-1 min-w-0 whitespace-normal break-words">尚未選擇屆數</span>
                           <span class="text-gray-400 text-xs">▼</span>
                         </button>
                         <div class="mt-2 border-t border-gray-200 pt-2 hidden max-h-48 overflow-y-auto"

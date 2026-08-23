@@ -33,6 +33,7 @@ export default class extends Controller {
     const draftOk = this.draftSavedValue && !this.dirty
     const gradesOk = this.allGradesHaveExactlyOneTeacher()
     const eligibleOk = this.allCheckedTeachersEligibleForGrade()
+    this.updateEmptyGradeHints()
     const ok = draftOk && gradesOk && eligibleOk
 
     if (this.hasCommitButtonTarget) {
@@ -45,7 +46,7 @@ export default class extends Controller {
       const msgs = []
       if (!this.draftSavedValue) msgs.push("請先按「儲存草稿」。")
       else if (this.dirty) msgs.push("內容已變更，請重新儲存草稿。")
-      if (!gradesOk) msgs.push("每個年級需勾選 1 位老師。")
+      if (!gradesOk) msgs.push("有老師可選的年級需勾選 1 位老師。")
       if (!eligibleOk) msgs.push("負責老師需有任教該年級（下方複選需包含該年級）。")
       this.hintTarget.textContent = msgs.join(" ")
       this.hintTarget.classList.toggle("hidden", ok)
@@ -54,12 +55,25 @@ export default class extends Controller {
 
   allGradesHaveExactlyOneTeacher() {
     for (let g = 1; g <= 6; g++) {
+      if (!this.gradeHasAnyTeacher(g)) continue
       const checked = this.element.querySelectorAll(
         `input[type="checkbox"][name="grade_teacher_ids[${g}]"]:checked`
       )
       if (checked.length !== 1) return false
     }
     return true
+  }
+
+  gradeHasAnyTeacher(grade) {
+    const labels = this.element.querySelectorAll(
+      `[data-relocation-guard-grade-teacher-label][data-grade="${grade}"]`
+    )
+    return Array.from(labels).some((el) => {
+      if (el.classList.contains("hidden")) return false
+      const display = (el.style && el.style.display) || ""
+      if (display === "none") return false
+      return true
+    })
   }
 
   enforceSingleGradeTeacherCheck(event) {
@@ -192,6 +206,14 @@ export default class extends Controller {
         const cb = label.querySelector("input[type='checkbox']")
         if (cb && cb.checked) cb.checked = false
       }
+    })
+  }
+
+  updateEmptyGradeHints() {
+    this.element.querySelectorAll("[data-relocation-guard-empty-grade]").forEach((el) => {
+      const grade = Number(el.getAttribute("data-grade") || "0")
+      if (!grade) return
+      el.classList.toggle("hidden", this.gradeHasAnyTeacher(grade))
     })
   }
 }

@@ -49,10 +49,10 @@
       <!-- Visible Stimulus multi-select UI -->
       <div class="border border-gray-300 rounded-md px-3 py-2 bg-white">
         <button type="button"
-                class="w-full flex justify-between items-center text-sm text-gray-700"
+                class="w-full flex justify-between items-start gap-2 text-sm text-gray-700"
                 data-action="click->extra-batch-select#togglePanel"
                 aria-haspopup="listbox">
-          <span data-extra-batch-select-target="summary">尚未選擇屆數</span>
+          <span data-extra-batch-select-target="summary" class="text-left flex-1 min-w-0 whitespace-normal break-words">尚未選擇屆數</span>
           <span class="text-gray-400 text-xs">▼</span>
         </button>
         <div class="mt-2 border-t border-gray-200 pt-2 hidden max-h-48 overflow-y-auto"
