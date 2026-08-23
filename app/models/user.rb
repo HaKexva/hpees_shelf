@@ -248,6 +248,20 @@ class User < ApplicationRecord
     ([ batch_year_id ] + extra_batch_year_ids).compact.uniq
   end
 
+  # In-school 屆數 only (excludes 畢業). Used for 「任教兩屆或以上」 on relocation.
+  def teaching_batch_year_ids(after_school_year_advance: false)
+    BatchYear.where(id: member_batch_year_ids).filter_map do |by|
+      grade = after_school_year_advance ? by.grade_id_after_school_year_advance : by.grade_id
+      next if grade.nil? || grade == BatchYear::GRADE_GRADUATED
+
+      by.id
+    end
+  end
+
+  def multi_cohort_teacher?(after_school_year_advance: false)
+    teaching_batch_year_ids(after_school_year_advance: after_school_year_advance).size >= 2
+  end
+
   def may_borrow_from_batch?(batch_year_id)
     return true if superadmin?
     return false if batch_year_id.blank?

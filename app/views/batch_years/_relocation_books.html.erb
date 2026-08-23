@@ -7,7 +7,7 @@
     <p class="text-sm text-gray-600 mb-3">升學年後，若書籍所屬屆數已標為「畢業」，下列來源的書可能須在本頁重新選擇新屆數（實際須處理者以下方清單為準）。</p>
     <p class="text-sm font-medium text-gray-800 mb-1">會需要處理的來源（依下方清單為準）</p>
     <ul class="list-disc list-inside text-sm text-gray-700 space-y-1.5 mb-4">
-      <li><span class="font-medium">老師的書（該老師教兩屆或以上）</span>：需針對每一本書分開選擇新屆數。</li>
+      <li><span class="font-medium">老師的書（該老師任教兩屆或以上，不含畢業屆）</span>：需針對每一本書分開選擇新屆數。</li>
       <li><span class="font-medium">老師的書（老師教單一屆）</span>：不在此區逐本選擇，會與下方「人員」的該老師主屆數指定同步。</li>
       <li><span class="font-medium">捐贈的書</span>：逐本選擇新屆數。</li>
       <li><span class="font-medium">班級的書</span>：平時隨班自動移動；若班級屆數已畢業且仍需改掛，會在下方清單逐本選擇新屆數。</li>
@@ -23,7 +23,7 @@
   <% if @pending_books.any? || (@donated_books_optional.present? && @donated_books_optional.any?) %>
     <% if @pending_teacher_books_multi.present? %>
       <div class="bg-white rounded-lg shadow p-6">
-        <h3 class="font-semibold text-lg mb-4">老師的書（該老師教兩屆或以上）：逐本指定新屆數</h3>
+        <h3 class="font-semibold text-lg mb-4">老師的書（該老師任教兩屆或以上，不含畢業屆）：逐本指定新屆數</h3>
         <p class="text-sm text-gray-600 mb-4">下列老師的書需要針對每一本書分開選擇新屆數。</p>
         <div class="overflow-x-auto">
           <table class="min-w-full divide-y divide-gray-200">
