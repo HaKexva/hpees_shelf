@@ -58,9 +58,13 @@ class BatchYearsController < ApplicationController
   def reassign_grades
     pending_book_ids, pending_user_ids = dry_run_relocation_pending_ids
     if pending_book_ids.any? || pending_user_ids.any?
-      session[:pending_relocation_book_ids] = pending_book_ids
-      session[:pending_relocation_user_ids] = pending_user_ids
-      session[:relocation_school_year_pending_commit] = true
+      replace_relocation_state!(
+        "pending_book_ids" => pending_book_ids,
+        "pending_user_ids" => pending_user_ids,
+        "pending_commit" => true,
+        "draft" => {},
+        "draft_saved" => false
+      )
       redirect_to relocation_batch_years_path,
                   notice: "請填寫並提交「儲存屆數指定」以完成下學年度切換（儲存草稿不會更新學年度）。",
                   status: :see_other
@@ -71,15 +75,17 @@ class BatchYearsController < ApplicationController
   end
 
   def relocation
-    @relocation_school_year_pending_commit = session[:relocation_school_year_pending_commit].present?
-    pending_book_ids = session[:pending_relocation_book_ids].to_a
+    drop_relocation_session_payload!
+    state = relocation_state
+    @relocation_school_year_pending_commit = state["pending_commit"].present?
+    pending_book_ids = Array(state["pending_book_ids"])
     @pending_books = Book.where(id: pending_book_ids).includes(:batch_year).to_a
-    @pending_users = User.where(id: session[:pending_relocation_user_ids].to_a).includes(:batch_year).to_a
+    @pending_users = User.where(id: Array(state["pending_user_ids"])).includes(:batch_year).to_a
     @batch_years = BatchYear.class_batches_by_number_desc
     @batch_years_with_office = BatchYear.by_number_desc
     @any_library_books_to_return = Book.where(source: :owned_by_library).where.not(status: Book::STATUS_RETURNED_LIBRARY).exists?
-    @relocation_draft = session[:relocation_draft] || {}
-    @relocation_draft_saved = session[:relocation_draft_saved].present?
+    @relocation_draft = state["draft"].presence || {}
+    @relocation_draft_saved = state["draft_saved"].present?
     @relocation_batch_year_grade_map =
       BatchYear.by_number_desc.each_with_object({}) do |by, h|
         g = @relocation_school_year_pending_commit ? by.grade_id_after_school_year_advance : by.grade_id
@@ -111,10 +117,7 @@ class BatchYearsController < ApplicationController
           .includes(:batch_year)
           .order(:title)
     if @pending_books.empty? && @pending_users.empty? && @resigned_restorable.empty?
-      session.delete(:pending_relocation_book_ids)
-      session.delete(:pending_relocation_user_ids)
-      session.delete(:relocation_draft)
-      session.delete(:relocation_school_year_pending_commit)
+      clear_relocation_state!
       redirect_to batch_years_path, notice: "無待指定屆數的項目。"
     else
       render :relocation
@@ -124,12 +127,12 @@ class BatchYearsController < ApplicationController
   def apply_relocation
     if params[:commit].to_s == "儲存草稿"
       persist_relocation_draft!
-      session[:relocation_draft_saved] = true
+      write_relocation_state!("draft_saved" => true)
       redirect_to relocation_batch_years_path, notice: "草稿已儲存。", status: :see_other
       return
     end
 
-    unless session[:relocation_draft_saved].present?
+    unless relocation_state["draft_saved"].present?
       redirect_to relocation_batch_years_path, alert: "請先儲存草稿，確認書籍與老師勾選後才可移動。", status: :see_other
       return
     end
@@ -142,7 +145,7 @@ class BatchYearsController < ApplicationController
       return
     end
 
-    staged_commit = session[:relocation_school_year_pending_commit].present?
+    staged_commit = relocation_state["pending_commit"].present?
 
     unless current_user&.superadmin?
       picked_ids = required_grades.map { |g| grade_teacher_ids[g].to_s.strip }.uniq
@@ -166,7 +169,7 @@ class BatchYearsController < ApplicationController
         return
       end
     end
-    pending_book_ids = session[:pending_relocation_book_ids].to_a
+    pending_book_ids = Array(relocation_state["pending_book_ids"])
     if (msg = relocation_book_assignments_error_message(pending_book_ids))
       redirect_to relocation_batch_years_path, alert: msg, status: :see_other
       return
@@ -190,6 +193,8 @@ class BatchYearsController < ApplicationController
       # Teachers: primary batch + extra batches (multi-select), or resigned
       teacher_batch_h = relocation_param_hash(:teacher_batch_year_ids)
       teacher_batch_h.each do |user_id, raw_ids|
+        next if !current_user.superadmin? && user_id.to_s != current_user.id.to_s
+
         user = User.find_by(id: user_id)
         next if user.blank?
 
@@ -244,10 +249,7 @@ class BatchYearsController < ApplicationController
       end
     end
 
-    session.delete(:relocation_school_year_pending_commit) if staged_commit
-    session.delete(:pending_relocation_book_ids)
-    session.delete(:pending_relocation_user_ids)
-    session.delete(:relocation_draft)
+    clear_relocation_state!
     redirect_to batch_years_path, notice: "已儲存屆數指定。", status: :see_other
   end
 
@@ -273,6 +275,47 @@ class BatchYearsController < ApplicationController
   end
 
   private
+    RELOCATION_STATE_TTL = 12.hours
+    RELOCATION_SESSION_KEYS = %i[
+      pending_relocation_book_ids
+      pending_relocation_user_ids
+      relocation_draft
+      relocation_draft_saved
+      relocation_school_year_pending_commit
+    ].freeze
+
+    def relocation_state_cache_key
+      "relocation_workflow/#{demo_mode? ? "demo" : "main"}/#{current_user.id}"
+    end
+
+    def relocation_state
+      return @relocation_state if defined?(@relocation_state) && @relocation_state
+
+      raw = Rails.cache.read(relocation_state_cache_key)
+      @relocation_state = (raw.presence || {}).stringify_keys
+    end
+
+    def replace_relocation_state!(attrs)
+      payload = attrs.deep_stringify_keys
+      Rails.cache.write(relocation_state_cache_key, payload, expires_in: RELOCATION_STATE_TTL)
+      @relocation_state = payload
+      drop_relocation_session_payload!
+    end
+
+    def write_relocation_state!(attrs)
+      replace_relocation_state!(relocation_state.merge(attrs.deep_stringify_keys))
+    end
+
+    def clear_relocation_state!
+      Rails.cache.delete(relocation_state_cache_key)
+      remove_instance_variable(:@relocation_state) if defined?(@relocation_state)
+      drop_relocation_session_payload!
+    end
+
+    def drop_relocation_session_payload!
+      RELOCATION_SESSION_KEYS.each { |key| session.delete(key) }
+    end
+
     # Full advance + sync (persisted). Returns [pending_book_ids, pending_user_ids, next_roc].
     def advance_school_year_and_sync!
       BatchYear.advance_to_next_school_year!
@@ -319,6 +362,12 @@ class BatchYearsController < ApplicationController
       raw.to_h
     end
 
+    def relocation_stringify_keys(h)
+      return {} if h.blank?
+
+      h.to_h.transform_keys(&:to_s)
+    end
+
     # Every pending book must have an explicit new 屆數 (no silent "keep current batch").
     def relocation_book_assignments_error_message(pending_book_ids)
       return nil if pending_book_ids.blank?
@@ -362,13 +411,51 @@ class BatchYearsController < ApplicationController
         p.is_a?(Hash) ? p.slice("name", "batch_year_id", "batch_year_ids") : {}
       end
       new_personnel = normalize_new_personnel_rows(new_personnel)
-      session[:relocation_draft] = {
-        "book_assignments" => relocation_param_hash(:book_assignments),
-        "teacher_batch_year_ids" => relocation_param_hash(:teacher_batch_year_ids),
-        "grade_teacher_ids" => relocation_param_hash(:grade_teacher_ids),
-        "resigned_assignments" => relocation_param_hash(:resigned_assignments),
-        "new_personnel" => new_personnel
-      }
+
+      prev = relocation_state["draft"].presence || {}
+      book_assignments = relocation_stringify_keys(relocation_param_hash(:book_assignments))
+      resigned_assignments = relocation_stringify_keys(relocation_param_hash(:resigned_assignments))
+
+      if current_user&.superadmin?
+        teacher_batch_year_ids = relocation_stringify_keys(relocation_param_hash(:teacher_batch_year_ids))
+        grade_teacher_ids = relocation_stringify_keys(relocation_param_hash(:grade_teacher_ids))
+      else
+        cid = current_user.id.to_s
+        tb_raw = relocation_stringify_keys(relocation_param_hash(:teacher_batch_year_ids))
+        own_picks = tb_raw[cid]
+
+        prev_tb = relocation_stringify_keys(prev["teacher_batch_year_ids"] || {})
+        if prev_tb.blank?
+          prev_tb = User.where(id: Array(relocation_state["pending_user_ids"])).each_with_object({}) do |u, acc|
+            acc[u.id.to_s] = u.member_batch_year_ids.map(&:to_s)
+          end
+        end
+        teacher_batch_year_ids = prev_tb.merge(
+          cid => Array(own_picks).flatten.compact.map(&:to_s).reject(&:blank?)
+        )
+
+        gt_raw = relocation_stringify_keys(relocation_param_hash(:grade_teacher_ids))
+        prev_gt = relocation_stringify_keys(prev["grade_teacher_ids"] || {})
+        sanitized_gt = {}
+        gt_raw.each do |g, tid|
+          t = tid.to_s.strip
+          next if t.blank?
+          next unless t == cid
+
+          sanitized_gt[g.to_s] = t
+        end
+        grade_teacher_ids = prev_gt.merge(sanitized_gt)
+      end
+
+      write_relocation_state!(
+        "draft" => {
+          "book_assignments" => book_assignments,
+          "teacher_batch_year_ids" => teacher_batch_year_ids,
+          "grade_teacher_ids" => grade_teacher_ids,
+          "resigned_assignments" => resigned_assignments,
+          "new_personnel" => new_personnel
+        }
+      )
     end
 
     def set_batch_year
