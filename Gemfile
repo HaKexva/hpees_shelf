@@ -80,7 +80,7 @@ end
 
 gem "tailwindcss-rails", "~> 4.4"
 
-gem "ruby_ui", "~> 1.1", group: :development, require: false
+gem "ruby_ui", "~> 1.2", group: :development, require: false
 
 gem "phlex-rails", "~> 2.4"
 
