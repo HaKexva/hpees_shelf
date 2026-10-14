@@ -112,7 +112,7 @@ gem "msgpack", ">= 1.8.2"
 
 gem "omniauth-google-oauth2"
 
-gem "roo", "~> 2.10"
+gem "roo", "~> 3.0"
 
 gem "roo-xls", "~> 2.0"
 
